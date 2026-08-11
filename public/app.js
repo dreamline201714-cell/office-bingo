@@ -265,42 +265,78 @@ const BINGO_PRESETS = [
 
     function connectNetwork() {
         const isFileProtocol = (window.location.protocol === 'file:');
-        const hostname = window.location.hostname || 'localhost';
 
         if (isFileProtocol) {
             tryLocalWebSocket("ws://localhost:8000/ws");
             return;
         }
 
+        const protocol = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';
+        const host = window.location.host;
+        const wsUrl = `${protocol}//${host}/ws`;
 
-            try {
-                socket = new WebSocket(wsUrl);
+        statusText.innerText = '서버 연결 중...';
+        statusDot.className = 'status-dot';
 
-                socket.onopen = () => {
-                    statusText.innerText = '서버 연결됨';
-                    statusDot.className = 'status-dot connected';
-                    checkUrlQueryParams();
-                };
-
-                socket.onmessage = (event) => {
-                    try {
-                        const data = JSON.parse(event.data);
-                        handleServerMessage(data);
-                    } catch (e) {
-                        console.error('WS Parse Error:', e);
-                    }
-                };
-
-                socket.onclose = () => {
-                    initP2PFallback();
-                };
-
-                socket.onerror = () => {
-                    initP2PFallback();
-                };
-            } catch (e) {
-                initP2PFallback();
+        let connectionTimeout = setTimeout(() => {
+            if (!socket || socket.readyState !== WebSocket.OPEN) {
+                console.warn("WebSocket timeout - activating Standalone Offline Mode");
+                initStandaloneMode();
             }
+        }, 1200);
+
+        try {
+            socket = new WebSocket(wsUrl);
+
+            socket.onopen = () => {
+                clearTimeout(connectionTimeout);
+                statusText.innerText = '서버 연결됨';
+                statusDot.className = 'status-dot connected';
+                checkUrlQueryParams();
+            };
+
+            socket.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleServerMessage(data);
+                } catch (e) {
+                    console.error('WS Parse Error:', e);
+                }
+            };
+
+            socket.onclose = () => {
+                clearTimeout(connectionTimeout);
+                tryFallbackWebSocket(`${protocol}//${host}`);
+            };
+
+            socket.onerror = () => {
+                clearTimeout(connectionTimeout);
+                tryFallbackWebSocket(`${protocol}//${host}`);
+            };
+        } catch (e) {
+            clearTimeout(connectionTimeout);
+            initStandaloneMode();
+        }
+    }
+
+    function tryFallbackWebSocket(fallbackUrl) {
+        try {
+            socket = new WebSocket(fallbackUrl);
+            socket.onopen = () => {
+                statusText.innerText = '서버 연결됨';
+                statusDot.className = 'status-dot connected';
+                checkUrlQueryParams();
+            };
+            socket.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleServerMessage(data);
+                } catch (e) {}
+            };
+            socket.onclose = () => initP2PFallback();
+            socket.onerror = () => initP2PFallback();
+        } catch (e) {
+            initP2PFallback();
         }
     }
 
@@ -369,18 +405,44 @@ const BINGO_PRESETS = [
         }
     }
 
+    const localSyncChannel = (typeof BroadcastChannel !== 'undefined') ? new BroadcastChannel('office_bingo_channel') : null;
+
+    if (localSyncChannel) {
+        localSyncChannel.onmessage = (e) => {
+            const data = e.data;
+            if (!data) return;
+            if (data.type === 'P2P_SYNC_REQ' && isHost && currentRoomId === data.roomCode) {
+                broadcastP2PState();
+            } else if (data.type === 'ROOM_UPDATED' && data.roomCode === currentRoomId) {
+                if (!isHost) {
+                    roomState = data.state;
+                    window.roomState = roomState;
+                    updateArenaUI();
+                }
+            } else if (data.type === 'P2P_JOIN_LOCAL' && isHost && currentRoomId === data.roomCode) {
+                handleP2PHostMessage(null, {
+                    type: 'P2P_JOIN_REQUEST',
+                    player_id: data.player_id,
+                    nickname: data.nickname
+                });
+            }
+        };
+    }
+
     function handleLocalOrP2PAction(data) {
         const type = data.type;
 
         if (type === 'CREATE_ROOM') {
-            const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+            const roomCode = window.currentRoomCode || window.currentRoomId || Math.random().toString(36).substring(2, 8).toUpperCase();
             currentRoomId = roomCode;
+            window.currentRoomId = roomCode;
+            window.currentRoomCode = roomCode;
             myPlayerId = 'player_' + Math.random().toString(36).substring(2, 6);
             isHost = true;
 
-            const size = data.size || 5;
+            const size = data.size || selectedSize || 5;
             const topic = data.topic || '자유 주제';
-            const gameMode = data.game_mode || 'WINNER';
+            const gameMode = data.game_mode || selectedGameMode || 'WINNER';
             const wordPool = data.word_pool || [];
 
             const board = generateBoard(wordPool, size);
@@ -411,9 +473,17 @@ const BINGO_PRESETS = [
                 chat_logs: []
             };
 
+            window.roomState = roomState;
+            localStorage.setItem('bingo_room_' + roomCode, JSON.stringify(roomState));
+
+            if (localSyncChannel) {
+                localSyncChannel.postMessage({ type: 'ROOM_UPDATED', roomCode: roomCode, state: roomState });
+            }
+
             if (isP2P && typeof Peer !== 'undefined') {
                 try {
-                    peer = new Peer('bingo-room-' + roomCode);
+                    const peerId = 'bingo-room-' + roomCode.toLowerCase();
+                    peer = new Peer(peerId);
                     peer.on('connection', (conn) => {
                         p2pConnections.push(conn);
                         conn.on('data', (playerMsg) => {
@@ -433,14 +503,59 @@ const BINGO_PRESETS = [
         else if (type === 'JOIN_ROOM') {
             const roomCode = data.room_id.toUpperCase();
             currentRoomId = roomCode;
+            window.currentRoomId = roomCode;
+            window.currentRoomCode = roomCode;
             myPlayerId = 'player_' + Math.random().toString(36).substring(2, 6);
             isHost = false;
+
+            const cachedStateStr = localStorage.getItem('bingo_room_' + roomCode);
+            if (cachedStateStr) {
+                try {
+                    const parsedState = JSON.parse(cachedStateStr);
+                    const size = parsedState.config.size || 5;
+                    const wordPool = parsedState.config.word_pool || [];
+                    const board = generateBoard(wordPool, size);
+                    const color = '#' + Math.floor(Math.random()*16777215).toString(16);
+
+                    const existingPlayer = parsedState.players.find(p => p.nickname === data.nickname);
+                    if (!existingPlayer) {
+                        parsedState.players.push({
+                            player_id: myPlayerId,
+                            nickname: data.nickname || '참여자',
+                            is_host: false,
+                            is_ready: false,
+                            is_escaped: false,
+                            escape_rank: 0,
+                            is_loser: false,
+                            color: color,
+                            score: 0,
+                            board: board,
+                            marked: []
+                        });
+                    }
+
+                    roomState = parsedState;
+                    window.roomState = roomState;
+                    localStorage.setItem('bingo_room_' + roomCode, JSON.stringify(roomState));
+
+                    if (localSyncChannel) {
+                        localSyncChannel.postMessage({
+                            type: 'P2P_JOIN_LOCAL',
+                            roomCode: roomCode,
+                            player_id: myPlayerId,
+                            nickname: data.nickname
+                        });
+                        localSyncChannel.postMessage({ type: 'ROOM_UPDATED', roomCode: roomCode, state: roomState });
+                    }
+                } catch(e) {}
+            }
 
             if (isP2P && typeof Peer !== 'undefined') {
                 try {
                     peer = new Peer();
                     peer.on('open', () => {
-                        p2pHostConn = peer.connect('bingo-room-' + roomCode);
+                        const targetPeerId = 'bingo-room-' + roomCode.toLowerCase();
+                        p2pHostConn = peer.connect(targetPeerId);
                         p2pHostConn.on('open', () => {
                             p2pHostConn.send({
                                 type: 'P2P_JOIN_REQUEST',
@@ -457,12 +572,19 @@ const BINGO_PRESETS = [
                     console.error('PeerJS Join Exception:', e);
                 }
             }
+
+            lobbySection.style.display = 'none';
+            arenaSection.style.display = 'block';
+            updateArenaUI();
         }
         else if (isHost) {
             processHostAction(data);
             broadcastP2PState();
         } else if (p2pHostConn) {
             p2pHostConn.send(data);
+            if (localSyncChannel) {
+                localSyncChannel.postMessage({ type: 'P2P_SYNC_REQ', roomCode: currentRoomId });
+            }
         }
     }
 
@@ -750,23 +872,37 @@ const BINGO_PRESETS = [
             startClientTurnTimer(roomState.turn_time_remaining || 15);
         }
 
-        if (myPlayer && myPlayer.is_host) {
-            hostControls.style.display = 'block';
+    window.doToggleReady = function() {
+        initAudio();
+        sendMessage({ type: 'TOGGLE_READY' });
+    };
 
-            if (status === 'WAITING') {
-                btnHostStart.style.display = 'inline-block';
-                const allReady = roomState.players.length > 0 && roomState.players.every(p => p.is_ready);
-                btnHostStart.disabled = !allReady;
-                const readyCount = roomState.players.filter(p => p.is_ready).length;
-                btnHostStart.innerText = allReady 
-                    ? '🎮 게임 시작하기!' 
-                    : `🎮 게임 시작 (${readyCount}/${roomState.players.length}명 준비됨)`;
-            } else {
-                btnHostStart.style.display = 'none';
-            }
+    window.doStartGame = function() {
+        initAudio();
+        sendMessage({ type: 'START_GAME' });
+    };
+
+    if (myPlayer && myPlayer.is_host) {
+        hostControls.style.display = 'block';
+
+        if (status === 'WAITING') {
+            btnHostStart.style.display = 'inline-block';
+            const readyCount = roomState.players.filter(p => p.is_ready).length;
+            const nonHostPlayers = roomState.players.filter(p => !p.is_host);
+            const allNonHostsReady = nonHostPlayers.length === 0 || nonHostPlayers.every(p => p.is_ready);
+
+            btnHostStart.disabled = false;
+            btnHostStart.style.opacity = '1';
+            btnHostStart.style.cursor = 'pointer';
+            btnHostStart.innerText = (allNonHostsReady || readyCount > 0) 
+                ? '🎮 게임 시작하기!' 
+                : `🎮 게임 시작 (${readyCount}/${roomState.players.length}명 준비 완료)`;
         } else {
-            hostControls.style.display = 'none';
+            btnHostStart.style.display = 'none';
         }
+    } else {
+        hostControls.style.display = 'none';
+    }
 
         if (myPlayer) {
             renderBingoBoard(myPlayer.board, myPlayer.marked, config.size, status, myPlayer.is_ready, isMyTurn);
@@ -1142,70 +1278,135 @@ const BINGO_PRESETS = [
             .filter(w => w.length > 0);
     }
 
-    document.querySelectorAll('.mode-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
+    document.addEventListener('click', (e) => {
+        // Mode Button (승자 결정전 / 패자 결정전)
+        const modeBtn = e.target.closest('.mode-btn');
+        if (modeBtn) {
             document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('selected'));
-            btn.classList.add('selected');
-            selectedGameMode = btn.getAttribute('data-mode');
+            modeBtn.classList.add('selected');
+            selectedGameMode = modeBtn.getAttribute('data-mode') || (modeBtn.innerText.includes('패자') ? 'LOSER' : 'WINNER');
             playSound('click');
-        });
-    });
+            return;
+        }
 
-    tabBtnCreate.addEventListener('click', () => {
-        tabBtnCreate.classList.add('active');
-        tabBtnJoin.classList.remove('active');
-        createRoomForm.style.display = 'block';
-        joinRoomForm.style.display = 'none';
-        playSound('click');
-    });
-
-    tabBtnJoin.addEventListener('click', () => {
-        tabBtnJoin.classList.add('active');
-        tabBtnCreate.classList.remove('active');
-        joinRoomForm.style.display = 'block';
-        createRoomForm.style.display = 'none';
-        playSound('click');
-    });
-
-    document.querySelectorAll('.size-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
+        // Size Button (3x3 / 4x4 / 5x5)
+        const sizeBtn = e.target.closest('.size-btn');
+        if (sizeBtn) {
             document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('selected'));
-            btn.classList.add('selected');
-            selectedSize = parseInt(btn.getAttribute('data-size'));
+            sizeBtn.classList.add('selected');
+            selectedSize = parseInt(sizeBtn.getAttribute('data-size')) || 5;
             playSound('click');
-        });
+            return;
+        }
+
+        // Preset Chip Click
+        const presetChip = e.target.closest('.preset-chip');
+        if (presetChip) {
+            document.querySelectorAll('.preset-chip').forEach(c => c.classList.remove('active'));
+            presetChip.classList.add('active');
+
+            const presetId = presetChip.getAttribute('data-preset');
+            const presetsList = (typeof BINGO_PRESETS !== 'undefined') ? BINGO_PRESETS : [];
+            const preset = presetsList.find(p => p.id === presetId);
+            
+            if (preset) {
+                if (preset.id === 'custom') {
+                    if (createTopicInput) createTopicInput.value = '자유 주제';
+                    if (createWordsInput) createWordsInput.value = '';
+                } else {
+                    if (createTopicInput) createTopicInput.value = preset.title.replace(/^[^\s]+\s+/, '');
+                    if (createWordsInput) createWordsInput.value = (preset.words || []).join('\n');
+                }
+            } else {
+                const text = presetChip.innerText.trim();
+                if (text.includes('자유')) {
+                    if (createTopicInput) createTopicInput.value = '자유 주제';
+                    if (createWordsInput) createWordsInput.value = '';
+                } else if (text.includes('코스피')) {
+                    const pK = presetsList.find(p => p.id === 'kospi_100');
+                    if (createTopicInput) createTopicInput.value = '코스피 시총 Top 100';
+                    if (createWordsInput && pK) createWordsInput.value = pK.words.join('\n');
+                } else if (text.includes('색깔')) {
+                    const pC = presetsList.find(p => p.id === 'colors_30');
+                    if (createTopicInput) createTopicInput.value = '다양한 색깔 (30가지)';
+                    if (createWordsInput && pC) createWordsInput.value = pC.words.join('\n');
+                } else if (text.includes('숫자')) {
+                    const pN = presetsList.find(p => p.id === 'numbers_1_50');
+                    if (createTopicInput) createTopicInput.value = '1~50 무작위 숫자';
+                    if (createWordsInput && pN) createWordsInput.value = pN.words.join('\n');
+                }
+            }
+            playSound('click');
+            return;
+        }
+
+        // Tab Buttons
+        const tabBtn = e.target.closest('.tab-btn');
+        if (tabBtn) {
+            if (tabBtn.id === 'tab-btn-create' || tabBtn.innerText.includes('방 만들기')) {
+                if (tabBtnCreate) tabBtnCreate.classList.add('active');
+                if (tabBtnJoin) tabBtnJoin.classList.remove('active');
+                if (createRoomForm) createRoomForm.style.display = 'block';
+                if (joinRoomForm) joinRoomForm.style.display = 'none';
+            } else if (tabBtn.id === 'tab-btn-join' || tabBtn.innerText.includes('방 참여하기')) {
+                if (tabBtnJoin) tabBtnJoin.classList.add('active');
+                if (tabBtnCreate) tabBtnCreate.classList.remove('active');
+                if (joinRoomForm) joinRoomForm.style.display = 'block';
+                if (createRoomForm) createRoomForm.style.display = 'none';
+            }
+            playSound('click');
+            return;
+        }
     });
 
-    createRoomForm.addEventListener('submit', (e) => {
-        e.preventDefault();
+    window.doCreateRoom = function(opts) {
         initAudio();
+        const nickname = (opts && opts.nickname) || (createNicknameInput && createNicknameInput.value.trim()) || '김사원';
+        const topic = (opts && opts.topic) || (createTopicInput && createTopicInput.value.trim()) || '자유 주제';
+        const size = (opts && opts.size) || selectedSize || 5;
+        const mode = (opts && opts.mode) || selectedGameMode || 'WINNER';
+        const words = parseWordList((opts && opts.wordsRaw) ? opts.wordsRaw : (createWordsInput ? createWordsInput.value : ''));
 
-        const nickname = createNicknameInput.value.trim();
-        const topic = createTopicInput.value.trim() || '자유 주제';
-        const words = parseWordList(createWordsInput.value);
+        if (createNicknameInput) createNicknameInput.value = nickname;
+        if (createTopicInput) createTopicInput.value = topic;
 
         sendMessage({
             type: 'CREATE_ROOM',
             nickname: nickname,
-            size: selectedSize,
+            size: size,
             topic: topic,
-            game_mode: selectedGameMode,
+            game_mode: mode,
             word_pool: words
         });
-    });
+    };
 
-    joinRoomForm.addEventListener('submit', (e) => {
-        e.preventDefault();
+    window.doJoinRoom = function(opts) {
         initAudio();
+        const nickname = (opts && opts.nickname) || (joinNicknameInput && joinNicknameInput.value.trim()) || '이대리';
+        const roomCode = (opts && opts.roomCode) || (joinRoomCodeInput && joinRoomCodeInput.value.trim().toUpperCase()) || '';
 
-        const nickname = joinNicknameInput.value.trim();
-        const roomCode = joinRoomCodeInput.value.trim().toUpperCase();
+        if (joinNicknameInput) joinNicknameInput.value = nickname;
+
+        if (!roomCode) {
+            alert('방 코드를 6자리 입력해주세요.');
+            return;
+        }
 
         sendMessage({
             type: 'JOIN_ROOM',
             nickname: nickname,
             room_id: roomCode
         });
+    };
+
+    createRoomForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        window.doCreateRoom({});
+    });
+
+    joinRoomForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        window.doJoinRoom({});
     });
 
     btnToggleReady.addEventListener('click', () => {

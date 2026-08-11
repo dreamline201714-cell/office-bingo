@@ -726,16 +726,18 @@ except ImportError:
             with open(file_path, 'rb') as f:
                 content = f.read()
 
-            if connection and hasattr(connection, 'respond'):
-                try:
-                    res = connection.respond(200, "OK")
-                    res.headers["Content-Type"] = f"{mime_type}; charset=utf-8" if ("text" in mime_type or "javascript" in mime_type) else mime_type
-                    res.headers["Content-Length"] = str(len(content))
-                    res.headers["Access-Control-Allow-Origin"] = "*"
-                    res.body = content
-                    return res
-                except Exception:
-                    pass
+            try:
+                from websockets.http11 import Response as WSResponse
+                from websockets.datastructures import Headers as WSHeaders
+                hdr_type = f"{mime_type}; charset=utf-8" if ("text" in mime_type or "javascript" in mime_type) else mime_type
+                res_hdrs = WSHeaders([
+                    ("Content-Type", hdr_type),
+                    ("Content-Length", str(len(content))),
+                    ("Access-Control-Allow-Origin", "*")
+                ])
+                return WSResponse(200, "OK", res_hdrs, content)
+            except Exception:
+                pass
 
             response_headers = [
                 ("Content-Type", f"{mime_type}; charset=utf-8" if ("text" in mime_type or "javascript" in mime_type) else mime_type),
@@ -745,17 +747,14 @@ except ImportError:
             return (http.HTTPStatus.OK, response_headers, content)
 
         except Exception:
-            if arg1 and hasattr(arg1, 'respond'):
-                try:
-                    res = arg1.respond(200, "OK")
-                    res.headers["Content-Type"] = "text/html; charset=utf-8"
-                    with open(os.path.join(PUBLIC_DIR, 'index.html'), 'rb') as f:
-                        res.body = f.read()
-                    return res
-                except Exception:
-                    pass
             with open(os.path.join(PUBLIC_DIR, 'index.html'), 'rb') as f:
-                return (http.HTTPStatus.OK, [("Content-Type", "text/html; charset=utf-8")], f.read())
+                content = f.read()
+            try:
+                from websockets.http11 import Response as WSResponse
+                from websockets.datastructures import Headers as WSHeaders
+                return WSResponse(200, "OK", WSHeaders([("Content-Type", "text/html; charset=utf-8")]), content)
+            except Exception:
+                return (http.HTTPStatus.OK, [("Content-Type", "text/html; charset=utf-8")], content)
 
     async def main_fallback():
         print(f"===============================================================")

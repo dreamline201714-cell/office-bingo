@@ -1066,6 +1066,399 @@
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <!-- Inline Guaranteed Fast Interactive Handlers -->
+    <script>
+        window.selectedGameMode = 'WINNER';
+        window.selectedSize = 5;
+
+        function selectMode(btn, mode) {
+            var btns = document.querySelectorAll('.mode-btn');
+            for (var i = 0; i < btns.length; i++) {
+                btns[i].classList.remove('selected');
+            }
+            btn.classList.add('selected');
+            window.selectedGameMode = mode;
+        }
+
+        function selectSize(btn, size) {
+            var btns = document.querySelectorAll('.size-btn');
+            for (var i = 0; i < btns.length; i++) {
+                btns[i].classList.remove('selected');
+            }
+            btn.classList.add('selected');
+            window.selectedSize = parseInt(size);
+        }
+
+        function selectPreset(btn, presetId) {
+            var chips = document.querySelectorAll('.preset-chip');
+            for (var i = 0; i < chips.length; i++) {
+                chips[i].classList.remove('active');
+            }
+            btn.classList.add('active');
+            
+            var topicInput = document.getElementById('create-topic');
+            var wordsInput = document.getElementById('create-words');
+            
+            if (presetId === 'custom') {
+                if (topicInput) topicInput.value = '자유 주제';
+                if (wordsInput) wordsInput.value = '';
+            } else if (presetId === 'kospi_100') {
+                if (topicInput) topicInput.value = '코스피 시총 Top 100';
+                if (wordsInput && typeof BINGO_PRESETS !== 'undefined') {
+                    var p = BINGO_PRESETS.find(function(x){ return x.id === 'kospi_100'; });
+                    if (p) wordsInput.value = p.words.join('\n');
+                }
+            } else if (presetId === 'colors_30') {
+                if (topicInput) topicInput.value = '다양한 색깔 (30가지)';
+                if (wordsInput && typeof BINGO_PRESETS !== 'undefined') {
+                    var p = BINGO_PRESETS.find(function(x){ return x.id === 'colors_30'; });
+                    if (p) wordsInput.value = p.words.join('\n');
+                }
+            } else if (presetId === 'numbers_1_50') {
+                if (topicInput) topicInput.value = '1~50 무작위 숫자';
+                if (wordsInput && typeof BINGO_PRESETS !== 'undefined') {
+                    var p = BINGO_PRESETS.find(function(x){ return x.id === 'numbers_1_50'; });
+                    if (p) wordsInput.value = p.words.join('\n');
+                }
+            }
+        }
+
+        function createRoomDirect(e) {
+            if (e && e.preventDefault) e.preventDefault();
+
+            var nicknameInput = document.getElementById('create-nickname');
+            var topicInput = document.getElementById('create-topic');
+            var wordsInput = document.getElementById('create-words');
+
+            var nickname = (nicknameInput && nicknameInput.value.trim()) ? nicknameInput.value.trim() : '김사원';
+            var topic = (topicInput && topicInput.value.trim()) ? topicInput.value.trim() : '자유 주제';
+            var wordsRaw = wordsInput ? wordsInput.value : '';
+
+            if (nicknameInput) nicknameInput.value = nickname;
+            if (topicInput) topicInput.value = topic;
+
+            var mode = window.selectedGameMode || 'WINNER';
+            var size = window.selectedSize || 5;
+
+            var lobby = document.getElementById('lobby-section');
+            var arena = document.getElementById('arena-section');
+            if (lobby) lobby.style.display = 'none';
+            if (arena) arena.style.display = 'block';
+
+            renderStandaloneBoard({
+                nickname: nickname,
+                topic: topic,
+                size: size,
+                mode: mode,
+                wordsRaw: wordsRaw
+            });
+
+            if (window.doCreateRoom) {
+                window.doCreateRoom({
+                    nickname: nickname,
+                    topic: topic,
+                    size: size,
+                    mode: mode,
+                    wordsRaw: wordsRaw
+                });
+            }
+            return false;
+        }
+
+        function renderStandaloneBoard(opts) {
+            var size = opts.size || 5;
+            var topic = opts.topic || '자유 주제';
+            var mode = opts.mode || 'WINNER';
+            var wordsRaw = opts.wordsRaw || '';
+
+            var roomCode = (opts && opts.roomCode) || (window.currentRoomId ? window.currentRoomId : null) || ('ROOM' + Math.floor(1000 + Math.random() * 9000));
+            window.currentRoomId = roomCode;
+            window.currentRoomCode = roomCode;
+            window.myNickname = (opts && opts.nickname) || '김사원';
+            window.isReady = false;
+            var total = size * size;
+
+            var words = [];
+            if (wordsRaw) {
+                words = wordsRaw.split(/[\n,]/).map(function(w){ return w.trim(); }).filter(function(w){ return w.length > 0; });
+            }
+
+            if (words.length < total) {
+                var diff = total - words.length;
+                for (var i = 1; i <= diff; i++) {
+                    words.push('단어 ' + (words.length + 1));
+                }
+            }
+
+            words = words.sort(function(){ return 0.5 - Math.random(); }).slice(0, total);
+
+            var titleEl = document.getElementById('display-topic-title');
+            var codeEl = document.getElementById('display-room-code');
+            var gridInfoEl = document.getElementById('display-grid-info');
+            var gameModeEl = document.getElementById('display-game-mode');
+            var stateBadgeEl = document.getElementById('room-state-badge');
+
+            if (titleEl) titleEl.innerText = topic;
+            if (codeEl) codeEl.innerText = roomCode;
+            if (gridInfoEl) gridInfoEl.innerText = size + 'x' + size + ' 빙고 | 완성 목표: ' + size + '줄';
+            if (gameModeEl) {
+                gameModeEl.innerText = (mode === 'LOSER') ? '💣 패자 결정전 (벌칙 당첨전)' : '🏆 승자 결정전 (1등 승리)';
+                gameModeEl.style.background = (mode === 'LOSER') ? 'var(--accent)' : 'var(--primary)';
+            }
+            if (stateBadgeEl) {
+                stateBadgeEl.className = 'room-state-badge waiting';
+                stateBadgeEl.innerText = '⏳ 대기 중 (작성 중)';
+            }
+
+            var gridEl = document.getElementById('bingo-board-grid');
+            if (gridEl) {
+                gridEl.setAttribute('data-size', size);
+                gridEl.style.gridTemplateColumns = 'repeat(' + size + ', 1fr)';
+                gridEl.innerHTML = '';
+
+                for (var idx = 0; idx < total; idx++) {
+                    var cell = document.createElement('div');
+                    var wordText = words[idx] || ('단어 ' + (idx + 1));
+                    cell.className = 'bingo-cell editable';
+                    cell.innerText = wordText;
+
+                    (function(c, i, val) {
+                        c.addEventListener('click', function() {
+                            var newText = prompt((i + 1) + '번 빙고 칸 내용 수정:', val);
+                            if (newText !== null && newText.trim().length > 0) {
+                                c.innerText = newText.trim();
+                            }
+                        });
+                    })(cell, idx, wordText);
+
+                    gridEl.appendChild(cell);
+                }
+            }
+
+            var waitingCtrl = document.getElementById('footer-waiting-controls');
+            var playingCtrl = document.getElementById('footer-playing-controls');
+            var topicPanel = document.getElementById('topic-words-panel');
+
+            if (waitingCtrl) waitingCtrl.style.display = 'flex';
+            if (playingCtrl) playingCtrl.style.display = 'none';
+            if (topicPanel) topicPanel.style.display = 'block';
+
+            var chipsBox = document.getElementById('topic-words-chips');
+            if (chipsBox) {
+                chipsBox.innerHTML = '';
+                words.forEach(function(w) {
+                    var chip = document.createElement('div');
+                    chip.className = 'topic-word-chip used';
+                    chip.innerText = w;
+                    chipsBox.appendChild(chip);
+                });
+            }
+
+            renderParticipantRoster(nickname, false);
+        }
+
+        function renderParticipantRoster(nickname, isReady) {
+            var panel = document.getElementById('panel-players');
+            var countEl = document.getElementById('player-count');
+
+            var playersList = (window.roomState && window.roomState.players && window.roomState.players.length > 0)
+                ? window.roomState.players
+                : [{ nickname: nickname || '김사원', is_host: true, is_ready: isReady }];
+
+            if (countEl) countEl.innerText = playersList.length;
+
+            if (panel) {
+                panel.style.display = 'flex';
+                panel.style.flexDirection = 'column';
+                panel.style.gap = '8px';
+                panel.innerHTML = '';
+
+                playersList.forEach(function(p) {
+                    var card = document.createElement('div');
+                    card.className = 'player-card';
+                    card.style.display = 'flex';
+                    card.style.justifyContent = 'space-between';
+                    card.style.alignItems = 'center';
+                    card.style.padding = '10px 14px';
+                    card.style.background = 'var(--bg-glass-card)';
+                    card.style.border = '1px solid var(--border-glass)';
+                    card.style.borderRadius = 'var(--radius-md)';
+
+                    var pName = p.nickname || '참여자';
+                    var initial = pName.charAt(0).toUpperCase();
+
+                    var statusTag = p.is_ready
+                        ? '<span class="ready-tag ready" style="color:var(--success); font-weight:700;">🟢 준비 완료</span>'
+                        : '<span class="ready-tag waiting" style="color:var(--warning); font-weight:700;">🟡 작성 중...</span>';
+
+                    var hostBadge = p.is_host
+                        ? ' <span class="host-tag" style="font-size:0.7rem; padding:2px 6px; background:var(--primary); color:#fff; border-radius:10px; margin-left:4px;">방장</span>'
+                        : '';
+
+                    card.innerHTML = 
+                        '<div class="player-info" style="display:flex; align-items:center; gap:10px;">' +
+                            '<div class="player-avatar" style="width:34px; height:34px; border-radius:50%; background:' + (p.color || '#6366f1') + '; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800;">' + initial + '</div>' +
+                            '<div class="player-name-box">' +
+                                '<div class="player-name" style="font-weight:700; font-size:0.9rem;">' + escapeHtml(pName) + hostBadge + '</div>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="player-score">' + statusTag + '</div>';
+
+                    panel.appendChild(card);
+                });
+            }
+        }
+
+        function checkUrlQueryParamsInline() {
+            var params = new URLSearchParams(window.location.search);
+            var room = params.get('room');
+            if (room) {
+                var tabJoin = document.getElementById('tab-btn-join');
+                var tabCreate = document.getElementById('tab-btn-create');
+                var formJoin = document.getElementById('join-room-form');
+                var formCreate = document.getElementById('create-room-form');
+                var codeInput = document.getElementById('join-room-code');
+
+                if (tabJoin) tabJoin.classList.add('active');
+                if (tabCreate) tabCreate.classList.remove('active');
+                if (formJoin) formJoin.style.display = 'block';
+                if (formCreate) formCreate.style.display = 'none';
+                if (codeInput) codeInput.value = room.toUpperCase();
+            }
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', checkUrlQueryParamsInline);
+        } else {
+            checkUrlQueryParamsInline();
+        }
+
+        function getActiveRoomCode() {
+            var codeEl = document.getElementById('display-room-code');
+            if (codeEl && codeEl.innerText && codeEl.innerText.trim().length > 0 && codeEl.innerText.trim() !== 'ROOM123') {
+                return codeEl.innerText.trim();
+            }
+            if (window.currentRoomId && String(window.currentRoomId).trim().length > 0) {
+                return String(window.currentRoomId).trim();
+            }
+            if (window.currentRoomCode && String(window.currentRoomCode).trim().length > 0) {
+                return String(window.currentRoomCode).trim();
+            }
+            return 'ROOM3043';
+        }
+
+        function copyLinkDirect() {
+            var roomCode = getActiveRoomCode();
+            var shareUrl = window.location.origin + window.location.pathname + '?room=' + roomCode;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(shareUrl).then(function() {
+                    alert('📋 초대 링크가 복사되었습니다!\n동료에게 공유하세요:\n\n' + shareUrl);
+                }).catch(function() {
+                    prompt('아래 링크를 복사하여 공유하세요:', shareUrl);
+                });
+            } else {
+                prompt('아래 링크를 복사하여 공유하세요:', shareUrl);
+            }
+        }
+
+        function showQrDirect() {
+            var roomCode = getActiveRoomCode();
+            var shareUrl = window.location.origin + window.location.pathname + '?room=' + roomCode;
+            var qrContainer = document.getElementById('qrcode');
+            var modal = document.getElementById('qr-modal');
+
+            if (qrContainer) {
+                qrContainer.innerHTML = '';
+                if (typeof QRCode === 'function') {
+                    new QRCode(qrContainer, {
+                        text: shareUrl,
+                        width: 200,
+                        height: 200
+                    });
+                } else {
+                    var img = document.createElement('img');
+                    img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(shareUrl);
+                    img.alt = 'QR Code';
+                    img.style.width = '200px';
+                    img.style.height = '200px';
+                    qrContainer.appendChild(img);
+                }
+            }
+
+            if (modal) {
+                modal.classList.add('active');
+            }
+        }
+
+        function closeQrModal() {
+            var modal = document.getElementById('qr-modal');
+            if (modal) modal.classList.remove('active');
+        }
+
+        function toggleReadyDirect() {
+            window.isReady = !window.isReady;
+            var btn = document.getElementById('btn-toggle-ready');
+            if (btn) {
+                if (window.isReady) {
+                    btn.innerText = '🟢 준비 완료됨 (해제)';
+                    btn.style.background = 'var(--success)';
+                } else {
+                    btn.innerText = '✋ 준비 완료';
+                    btn.style.background = 'linear-gradient(135deg, var(--primary), var(--accent))';
+                }
+            }
+
+            if (window.doToggleReady) {
+                window.doToggleReady();
+            }
+            renderParticipantRoster(window.myNickname || '김사원', window.isReady);
+        }
+
+        function doStartGameDirect() {
+            if (window.doStartGame) {
+                window.doStartGame();
+            }
+        }
+
+        function joinRoomDirect(e) {
+            if (e && e.preventDefault) e.preventDefault();
+
+            var nicknameInput = document.getElementById('join-nickname');
+            var roomCodeInput = document.getElementById('join-room-code');
+
+            var nickname = (nicknameInput && nicknameInput.value.trim()) ? nicknameInput.value.trim() : '이대리';
+            var roomCode = (roomCodeInput && roomCodeInput.value.trim().toUpperCase()) ? roomCodeInput.value.trim().toUpperCase() : '';
+
+            if (nicknameInput) nicknameInput.value = nickname;
+
+            if (!roomCode) {
+                alert('입장할 방 코드 (6자리)를 입력해주세요.');
+                return false;
+            }
+
+            var lobby = document.getElementById('lobby-section');
+            var arena = document.getElementById('arena-section');
+            if (lobby) lobby.style.display = 'none';
+            if (arena) arena.style.display = 'block';
+
+            renderStandaloneBoard({
+                roomCode: roomCode,
+                nickname: nickname,
+                topic: '참여한 빙고방',
+                size: 5,
+                mode: 'WINNER',
+                wordsRaw: ''
+            });
+
+            if (window.doJoinRoom) {
+                window.doJoinRoom({
+                    nickname: nickname,
+                    roomCode: roomCode
+                });
+            }
+            return false;
+        }
+    </script>
 </head>
 <body>
     <canvas id="confetti-canvas"></canvas>
@@ -1098,41 +1491,41 @@
                     <button class="tab-btn" id="tab-btn-join">🔑 방 참여하기</button>
                 </div>
 
-                <form id="create-room-form">
+                <form id="create-room-form" onsubmit="return createRoomDirect(event)">
                     <div class="form-group">
                         <label class="form-label" for="create-nickname">내 닉네임</label>
-                        <input type="text" id="create-nickname" class="form-input" placeholder="예: 김사원 (마케팅팀)" maxlength="12" required>
+                        <input type="text" id="create-nickname" class="form-input" value="김사원" placeholder="예: 김사원 (마케팅팀)" maxlength="12">
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">게임 승패 방식 선택</label>
                         <div class="size-options">
-                            <button type="button" class="mode-btn selected" data-mode="WINNER">🏆 승자 결정전 (1등 승리)</button>
-                            <button type="button" class="mode-btn" data-mode="LOSER">💣 패자 결정전 (벌칙 당첨전)</button>
+                            <button type="button" class="mode-btn selected" data-mode="WINNER" onclick="selectMode(this, 'WINNER')">🏆 승자 결정전 (1등 승리)</button>
+                            <button type="button" class="mode-btn" data-mode="LOSER" onclick="selectMode(this, 'LOSER')">💣 패자 결정전 (벌칙 당첨전)</button>
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">격자 크기 선택</label>
                         <div class="size-options">
-                            <button type="button" class="size-btn" data-size="3">3 x 3 (스피드전)</button>
-                            <button type="button" class="size-btn" data-size="4">4 x 4 (클래식)</button>
-                            <button type="button" class="size-btn selected" data-size="5">5 x 5 (정통전)</button>
+                            <button type="button" class="size-btn" data-size="3" onclick="selectSize(this, 3)">3 x 3 (스피드전)</button>
+                            <button type="button" class="size-btn" data-size="4" onclick="selectSize(this, 4)">4 x 4 (클래식)</button>
+                            <button type="button" class="size-btn selected" data-size="5" onclick="selectSize(this, 5)">5 x 5 (정통전)</button>
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label" for="create-topic">빙고 주제 (상단 상시 표시)</label>
-                        <input type="text" id="create-topic" class="form-input" placeholder="예: 회식 메뉴 추천, 우리 팀원 특징" required>
+                        <input type="text" id="create-topic" class="form-input" value="자유 주제" placeholder="예: 회식 메뉴 추천, 우리 팀원 특징">
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">주제 및 단어 프리셋 선택</label>
                         <div class="preset-chip-group" id="preset-chip-group">
-                            <div class="preset-chip active" data-preset="custom">✨ 자유 주제 (직접 입력)</div>
-                            <div class="preset-chip" data-preset="kospi_100">📈 코스피 시총 Top 100</div>
-                            <div class="preset-chip" data-preset="colors_30">🎨 다양한 색깔 (30가지)</div>
-                            <div class="preset-chip" data-preset="numbers_1_50">🔢 1~50 무작위 숫자</div>
+                            <div class="preset-chip active" data-preset="custom" onclick="selectPreset(this, 'custom')">✨ 자유 주제 (직접 입력)</div>
+                            <div class="preset-chip" data-preset="kospi_100" onclick="selectPreset(this, 'kospi_100')">📈 코스피 시총 Top 100</div>
+                            <div class="preset-chip" data-preset="colors_30" onclick="selectPreset(this, 'colors_30')">🎨 다양한 색깔 (30가지)</div>
+                            <div class="preset-chip" data-preset="numbers_1_50" onclick="selectPreset(this, 'numbers_1_50')">🔢 1~50 무작위 숫자</div>
                         </div>
                     </div>
 
@@ -1141,23 +1534,23 @@
                         <textarea id="create-words" class="form-textarea" rows="4" placeholder="자유 주제를 선택하여 직접 입력하거나 상단 프리셋을 선택하세요."></textarea>
                     </div>
 
-                    <button type="submit" class="primary-btn" id="btn-create-submit">
+                    <button type="button" class="primary-btn" id="btn-create-submit" onclick="createRoomDirect(event)">
                         <span>🚀 게임 방 생성하기</span>
                     </button>
                 </form>
 
-                <form id="join-room-form" style="display: none;">
+                <form id="join-room-form" style="display: none;" onsubmit="return joinRoomDirect(event)">
                     <div class="form-group">
                         <label class="form-label" for="join-nickname">내 닉네임</label>
-                        <input type="text" id="join-nickname" class="form-input" placeholder="예: 이대리 (개발팀)" maxlength="12" required>
+                        <input type="text" id="join-nickname" class="form-input" value="이대리" placeholder="예: 이대리 (개발팀)" maxlength="12">
                     </div>
 
                     <div class="form-group">
                         <label class="form-label" for="join-room-code">방 코드 (6자리)</label>
-                        <input type="text" id="join-room-code" class="form-input" placeholder="예: WORK12" style="text-transform: uppercase; letter-spacing: 2px;" maxlength="8" required>
+                        <input type="text" id="join-room-code" class="form-input" placeholder="예: WORK12" style="text-transform: uppercase; letter-spacing: 2px;" maxlength="8">
                     </div>
 
-                    <button type="submit" class="primary-btn" id="btn-join-submit">
+                    <button type="button" class="primary-btn" id="btn-join-submit" onclick="joinRoomDirect(event)">
                         <span>🎮 게임 방 입장하기</span>
                     </button>
                 </form>
@@ -1177,8 +1570,8 @@
 
                     <div class="room-share-box">
                         <div class="room-code-badge" id="display-room-code">ROOM123</div>
-                        <button class="secondary-btn" id="btn-copy-link">📋 링크 복사</button>
-                        <button class="secondary-btn" id="btn-show-qr">📱 QR 코드</button>
+                        <button class="secondary-btn" id="btn-copy-link" onclick="copyLinkDirect()">📋 링크 복사</button>
+                        <button class="secondary-btn" id="btn-show-qr" onclick="showQrDirect()">📱 QR 코드</button>
                     </div>
                 </div>
             </div>
@@ -1194,7 +1587,7 @@
             </div>
 
             <div id="host-controls" style="display: none; margin-bottom: 20px; text-align: right;">
-                <button class="start-game-btn" id="btn-host-start">🎮 게임 시작 (모두 준비 완료)</button>
+                <button class="start-game-btn" id="btn-host-start" onclick="doStartGameDirect()">🎮 게임 시작하기!</button>
                 <button class="secondary-btn" id="btn-host-reset" style="border-color: var(--accent); color: var(--accent); margin-left: 8px;">🔄 대기실로 리셋</button>
                 <button class="secondary-btn" id="btn-host-config" style="margin-left: 8px;">⚙️ 주제/설정 변경</button>
             </div>
@@ -1205,7 +1598,7 @@
 
                     <div class="board-footer" id="board-footer">
                         <div id="footer-waiting-controls" style="display: flex; gap: 8px; flex-wrap: wrap; width: 100%; align-items: center; justify-content: space-between;">
-                            <button class="primary-btn" id="btn-toggle-ready" style="width: auto; padding: 10px 20px;">✋ 준비 완료</button>
+                            <button class="primary-btn" id="btn-toggle-ready" onclick="toggleReadyDirect()" style="width: auto; padding: 10px 20px;">✋ 준비 완료</button>
                             <div style="display: flex; gap: 6px;">
                                 <button class="secondary-btn" id="btn-auto-fill">✨ 무작위 자동 채우기</button>
                                 <button class="secondary-btn" id="btn-clear-board">🗑️ 보드 비우기</button>
@@ -1278,7 +1671,7 @@
         <div class="modal-box">
             <div class="modal-header">
                 <h3>📱 모바일 초대 QR 코드</h3>
-                <button class="modal-close" id="qr-modal-close">&times;</button>
+                <button class="modal-close" id="qr-modal-close" onclick="closeQrModal()">&times;</button>
             </div>
             <div class="qr-box">
                 <div id="qrcode"></div>
