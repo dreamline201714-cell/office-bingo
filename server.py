@@ -1,31 +1,28 @@
 #!/usr/bin/env python3
 """
-Office Bingo Live Real-Time Server
-Handles static HTTP requests on port 8000 and WebSockets on port 8001.
-Supports Free-Fill Editing, Turn-Based Auto Marking, 15s Timer,
-Winner vs Loser Modes, and Pre-game Turn Order Draw Animation.
+Office Bingo Live Unified Server (HTTP + WebSockets on Single Port)
+Works seamlessly on Render.com, Heroku, Railway, Docker, and Localhost.
+Serves static files (index.html, app.js, etc.) AND handles WSS/WS real-time WebSocket connections.
 """
 
 import asyncio
 import json
+import mimetypes
 import os
 import random
 import socket
 import string
 import sys
 import time
-from http.server import SimpleHTTPRequestHandler, HTTPServer
-from threading import Thread
 import websockets
 
 # Ensure UTF-8 stdout on Windows console
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 
-# Constants
-HTTP_PORT = 8000
-WS_PORT = 8001
-PUBLIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "public")
+# PORT detection for Render.com ($PORT env var) or default 8000
+PORT = int(os.environ.get("PORT", 8000))
+PUBLIC_DIR = os.path.dirname(os.path.abspath(__file__))
 TURN_DURATION_SECONDS = 15
 
 # Color palette for player avatars
@@ -36,18 +33,6 @@ AVATAR_COLORS = [
 
 # Rooms storage
 ROOMS = {}
-
-
-def get_local_ip():
-    """Detect local LAN IP address for sharing on local network."""
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
-    except Exception:
-        return "127.0.0.1"
 
 
 def generate_room_code(length=6):
@@ -148,7 +133,7 @@ def serialize_room_state(room_id):
 
     return {
         'room_id': room_id,
-        'status': room['status'], # "WAITING" or "PLAYING"
+        'status': room['status'],
         'config': room['config'],
         'called_items': room['called_items'],
         'current_turn_player_id': current_turn_player_id,
@@ -235,7 +220,6 @@ def advance_turn(room_id):
     if not room['turn_order']:
         return
 
-    # Skip players who already escaped in Loser Mode
     num_players = len(room['turn_order'])
     for _ in range(num_players):
         room['current_turn_index'] = (room['current_turn_index'] + 1) % num_players
@@ -259,9 +243,7 @@ async def execute_word_call(room_id, word_text, caller_nickname):
 
     room['called_items'].append(word_text)
     size = room['config']['size']
-    game_mode = room['config'].get('game_mode', 'WINNER') # 'WINNER' or 'LOSER'
-
-    escaped_this_turn = []
+    game_mode = room['config'].get('game_mode', 'WINNER')
 
     for ws, p in room['players'].items():
         prev_score = p['score']
@@ -272,7 +254,6 @@ async def execute_word_call(room_id, word_text, caller_nickname):
         new_score = calculate_bingo_lines(p['board'], p['marked'], size)
         p['score'] = new_score
 
-        # Check line achievement
         if new_score > prev_score:
             sys_msg = f"🎊 '{p['nickname']}'님이 {new_score}줄 빙고를 달성했습니다!"
             room['chat_logs'].append({'system': True, 'text': sys_msg})
@@ -282,16 +263,13 @@ async def execute_word_call(room_id, word_text, caller_nickname):
                     sys_msg_win = f"🏆 짝짝짝! '{p['nickname']}'님이 {new_score}줄을 달성하여 1등 승리자가 되었습니다! 🎉"
                     room['chat_logs'].append({'system': True, 'text': sys_msg_win})
             else:
-                # LOSER (Survival) Mode
                 if new_score >= size and not p.get('is_escaped', False):
                     p['is_escaped'] = True
                     escaped_count = sum(1 for pl in room['players'].values() if pl.get('is_escaped'))
                     p['escape_rank'] = escaped_count
-                    escaped_this_turn.append(p['nickname'])
                     sys_msg_esc = f"🟢 '{p['nickname']}'님이 {new_score}줄 완성으로 안전하게 탈출했습니다! ({escaped_count}등 탈출)"
                     room['chat_logs'].append({'system': True, 'text': sys_msg_esc})
 
-    # Check Loser mode remaining players
     if game_mode == 'LOSER':
         un_escaped = [pl for pl in room['players'].values() if not pl.get('is_escaped')]
         if len(room['players']) > 1 and len(un_escaped) == 1:
@@ -314,6 +292,7 @@ async def execute_word_call(room_id, word_text, caller_nickname):
 
 
 async def handle_websocket(websocket):
+    """Handle WebSockets messages."""
     current_room_id = None
     current_player_id = str(id(websocket))
 
@@ -326,17 +305,13 @@ async def handle_websocket(websocket):
 
             msg_type = data.get('type')
 
-            # ----------------------------------------------------
-            # 1. CREATE ROOM
-            # ----------------------------------------------------
             if msg_type == 'CREATE_ROOM':
                 nickname = data.get('nickname', '방장').strip() or '방장'
                 size = int(data.get('size', 5))
-                if size not in (3, 4, 5):
-                    size = 5
+                if size not in (3, 4, 5): size = 5
                 
                 topic = data.get('topic', '자유 주제').strip() or '자유 주제'
-                game_mode = data.get('game_mode', 'WINNER') # WINNER or LOSER
+                game_mode = data.get('game_mode', 'WINNER')
                 word_pool = data.get('word_pool', [])
 
                 room_id = generate_room_code()
@@ -386,9 +361,6 @@ async def handle_websocket(websocket):
                     'state': serialize_room_state(room_id)
                 }, ensure_ascii=False))
 
-            # ----------------------------------------------------
-            # 2. JOIN ROOM
-            # ----------------------------------------------------
             elif msg_type == 'JOIN_ROOM':
                 room_id = data.get('room_id', '').upper().strip()
                 nickname = data.get('nickname', '참여자').strip() or '참여자'
@@ -439,70 +411,43 @@ async def handle_websocket(websocket):
                     'state': serialize_room_state(room_id)
                 })
 
-            # ----------------------------------------------------
-            # 3. UPDATE_CELL_TEXT
-            # ----------------------------------------------------
             elif msg_type == 'UPDATE_CELL_TEXT':
-                if not current_room_id or current_room_id not in ROOMS:
-                    continue
-
+                if not current_room_id or current_room_id not in ROOMS: continue
                 room = ROOMS[current_room_id]
-                if room['status'] != 'WAITING':
-                    continue
-
                 player = room['players'].get(websocket)
-                if not player:
-                    continue
-
+                if not player: continue
                 cell_index = data.get('cell_index')
                 new_text = str(data.get('text', '')).strip()
 
                 if cell_index is not None and 0 <= cell_index < len(player['board']):
                     player['board'][cell_index] = new_text
                     player['is_ready'] = False
-
                     await broadcast_to_room(current_room_id, {
                         'type': 'ROOM_UPDATED',
                         'state': serialize_room_state(current_room_id)
                     })
 
-            # ----------------------------------------------------
-            # 4. UPDATE_BOARD
-            # ----------------------------------------------------
             elif msg_type == 'UPDATE_BOARD':
-                if not current_room_id or current_room_id not in ROOMS:
-                    continue
-
+                if not current_room_id or current_room_id not in ROOMS: continue
                 room = ROOMS[current_room_id]
-                if room['status'] != 'WAITING':
-                    continue
-
                 player = room['players'].get(websocket)
-                if not player:
-                    continue
+                if not player: continue
 
                 new_board = data.get('board', [])
                 size = room['config']['size']
                 if len(new_board) == size * size:
                     player['board'] = [str(cell).strip() for cell in new_board]
                     player['is_ready'] = False
-
                     await broadcast_to_room(current_room_id, {
                         'type': 'ROOM_UPDATED',
                         'state': serialize_room_state(current_room_id)
                     })
 
-            # ----------------------------------------------------
-            # 5. TOGGLE_READY
-            # ----------------------------------------------------
             elif msg_type == 'TOGGLE_READY':
-                if not current_room_id or current_room_id not in ROOMS:
-                    continue
-
+                if not current_room_id or current_room_id not in ROOMS: continue
                 room = ROOMS[current_room_id]
                 player = room['players'].get(websocket)
-                if not player:
-                    continue
+                if not player: continue
 
                 empty_cells = [cell for cell in player['board'] if not cell.strip()]
                 if empty_cells and not player['is_ready']:
@@ -514,7 +459,6 @@ async def handle_websocket(websocket):
 
                 player['is_ready'] = not player['is_ready']
                 status_str = "준비 완료" if player['is_ready'] else "준비 해제"
-                
                 sys_msg = f"✋ '{player['nickname']}'님이 {status_str} 하셨습니다."
                 room['chat_logs'].append({'system': True, 'text': sys_msg})
 
@@ -523,29 +467,21 @@ async def handle_websocket(websocket):
                     'state': serialize_room_state(current_room_id)
                 })
 
-            # ----------------------------------------------------
-            # 6. START_GAME (Shuffles turn order & broadcasts raffle draw event)
-            # ----------------------------------------------------
             elif msg_type == 'START_GAME':
-                if not current_room_id or current_room_id not in ROOMS:
-                    continue
-
+                if not current_room_id or current_room_id not in ROOMS: continue
                 room = ROOMS[current_room_id]
                 player = room['players'].get(websocket)
-                if not player or not player['is_host']:
-                    continue
+                if not player or not player['is_host']: continue
 
                 room['status'] = 'PLAYING'
                 room['called_items'] = []
                 
-                # Shuffle player sockets for random turn order
                 player_sockets = list(room['players'].keys())
                 random.shuffle(player_sockets)
                 room['turn_order'] = player_sockets
                 room['current_turn_index'] = 0
                 room['turn_step'] = 0
 
-                # Reset player states
                 for ws, p in room['players'].items():
                     p['marked'] = set()
                     p['score'] = 0
@@ -556,7 +492,6 @@ async def handle_websocket(websocket):
                 first_ws, first_player = get_current_turn_player(room)
                 first_name = first_player['nickname'] if first_player else ''
 
-                # Build drawn turn order list for raffle modal animation
                 turn_order_list = []
                 for idx, ws in enumerate(player_sockets):
                     p = room['players'][ws]
@@ -571,23 +506,16 @@ async def handle_websocket(websocket):
 
                 start_turn_timer(current_room_id)
 
-                # Broadcast STARTING_DRAW for animation before active play
                 await broadcast_to_room(current_room_id, {
                     'type': 'STARTING_DRAW',
                     'turn_order_list': turn_order_list,
                     'state': serialize_room_state(current_room_id)
                 })
 
-            # ----------------------------------------------------
-            # 7. MARK_CELL (Turn-based)
-            # ----------------------------------------------------
             elif msg_type == 'MARK_CELL':
-                if not current_room_id or current_room_id not in ROOMS:
-                    continue
-
+                if not current_room_id or current_room_id not in ROOMS: continue
                 room = ROOMS[current_room_id]
-                if room['status'] != 'PLAYING':
-                    continue
+                if room['status'] != 'PLAYING': continue
 
                 current_ws, turn_player = get_current_turn_player(room)
                 if websocket != current_ws:
@@ -598,8 +526,7 @@ async def handle_websocket(websocket):
                     continue
 
                 cell_index = data.get('cell_index')
-                if cell_index is None or not (0 <= cell_index < len(turn_player['board'])):
-                    continue
+                if cell_index is None or not (0 <= cell_index < len(turn_player['board'])): continue
 
                 word_text = turn_player['board'][cell_index].strip()
                 if not word_text or word_text in room['called_items']:
@@ -611,23 +538,16 @@ async def handle_websocket(websocket):
 
                 await execute_word_call(current_room_id, word_text, turn_player['nickname'])
 
-            # ----------------------------------------------------
-            # 8. RESET_GAME
-            # ----------------------------------------------------
             elif msg_type == 'RESET_GAME':
-                if not current_room_id or current_room_id not in ROOMS:
-                    continue
-
+                if not current_room_id or current_room_id not in ROOMS: continue
                 room = ROOMS[current_room_id]
                 player = room['players'].get(websocket)
-                if not player or not player['is_host']:
-                    continue
+                if not player or not player['is_host']: continue
 
                 size = room['config']['size']
                 word_pool = room['config']['word_pool']
                 
-                if room.get('timer_task'):
-                    room['timer_task'].cancel()
+                if room.get('timer_task'): room['timer_task'].cancel()
 
                 room['status'] = 'WAITING'
                 room['called_items'] = []
@@ -651,13 +571,8 @@ async def handle_websocket(websocket):
                     'state': serialize_room_state(current_room_id)
                 })
 
-            # ----------------------------------------------------
-            # 9. CHAT_MESSAGE
-            # ----------------------------------------------------
             elif msg_type == 'CHAT_MESSAGE':
-                if not current_room_id or current_room_id not in ROOMS:
-                    continue
-
+                if not current_room_id or current_room_id not in ROOMS: continue
                 room = ROOMS[current_room_id]
                 player = room['players'].get(websocket)
                 chat_text = data.get('message', '').strip()
@@ -670,7 +585,6 @@ async def handle_websocket(websocket):
                         'text': chat_text
                     }
                     room['chat_logs'].append(msg_obj)
-
                     await broadcast_to_room(current_room_id, {
                         'type': 'CHAT_MESSAGE',
                         'chat': msg_obj
@@ -690,8 +604,7 @@ async def handle_websocket(websocket):
                     room['turn_order'].remove(websocket)
 
                 if not room['players']:
-                    if room.get('timer_task'):
-                        room['timer_task'].cancel()
+                    if room.get('timer_task'): room['timer_task'].cancel()
                     del ROOMS[current_room_id]
                 else:
                     if p['is_host']:
@@ -709,30 +622,45 @@ async def handle_websocket(websocket):
                     })
 
 
-class CustomHTTPRequestHandler(SimpleHTTPRequestHandler):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=PUBLIC_DIR, **kwargs)
+async def process_request(path, headers):
+    """Handle static HTTP request or allow WebSocket upgrade on single PORT."""
+    if headers.get("Upgrade", "").lower() == "websocket":
+        return None  # Let websockets handle WebSocket Upgrade handshake!
 
+    clean_path = path.split("?")[0]
+    if clean_path in ("/", ""):
+        filepath = os.path.join(PUBLIC_DIR, "index.html")
+    else:
+        filepath = os.path.join(PUBLIC_DIR, clean_path.lstrip("/"))
 
-def run_http_server():
-    server = HTTPServer(('0.0.0.0', HTTP_PORT), CustomHTTPRequestHandler)
-    server.serve_forever()
+    if os.path.exists(filepath) and os.path.isfile(filepath):
+        mime_type, _ = mimetypes.guess_type(filepath)
+        mime_type = mime_type or "application/octet-stream"
+        with open(filepath, "rb") as f:
+            content = f.read()
+        return (200, [("Content-Type", mime_type), ("Content-Length", str(len(content)))], content)
+    else:
+        # Fallback to index.html for SPA routing
+        index_path = os.path.join(PUBLIC_DIR, "index.html")
+        if os.path.exists(index_path):
+            with open(index_path, "rb") as f:
+                content = f.read()
+            return (200, [("Content-Type", "text/html")], content)
+        return (404, [("Content-Type", "text/plain")], b"404 Not Found")
 
 
 async def main():
-    http_thread = Thread(target=run_http_server, daemon=True)
-    http_thread.start()
-
-    local_ip = get_local_ip()
-
     print("===============================================================")
-    print(" [INFO] Office Real-time Bingo Server is Running!")
-    print(f" [LOCAL]  http://localhost:{HTTP_PORT}")
-    print(f" [MOBILE] http://{local_ip}:{HTTP_PORT}")
-    print(f" [WS]     ws://{local_ip}:{WS_PORT}")
+    print(f" [INFO] Office Bingo Live Server running on port {PORT}")
+    print(f" [HTTP/WS] Serving static files & WebSockets on single port!")
     print("===============================================================")
 
-    async with websockets.serve(handle_websocket, "0.0.0.0", WS_PORT):
+    async with websockets.serve(
+        handle_websocket,
+        "0.0.0.0",
+        PORT,
+        process_request=process_request
+    ):
         await asyncio.Future()
 
 

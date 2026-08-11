@@ -1,9 +1,8 @@
 /**
  * Office Bingo Live Client Application Logic
- * Inlined Preset Topics, WebSocket Server & PeerJS WebRTC Fallback.
+ * Inlined Preset Topics, Single-Port WebSockets (Render.com/Localhost) & WebRTC Fallback.
  */
 
-// --- Preset Data Inlined for 100% Guaranteed Static CDN Loading ---
 const BINGO_PRESETS = [
     {
         id: "custom",
@@ -263,52 +262,46 @@ const BINGO_PRESETS = [
     const spectateGrid = document.getElementById('spectate-grid');
 
     function connectNetwork() {
-        const hostname = window.location.hostname || 'localhost';
-        const isLocal = (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.'));
+        const protocol = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';
+        const host = window.location.host;
+        const wsUrl = `${protocol}//${host}`;
 
-        if (isLocal) {
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${hostname}:8001`;
+        statusText.innerText = '서버 연결 중...';
+        statusDot.className = 'status-dot';
 
-            statusText.innerText = '서버 연결 중...';
-            statusDot.className = 'status-dot';
+        try {
+            socket = new WebSocket(wsUrl);
 
-            try {
-                socket = new WebSocket(wsUrl);
+            socket.onopen = () => {
+                statusText.innerText = '서버 연결됨';
+                statusDot.className = 'status-dot connected';
+                checkUrlQueryParams();
+            };
 
-                socket.onopen = () => {
-                    statusText.innerText = '로컬 서버 연결됨';
-                    statusDot.className = 'status-dot connected';
-                    checkUrlQueryParams();
-                };
+            socket.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleServerMessage(data);
+                } catch (e) {
+                    console.error('WS Parse Error:', e);
+                }
+            };
 
-                socket.onmessage = (event) => {
-                    try {
-                        const data = JSON.parse(event.data);
-                        handleServerMessage(data);
-                    } catch (e) {
-                        console.error('WS Parse Error:', e);
-                    }
-                };
-
-                socket.onclose = () => {
-                    initP2PFallback();
-                };
-
-                socket.onerror = () => {
-                    initP2PFallback();
-                };
-            } catch (e) {
+            socket.onclose = () => {
                 initP2PFallback();
-            }
-        } else {
+            };
+
+            socket.onerror = () => {
+                initP2PFallback();
+            };
+        } catch (e) {
             initP2PFallback();
         }
     }
 
     function initP2PFallback() {
         isP2P = true;
-        statusText.innerText = 'P2P 클라우드 연결 준비됨';
+        statusText.innerText = 'P2P 연결 준비됨';
         statusDot.className = 'status-dot connected';
         checkUrlQueryParams();
     }
