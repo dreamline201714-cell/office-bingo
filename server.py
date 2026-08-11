@@ -686,50 +686,76 @@ except ImportError:
                         })
 
     async def universal_process_request(arg1, arg2=None):
-        if hasattr(arg2, 'path'):
-            path = arg2.path
-            headers = arg2.headers
-            connection = arg1
-        elif hasattr(arg1, 'path'):
-            path = arg1.path
-            headers = getattr(arg1, 'headers', {})
-            connection = None
-        else:
-            path = str(arg1)
-            headers = arg2 or {}
-            connection = None
+        try:
+            if hasattr(arg2, 'path'):
+                path = arg2.path
+                headers = arg2.headers
+                connection = arg1
+            elif hasattr(arg1, 'path'):
+                path = arg1.path
+                headers = getattr(arg1, 'headers', {})
+                connection = None
+            else:
+                path = str(arg1)
+                headers = arg2 or {}
+                connection = None
 
-        conn_hdr = ""
-        if hasattr(headers, 'get'):
-            conn_hdr = headers.get("Connection", "").lower()
+            conn_hdr = ""
+            if hasattr(headers, 'get'):
+                conn_hdr = headers.get("Connection", "").lower()
+            elif isinstance(headers, (list, tuple)):
+                for k, v in headers:
+                    if k.lower() == 'connection':
+                        conn_hdr = v.lower()
+                        break
 
-        if "upgrade" in conn_hdr:
-            return None
+            if "upgrade" in str(conn_hdr):
+                return None
 
-        clean_path = path.split('?')[0]
-        if clean_path in ('/', '/index.html'):
-            file_path = os.path.join(PUBLIC_DIR, 'index.html')
-        else:
-            file_path = os.path.join(PUBLIC_DIR, clean_path.lstrip('/'))
+            clean_path = path.split('?')[0]
+            if clean_path in ('/', '/index.html'):
+                file_path = os.path.join(PUBLIC_DIR, 'index.html')
+            else:
+                file_path = os.path.join(PUBLIC_DIR, clean_path.lstrip('/'))
 
-        if not os.path.exists(file_path) or not os.path.isfile(file_path):
-            file_path = os.path.join(PUBLIC_DIR, 'index.html')
+            if not os.path.exists(file_path) or not os.path.isfile(file_path):
+                file_path = os.path.join(PUBLIC_DIR, 'index.html')
 
-        mime_type, _ = mimetypes.guess_type(file_path)
-        if not mime_type: mime_type = 'text/html'
-        with open(file_path, 'rb') as f:
-            content = f.read()
+            mime_type, _ = mimetypes.guess_type(file_path)
+            if not mime_type: mime_type = 'text/html'
+            with open(file_path, 'rb') as f:
+                content = f.read()
 
-        response_headers = [
-            ("Content-Type", f"{mime_type}; charset=utf-8" if "text" in mime_type or "javascript" in mime_type else mime_type),
-            ("Content-Length", str(len(content))),
-            ("Access-Control-Allow-Origin", "*")
-        ]
+            if connection and hasattr(connection, 'respond'):
+                try:
+                    res = connection.respond(200, "OK")
+                    res.headers["Content-Type"] = f"{mime_type}; charset=utf-8" if ("text" in mime_type or "javascript" in mime_type) else mime_type
+                    res.headers["Content-Length"] = str(len(content))
+                    res.headers["Access-Control-Allow-Origin"] = "*"
+                    res.body = content
+                    return res
+                except Exception:
+                    pass
 
-        if connection and hasattr(connection, 'respond'):
-            return connection.respond(http.HTTPStatus.OK, response_headers, content)
-        else:
+            response_headers = [
+                ("Content-Type", f"{mime_type}; charset=utf-8" if ("text" in mime_type or "javascript" in mime_type) else mime_type),
+                ("Content-Length", str(len(content))),
+                ("Access-Control-Allow-Origin", "*")
+            ]
             return (http.HTTPStatus.OK, response_headers, content)
+
+        except Exception:
+            if arg1 and hasattr(arg1, 'respond'):
+                try:
+                    res = arg1.respond(200, "OK")
+                    res.headers["Content-Type"] = "text/html; charset=utf-8"
+                    with open(os.path.join(PUBLIC_DIR, 'index.html'), 'rb') as f:
+                        res.body = f.read()
+                    return res
+                except Exception:
+                    pass
+            with open(os.path.join(PUBLIC_DIR, 'index.html'), 'rb') as f:
+                return (http.HTTPStatus.OK, [("Content-Type", "text/html; charset=utf-8")], f.read())
 
     async def main_fallback():
         print(f"===============================================================")
