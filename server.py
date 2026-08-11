@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """
-Office Bingo Live Unified Server (HTTP + WebSockets via aiohttp)
-Works seamlessly on Render.com, Heroku, Railway, Docker, and Localhost.
-Serves static files (index.html, app.js, style.css) AND handles WSS/WS WebSocket connections on PORT.
+Office Bingo Live Unified Server (HTTP + WebSockets)
+Supports single $PORT hosting on Render.com, Heroku, Railway, and Localhost.
+Serves static files (index.html, style.css, app.js, presets.js) AND handles WebSockets.
 """
 
 import asyncio
+import http
 import json
 import mimetypes
 import os
@@ -18,7 +19,6 @@ import time
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 
-# PORT detection for Render.com ($PORT env var) or default 8000
 PORT = int(os.environ.get("PORT", 8000))
 PUBLIC_DIR = os.path.dirname(os.path.abspath(__file__))
 TURN_DURATION_SECONDS = 15
@@ -616,11 +616,16 @@ try:
                         })
         return ws
 
-    async def handle_index_file(request):
-        index_path = os.path.join(PUBLIC_DIR, 'index.html')
-        if os.path.exists(index_path):
-            return web.FileResponse(index_path)
-        return web.Response(text="Office Bingo Live Server")
+    async def handle_static_files(request):
+        path = request.path
+        if path in ('/', '/index.html'):
+            file_path = os.path.join(PUBLIC_DIR, 'index.html')
+        else:
+            file_path = os.path.join(PUBLIC_DIR, path.lstrip('/'))
+
+        if os.path.exists(file_path) and os.path.isfile(file_path):
+            return web.FileResponse(file_path)
+        return web.FileResponse(os.path.join(PUBLIC_DIR, 'index.html'))
 
     def run_aiohttp_server():
         print(f"===============================================================")
@@ -629,15 +634,13 @@ try:
         print(f"===============================================================")
         app = web.Application()
         app.router.add_get('/ws', aiohttp_ws_handler)
-        app.router.add_get('/', handle_index_file)
-        app.router.add_static('/', path=PUBLIC_DIR)
+        app.router.add_get('/{tail:.*}', handle_static_files)
         web.run_app(app, host='0.0.0.0', port=PORT)
 
     if __name__ == '__main__':
         run_aiohttp_server()
 
 except ImportError:
-    # Fallback to websockets if aiohttp is not installed
     import websockets
 
     async def websockets_handler(websocket):
@@ -682,8 +685,57 @@ except ImportError:
                             'state': serialize_room_state(current_room_id)
                         })
 
+    async def universal_process_request(arg1, arg2=None):
+        if hasattr(arg2, 'path'):
+            path = arg2.path
+            headers = arg2.headers
+            connection = arg1
+        elif hasattr(arg1, 'path'):
+            path = arg1.path
+            headers = getattr(arg1, 'headers', {})
+            connection = None
+        else:
+            path = str(arg1)
+            headers = arg2 or {}
+            connection = None
+
+        conn_hdr = ""
+        if hasattr(headers, 'get'):
+            conn_hdr = headers.get("Connection", "").lower()
+
+        if "upgrade" in conn_hdr:
+            return None
+
+        clean_path = path.split('?')[0]
+        if clean_path in ('/', '/index.html'):
+            file_path = os.path.join(PUBLIC_DIR, 'index.html')
+        else:
+            file_path = os.path.join(PUBLIC_DIR, clean_path.lstrip('/'))
+
+        if not os.path.exists(file_path) or not os.path.isfile(file_path):
+            file_path = os.path.join(PUBLIC_DIR, 'index.html')
+
+        mime_type, _ = mimetypes.guess_type(file_path)
+        if not mime_type: mime_type = 'text/html'
+        with open(file_path, 'rb') as f:
+            content = f.read()
+
+        response_headers = [
+            ("Content-Type", f"{mime_type}; charset=utf-8" if "text" in mime_type or "javascript" in mime_type else mime_type),
+            ("Content-Length", str(len(content))),
+            ("Access-Control-Allow-Origin", "*")
+        ]
+
+        if connection and hasattr(connection, 'respond'):
+            return connection.respond(http.HTTPStatus.OK, response_headers, content)
+        else:
+            return (http.HTTPStatus.OK, response_headers, content)
+
     async def main_fallback():
-        async with websockets.serve(websockets_handler, "0.0.0.0", PORT):
+        print(f"===============================================================")
+        print(f" [INFO] Office Bingo Live Fallback Server running on port {PORT}")
+        print(f"===============================================================")
+        async with websockets.serve(websockets_handler, "0.0.0.0", PORT, process_request=universal_process_request):
             await asyncio.Future()
 
     if __name__ == '__main__':
