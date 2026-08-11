@@ -1140,12 +1140,44 @@
             var mode = window.selectedGameMode || 'WINNER';
             var size = window.selectedSize || 5;
 
+            var roomCode = 'ROOM' + Math.floor(1000 + Math.random() * 9000);
+            window.currentRoomId = roomCode;
+            window.currentRoomCode = roomCode;
+            window.myNickname = nickname;
+            window.isHost = true;
+
+            var words = [];
+            if (wordsRaw) {
+                words = wordsRaw.split(/[\n,]/).map(function(w){ return w.trim(); }).filter(function(w){ return w.length > 0; });
+            }
+
+            var initialState = {
+                room_id: roomCode,
+                status: 'WAITING',
+                config: { size: size, topic: topic, game_mode: mode, word_pool: words },
+                called_items: [],
+                current_turn_player_id: null,
+                players: [{
+                    player_id: 'host_' + Math.random().toString(36).substring(2,6),
+                    nickname: nickname,
+                    is_host: true,
+                    is_ready: true,
+                    color: '#6366f1'
+                }]
+            };
+
+            window.roomState = initialState;
+            try {
+                localStorage.setItem('bingo_room_' + roomCode, JSON.stringify(initialState));
+            } catch(err){}
+
             var lobby = document.getElementById('lobby-section');
             var arena = document.getElementById('arena-section');
             if (lobby) lobby.style.display = 'none';
             if (arena) arena.style.display = 'block';
 
             renderStandaloneBoard({
+                roomCode: roomCode,
                 nickname: nickname,
                 topic: topic,
                 size: size,
@@ -1257,13 +1289,123 @@
             renderParticipantRoster(nickname, false);
         }
 
+        var soundMuted = false;
+        function toggleSoundDirect() {
+            soundMuted = !soundMuted;
+            window.soundMuted = soundMuted;
+            var btn = document.getElementById('sound-toggle-btn');
+            if (btn) {
+                btn.innerText = soundMuted ? '🔇' : '🔊';
+            }
+        }
+
+        var darkTheme = true;
+        function toggleThemeDirect() {
+            darkTheme = !darkTheme;
+            var btn = document.getElementById('theme-toggle-btn');
+            if (darkTheme) {
+                document.body.classList.remove('light-theme');
+                if (btn) btn.innerText = '🌙';
+            } else {
+                document.body.classList.add('light-theme');
+                if (btn) btn.innerText = '☀️';
+            }
+        }
+
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str).replace(/[&<>"']/g, function (m) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
+            });
+        }
+
+        function autoFillDirect() {
+            var grid = document.getElementById('bingo-board-grid');
+            if (!grid) return;
+            var cells = grid.querySelectorAll('.bingo-cell');
+            if (!cells || cells.length === 0) return;
+
+            var wordsInput = document.getElementById('create-words');
+            var wordsRaw = wordsInput ? wordsInput.value : '';
+
+            var words = [];
+            if (wordsRaw) {
+                words = wordsRaw.split(/[\n,]/).map(function(w){ return w.trim(); }).filter(function(w){ return w.length > 0; });
+            }
+
+            if (words.length < cells.length) {
+                var diff = cells.length - words.length;
+                for (var i = 1; i <= diff; i++) {
+                    words.push('단어 ' + (words.length + 1));
+                }
+            }
+
+            words = words.sort(function(){ return 0.5 - Math.random(); });
+
+            for (var idx = 0; idx < cells.length; idx++) {
+                cells[idx].innerText = words[idx] || ('단어 ' + (idx + 1));
+            }
+
+            if (window.doAutoFill) {
+                window.doAutoFill();
+            }
+        }
+
+        function clearBoardDirect() {
+            var grid = document.getElementById('bingo-board-grid');
+            if (!grid) return;
+            var cells = grid.querySelectorAll('.bingo-cell');
+            for (var idx = 0; idx < cells.length; idx++) {
+                cells[idx].innerText = '';
+            }
+            if (window.doClearBoard) {
+                window.doClearBoard();
+            }
+        }
+
+        window.addEventListener('storage', function(e) {
+            if (e.key && e.key.indexOf('bingo_room_') === 0) {
+                var roomCode = e.key.replace('bingo_room_', '');
+                var activeCode = getActiveRoomCode();
+                if (roomCode === activeCode && e.newValue) {
+                    try {
+                        var state = JSON.parse(e.newValue);
+                        window.roomState = state;
+
+                        if (state.config && state.config.topic) {
+                            var titleEl = document.getElementById('display-topic-title');
+                            if (titleEl) titleEl.innerText = state.config.topic;
+                        }
+
+                        renderParticipantRoster();
+
+                        if (window.isHost) {
+                            var ctrl = document.getElementById('host-controls');
+                            if (ctrl) ctrl.style.display = 'block';
+                        }
+                    } catch(err){}
+                }
+            }
+        });
+
         function renderParticipantRoster(nickname, isReady) {
             var panel = document.getElementById('panel-players');
             var countEl = document.getElementById('player-count');
 
+            var activeCode = getActiveRoomCode();
+            var stored = localStorage.getItem('bingo_room_' + activeCode);
+            if (stored) {
+                try {
+                    var state = JSON.parse(stored);
+                    if (state && state.players && state.players.length > 0) {
+                        window.roomState = state;
+                    }
+                } catch(e){}
+            }
+
             var playersList = (window.roomState && window.roomState.players && window.roomState.players.length > 0)
                 ? window.roomState.players
-                : [{ nickname: nickname || '김사원', is_host: true, is_ready: isReady }];
+                : [{ nickname: nickname || window.myNickname || '김사원', is_host: true, is_ready: isReady, color: '#6366f1' }];
 
             if (countEl) countEl.innerText = playersList.length;
 
@@ -1441,13 +1583,42 @@
             if (lobby) lobby.style.display = 'none';
             if (arena) arena.style.display = 'block';
 
+            var roomTopic = '참여한 빙고방';
+            var roomWords = '';
+            var roomSize = 5;
+
+            var stored = localStorage.getItem('bingo_room_' + roomCode);
+            if (stored) {
+                try {
+                    var state = JSON.parse(stored);
+                    if (state.config) {
+                        roomTopic = state.config.topic || roomTopic;
+                        roomSize = state.config.size || 5;
+                        if (state.config.word_pool) roomWords = state.config.word_pool.join('\n');
+                    }
+
+                    var exists = state.players.some(function(p){ return p.nickname === nickname; });
+                    if (!exists) {
+                        state.players.push({
+                            player_id: 'player_' + Math.random().toString(36).substring(2,6),
+                            nickname: nickname,
+                            is_host: false,
+                            is_ready: true,
+                            color: '#ec4899'
+                        });
+                    }
+                    window.roomState = state;
+                    localStorage.setItem('bingo_room_' + roomCode, JSON.stringify(state));
+                } catch(err){}
+            }
+
             renderStandaloneBoard({
                 roomCode: roomCode,
                 nickname: nickname,
-                topic: '참여한 빙고방',
-                size: 5,
+                topic: roomTopic,
+                size: roomSize,
                 mode: 'WINNER',
-                wordsRaw: ''
+                wordsRaw: roomWords
             });
 
             if (window.doJoinRoom) {
@@ -1473,8 +1644,8 @@
                 <span class="status-dot" id="status-dot"></span>
                 <span id="status-text">연결 대기 중</span>
             </div>
-            <button class="icon-btn" id="sound-toggle-btn" title="사운드 온/오프">🔊</button>
-            <button class="icon-btn" id="theme-toggle-btn" title="테마 변경">🌙</button>
+            <button class="icon-btn" id="sound-toggle-btn" title="사운드 온/오프" onclick="toggleSoundDirect()">🔊</button>
+            <button class="icon-btn" id="theme-toggle-btn" title="테마 변경" onclick="toggleThemeDirect()">🌙</button>
         </div>
     </header>
 
@@ -1600,8 +1771,8 @@
                         <div id="footer-waiting-controls" style="display: flex; gap: 8px; flex-wrap: wrap; width: 100%; align-items: center; justify-content: space-between;">
                             <button class="primary-btn" id="btn-toggle-ready" onclick="toggleReadyDirect()" style="width: auto; padding: 10px 20px;">✋ 준비 완료</button>
                             <div style="display: flex; gap: 6px;">
-                                <button class="secondary-btn" id="btn-auto-fill">✨ 무작위 자동 채우기</button>
-                                <button class="secondary-btn" id="btn-clear-board">🗑️ 보드 비우기</button>
+                                <button class="secondary-btn" id="btn-auto-fill" onclick="autoFillDirect()">✨ 무작위 자동 채우기</button>
+                                <button class="secondary-btn" id="btn-clear-board" onclick="clearBoardDirect()">🗑️ 보드 비우기</button>
                             </div>
                         </div>
 
@@ -1628,7 +1799,21 @@
                     </div>
 
                     <div class="sidebar-content">
-                        <div id="panel-players" class="player-list"></div>
+                        <div id="panel-players" class="player-list" style="display: flex; flex-direction: column; gap: 8px;">
+                            <div class="player-card" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--bg-glass-card); border: 1px solid var(--border-glass); border-radius: var(--radius-md);">
+                                <div class="player-info" style="display: flex; align-items: center; gap: 10px;">
+                                    <div class="player-avatar" style="width: 32px; height: 32px; border-radius: 50%; background-color: #6366f1; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800;">김</div>
+                                    <div class="player-name-box">
+                                        <div class="player-name" style="font-weight: 700; font-size: 0.9rem;">
+                                            김사원 <span class="host-tag" style="font-size: 0.7rem; padding: 2px 6px; background: var(--primary); color: #fff; border-radius: 10px; margin-left: 4px;">방장</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="player-score">
+                                    <span class="ready-tag waiting" style="color: var(--warning); font-weight: 700;">🟡 작성 중...</span>
+                                </div>
+                            </div>
+                        </div>
                         <div id="panel-calls" style="display: none;" class="call-list"></div>
                         <div id="panel-chat" style="display: none;" class="chat-container">
                             <div class="chat-messages" id="chat-messages"></div>

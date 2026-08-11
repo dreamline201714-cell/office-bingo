@@ -267,7 +267,7 @@ const BINGO_PRESETS = [
         const isFileProtocol = (window.location.protocol === 'file:');
 
         if (isFileProtocol) {
-            tryLocalWebSocket("ws://localhost:8000/ws");
+            tryLocalWebSocket("ws://localhost:8765/ws");
             return;
         }
 
@@ -1060,52 +1060,70 @@ const BINGO_PRESETS = [
     });
 
     function renderPlayersRoster(status) {
+        if (!panelPlayers) return;
         panelPlayers.innerHTML = '';
 
-        roomState.players.forEach(p => {
-            const card = document.createElement('div');
-            const isTurnPlayer = (p.player_id === roomState.current_turn_player_id && status === 'PLAYING');
-            card.className = 'player-card' + (isTurnPlayer ? ' active-turn' : '');
+        const playersList = (roomState && roomState.players && roomState.players.length > 0)
+            ? roomState.players
+            : [{ player_id: myPlayerId || 'p1', nickname: (createNicknameInput ? createNicknameInput.value.trim() : null) || '김사원', is_host: isHost, is_ready: false, color: '#6366f1' }];
 
-            const firstLetter = p.nickname.charAt(0).toUpperCase();
+        if (playerCountSpan) {
+            playerCountSpan.innerText = playersList.length;
+        }
 
-            let statusHtml = '';
-            if (status === 'WAITING') {
-                statusHtml = p.is_ready 
-                    ? '<span class="ready-tag ready">🟢 준비 완료</span>'
-                    : '<span class="ready-tag waiting">🟡 작성 중...</span>';
-            } else {
-                if (p.is_loser) {
-                    statusHtml = '<span class="loser-tag">💣 패자 (벌칙)</span>';
-                } else if (p.is_escaped) {
-                    statusHtml = `<span class="escaped-tag">🟢 ${p.escape_rank}등 탈출</span>`;
+        playersList.forEach(p => {
+            try {
+                const card = document.createElement('div');
+                const isTurnPlayer = (p.player_id === (roomState ? roomState.current_turn_player_id : null) && status === 'PLAYING');
+                card.className = 'player-card' + (isTurnPlayer ? ' active-turn' : '');
+
+                const nickname = p.nickname || '참여자';
+                const firstLetter = nickname.charAt(0).toUpperCase();
+                const avatarColor = p.color || '#6366f1';
+
+                let statusHtml = '';
+                if (status === 'WAITING' || !status) {
+                    statusHtml = p.is_ready 
+                        ? '<span class="ready-tag ready">🟢 준비 완료</span>'
+                        : '<span class="ready-tag waiting">🟡 작성 중...</span>';
                 } else {
-                    statusHtml = `<span>${p.score}줄 ${isTurnPlayer ? '🎯' : ''}</span>`;
+                    if (p.is_loser) {
+                        statusHtml = '<span class="loser-tag">💣 패자 (벌칙)</span>';
+                    } else if (p.is_escaped) {
+                        statusHtml = `<span class="escaped-tag">🟢 ${p.escape_rank}등 탈출</span>`;
+                    } else {
+                        statusHtml = `<span>${p.score || 0}줄 ${isTurnPlayer ? '🎯' : ''}</span>`;
+                    }
                 }
-            }
 
-            card.innerHTML = `
-                <div class="player-info">
-                    <div class="player-avatar" style="background-color: ${p.color};">${firstLetter}</div>
-                    <div class="player-name-box">
-                        <div class="player-name">
-                            ${escapeHtml(p.nickname)}
-                            ${p.is_host ? '<span class="host-tag">방장</span>' : ''}
+                card.innerHTML = `
+                    <div class="player-info">
+                        <div class="player-avatar" style="background-color: ${avatarColor};">${firstLetter}</div>
+                        <div class="player-name-box">
+                            <div class="player-name">
+                                ${escapeHtml(nickname)}
+                                ${p.is_host ? '<span class="host-tag">방장</span>' : ''}
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="player-score">
-                    ${statusHtml}
-                    <button class="spectate-btn" data-pid="${p.player_id}">👁️ 관전</button>
-                </div>
-            `;
+                    <div class="player-score">
+                        ${statusHtml}
+                        <button class="spectate-btn" data-pid="${p.player_id || ''}">👁️ 관전</button>
+                    </div>
+                `;
 
-            card.querySelector('.spectate-btn').addEventListener('click', (e) => {
-                e.stopPropagation();
-                openSpectateModal(p.player_id);
-            });
+                const specBtn = card.querySelector('.spectate-btn');
+                if (specBtn) {
+                    specBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        openSpectateModal(p.player_id);
+                    });
+                }
 
-            panelPlayers.appendChild(card);
+                panelPlayers.appendChild(card);
+            } catch (e) {
+                console.error("Error rendering player card:", e);
+            }
         });
     }
 
@@ -1266,7 +1284,8 @@ const BINGO_PRESETS = [
     }
 
     function escapeHtml(str) {
-        return str.replace(/[&<>"']/g, function (m) {
+        if (str === null || str === undefined) return '';
+        return String(str).replace(/[&<>"']/g, function (m) {
             return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
         });
     }

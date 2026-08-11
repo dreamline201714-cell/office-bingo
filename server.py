@@ -700,16 +700,22 @@ except ImportError:
                 headers = arg2 or {}
                 connection = None
 
+            upgrade_hdr = ""
             conn_hdr = ""
             if hasattr(headers, 'get'):
-                conn_hdr = headers.get("Connection", "").lower()
-            elif isinstance(headers, (list, tuple)):
-                for k, v in headers:
-                    if k.lower() == 'connection':
-                        conn_hdr = v.lower()
-                        break
+                upgrade_hdr = str(headers.get("upgrade") or headers.get("Upgrade") or "").lower()
+                conn_hdr = str(headers.get("connection") or headers.get("Connection") or "").lower()
+            
+            if hasattr(headers, '__iter__'):
+                try:
+                    for k, v in headers.items() if hasattr(headers, 'items') else headers:
+                        if str(k).lower() == 'upgrade': upgrade_hdr = str(v).lower()
+                        if str(k).lower() == 'connection': conn_hdr = str(v).lower()
+                except Exception:
+                    pass
 
-            if "upgrade" in str(conn_hdr):
+            # If it's a websocket handshake request, ALWAYS return None so websockets handles connection!
+            if "websocket" in upgrade_hdr or "upgrade" in conn_hdr or path.endswith('/ws') or path == '/ws':
                 return None
 
             clean_path = path.split('?')[0]
@@ -758,9 +764,9 @@ except ImportError:
 
     async def main_fallback():
         print(f"===============================================================")
-        print(f" [INFO] Office Bingo Live Fallback Server running on port {PORT}")
+        print(f" [INFO] Office Bingo Live WS Server running on port {PORT}")
         print(f"===============================================================")
-        async with websockets.serve(websockets_handler, "0.0.0.0", PORT, process_request=universal_process_request):
+        async with websockets.serve(websockets_handler, "0.0.0.0", PORT):
             await asyncio.Future()
 
     if __name__ == '__main__':
