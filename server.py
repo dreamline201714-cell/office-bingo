@@ -278,7 +278,8 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
     msg_type = data.get('type')
 
     if msg_type == 'CREATE_ROOM':
-        nickname = data.get('nickname', '방장').strip() or '방장'
+        raw_nickname = data.get('nickname', '방장')
+        nickname = str(raw_nickname if raw_nickname is not None else '방장').strip() or '방장'
         size = int(data.get('size', 5))
         if size not in (3, 4, 5): size = 5
         
@@ -339,7 +340,8 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
 
     elif msg_type == 'JOIN_ROOM':
         room_id = data.get('room_id', '').upper().strip()
-        nickname = data.get('nickname', '참여자').strip() or '참여자'
+        raw_nickname = data.get('nickname', '참여자')
+        nickname = str(raw_nickname if raw_nickname is not None else '참여자').strip() or '참여자'
 
         if room_id not in ROOMS:
             err_msg = {'type': 'ERROR', 'message': '존재하지 않는 방 코드입니다.'}
@@ -739,7 +741,8 @@ except ImportError:
                 res_hdrs = WSHeaders([
                     ("Content-Type", hdr_type),
                     ("Content-Length", str(len(content))),
-                    ("Access-Control-Allow-Origin", "*")
+                    ("Access-Control-Allow-Origin", "*"),
+                    ("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
                 ])
                 return WSResponse(200, "OK", res_hdrs, content)
             except Exception:
@@ -748,7 +751,8 @@ except ImportError:
             response_headers = [
                 ("Content-Type", f"{mime_type}; charset=utf-8" if ("text" in mime_type or "javascript" in mime_type) else mime_type),
                 ("Content-Length", str(len(content))),
-                ("Access-Control-Allow-Origin", "*")
+                ("Access-Control-Allow-Origin", "*"),
+                ("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
             ]
             return (http.HTTPStatus.OK, response_headers, content)
 
@@ -758,15 +762,15 @@ except ImportError:
             try:
                 from websockets.http11 import Response as WSResponse
                 from websockets.datastructures import Headers as WSHeaders
-                return WSResponse(200, "OK", WSHeaders([("Content-Type", "text/html; charset=utf-8")]), content)
+                return WSResponse(200, "OK", WSHeaders([("Content-Type", "text/html; charset=utf-8"), ("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")]), content)
             except Exception:
-                return (http.HTTPStatus.OK, [("Content-Type", "text/html; charset=utf-8")], content)
+                return (http.HTTPStatus.OK, [("Content-Type", "text/html; charset=utf-8"), ("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")], content)
 
     async def main_fallback():
         print(f"===============================================================")
         print(f" [INFO] Office Bingo Live WS Server running on port {PORT}")
         print(f"===============================================================")
-        async with websockets.serve(websockets_handler, "0.0.0.0", PORT):
+        async with websockets.serve(websockets_handler, "0.0.0.0", PORT, process_request=universal_process_request):
             await asyncio.Future()
 
     if __name__ == '__main__':

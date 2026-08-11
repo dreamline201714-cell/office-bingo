@@ -3,62 +3,6 @@
  * Supports Local file:// Execution, Standalone Offline Mode, WebSockets & WebRTC.
  */
 
-// Global Presets Definition (Ensures 100% visibility under any environment)
-const BINGO_PRESETS = [
-    {
-        id: "custom",
-        title: "✨ 자유 주제 (직접 입력)",
-        description: "나만의 자유로운 주제와 단어를 직접 입력하여 진행합니다.",
-        words: []
-    },
-    {
-        id: "kospi_100",
-        title: "📈 코스피 시총 Top 100",
-        description: "대한민국 주식 시장 대표 KOSPI 시가총액 상위 100개 기업명!",
-        words: [
-            "삼성전자", "SK하이닉스", "LG에너지솔루션", "삼성바이오로직스", "현대차", 
-            "기아", "셀트리온", "KB금융", "신한지주", "POSCO홀딩스", 
-            "NAVER", "현대모비스", "삼성물산", "LG화학", "카카오", 
-            "하나금융지주", "삼성SDI", "LG전자", "메리츠금융지주", "SK이노베이션", 
-            "HMM", "한국전력", "KT&G", "삼성생명", "HD현대중공업", 
-            "크래프톤", "한화에어로스페이스", "카카오뱅크", "삼성화재", "HD한국조선해양", 
-            "삼성E&A", "SK텔레콤", "고려아연", "우리금융지주", "포스코퓨처엠", 
-            "S-Oil", "KT", "기업은행", "대한항공", "포스코인터내셔널", 
-            "HD현대일렉트릭", "삼성전기", "한화오션", "두산에너빌리티", "카카오페이", 
-            "아모레퍼시픽", "한진칼", "하이브", "현대글로비스", "LG", 
-            "한국타이어앤테크놀로지", "SK", "삼성중공업", "한화시스템", "LG디스플레이", 
-            "유한양행", "금호석유", "한국항공우주", "두산밥캣", "현대제철", 
-            "강원랜드", "DB손해보험", "현대해상", "LG생활건강", "CJ제일제당", 
-            "에스원", "오리온", "롯데케미칼", "GS", "한미약품", 
-            "한화", "현대건설", "SK바이오팜", "SKC", "포스코DX", 
-            "한진", "두산", "BGF리테일", "LS", "효성티앤씨", 
-            "영원무역", "GS리테일", "넷마블", "엔씨소프트", "키움증권", 
-            "미래에셋증권", "한국금융지주", "NH투자증권", "삼성증권", "현대백화점", 
-            "신세계", "이마트", "CJ", "롯데쇼핑", "대우건설", 
-            "코웨이", "농심", "휠라홀딩스", "오뚜기", "삼양식품"
-        ]
-    },
-    {
-        id: "colors_30",
-        title: "🎨 다양한 색깔 (30가지)",
-        description: "원색부터 감성 컬러까지 30가지 알록달록 색상 이름!",
-        words: [
-            "빨강", "파랑", "노랑", "초록", "분홍", 
-            "보라", "주황", "검정", "하양", "갈색", 
-            "하늘", "남색", "금색", "은색", "민트", 
-            "코랄", "마젠타", "시안", "올리브", "카키", 
-            "청록", "베이지", "차콜", "크림슨", "라벤더", 
-            "핫핑크", "네온그린", "버건디", "아이보리", "연두"
-        ]
-    },
-    {
-        id: "numbers_1_50",
-        title: "🔢 1~50 무작위 숫자",
-        description: "클래식 무작위 숫자 빙고!",
-        words: Array.from({ length: 50 }, (_, i) => String(i + 1))
-    }
-];
-
 (function () {
     let socket = null;
     let peer = null;
@@ -263,130 +207,6 @@ const BINGO_PRESETS = [
     const spectateModalScore = document.getElementById('spectate-modal-score');
     const spectateGrid = document.getElementById('spectate-grid');
 
-    function connectNetwork() {
-        const isFileProtocol = (window.location.protocol === 'file:');
-
-        if (isFileProtocol) {
-            tryLocalWebSocket("ws://localhost:8765/ws");
-            return;
-        }
-
-        const protocol = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';
-        const host = window.location.host;
-        const wsUrl = `${protocol}//${host}/ws`;
-
-        statusText.innerText = '서버 연결 중...';
-        statusDot.className = 'status-dot';
-
-        let connectionTimeout = setTimeout(() => {
-            if (!socket || socket.readyState !== WebSocket.OPEN) {
-                console.warn("WebSocket timeout - activating Standalone Offline Mode");
-                initStandaloneMode();
-            }
-        }, 1200);
-
-        try {
-            socket = new WebSocket(wsUrl);
-
-            socket.onopen = () => {
-                clearTimeout(connectionTimeout);
-                statusText.innerText = '서버 연결됨';
-                statusDot.className = 'status-dot connected';
-                checkUrlQueryParams();
-            };
-
-            socket.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-                    handleServerMessage(data);
-                } catch (e) {
-                    console.error('WS Parse Error:', e);
-                }
-            };
-
-            socket.onclose = () => {
-                clearTimeout(connectionTimeout);
-                tryFallbackWebSocket(`${protocol}//${host}`);
-            };
-
-            socket.onerror = () => {
-                clearTimeout(connectionTimeout);
-                tryFallbackWebSocket(`${protocol}//${host}`);
-            };
-        } catch (e) {
-            clearTimeout(connectionTimeout);
-            initStandaloneMode();
-        }
-    }
-
-    function tryFallbackWebSocket(fallbackUrl) {
-        try {
-            socket = new WebSocket(fallbackUrl);
-            socket.onopen = () => {
-                statusText.innerText = '서버 연결됨';
-                statusDot.className = 'status-dot connected';
-                checkUrlQueryParams();
-            };
-            socket.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-                    handleServerMessage(data);
-                } catch (e) {}
-            };
-            socket.onclose = () => initP2PFallback();
-            socket.onerror = () => initP2PFallback();
-        } catch (e) {
-            initP2PFallback();
-        }
-    }
-
-    function tryLocalWebSocket(wsUrl) {
-        statusText.innerText = '로컬 서버 연결 중...';
-        statusDot.className = 'status-dot';
-
-        try {
-            socket = new WebSocket(wsUrl);
-
-            socket.onopen = () => {
-                statusText.innerText = '로컬 서버 연결됨';
-                statusDot.className = 'status-dot connected';
-                checkUrlQueryParams();
-            };
-
-            socket.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-                    handleServerMessage(data);
-                } catch (e) {
-                    console.error('WS Parse Error:', e);
-                }
-            };
-
-            socket.onclose = () => {
-                initStandaloneMode();
-            };
-
-            socket.onerror = () => {
-                initStandaloneMode();
-            };
-        } catch (e) {
-            initStandaloneMode();
-        }
-    }
-
-    function initP2PFallback() {
-        isP2P = true;
-        statusText.innerText = 'P2P 클라우드 연결 준비됨';
-        statusDot.className = 'status-dot connected';
-        checkUrlQueryParams();
-    }
-
-    function initStandaloneMode() {
-        isStandalone = true;
-        statusText.innerText = '오프라인 단독 모드 가동됨';
-        statusDot.className = 'status-dot connected';
-        checkUrlQueryParams();
-    }
 
     function checkUrlQueryParams() {
         const urlParams = new URLSearchParams(window.location.search);
@@ -397,10 +217,73 @@ const BINGO_PRESETS = [
         }
     }
 
+    // Message queue for messages sent before WebSocket is open
+    let messageQueue = [];
+
+    function drainMessageQueue() {
+        while (messageQueue.length > 0) {
+            const msg = messageQueue.shift();
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify(msg));
+            }
+        }
+    }
+
+    function connectWebSocket(wsUrl) {
+        statusText.innerText = '서버 연결 중...';
+        statusDot.className = 'status-dot';
+        try {
+            socket = new WebSocket(wsUrl);
+
+            socket.onopen = () => {
+                isStandalone = false;
+                isP2P = false;
+                statusText.innerText = '서버 연결됨';
+                statusDot.className = 'status-dot connected';
+                drainMessageQueue();
+                checkUrlQueryParams();
+            };
+
+            socket.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleServerMessage(data);
+                } catch (e) {
+                    console.error('WS Parse Error:', e);
+                }
+            };
+
+            socket.onclose = () => {
+                statusText.innerText = '서버 연결 중...';
+                statusDot.className = 'status-dot';
+                // Retry after 2 seconds
+                setTimeout(() => connectWebSocket(wsUrl), 2000);
+            };
+
+            socket.onerror = () => {
+                // onclose will fire after onerror, retry is handled there
+            };
+        } catch (e) {
+            setTimeout(() => connectWebSocket(wsUrl), 2000);
+        }
+    }
+
+    function connectNetwork() {
+        const isFileProtocol = (window.location.protocol === 'file:');
+        const protocol = isFileProtocol ? 'ws:' : ((window.location.protocol === 'https:') ? 'wss:' : 'ws:');
+        const host = isFileProtocol ? 'localhost:8765' : window.location.host;
+        const wsUrl = `${protocol}//${host}/ws`;
+        connectWebSocket(wsUrl);
+    }
+
     function sendMessage(msgDict) {
-        if (!isP2P && !isStandalone && socket && socket.readyState === WebSocket.OPEN) {
+        if (socket && socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify(msgDict));
+        } else if (socket && (socket.readyState === WebSocket.CONNECTING)) {
+            // Queue the message - will be sent when connection opens
+            messageQueue.push(msgDict);
         } else {
+            // Fallback to local/P2P only if definitely no server
             handleLocalOrP2PAction(msgDict);
         }
     }
@@ -815,6 +698,16 @@ const BINGO_PRESETS = [
         drawModal.classList.add('active');
     }
 
+    window.doToggleReady = function() {
+        initAudio();
+        sendMessage({ type: 'TOGGLE_READY' });
+    };
+
+    window.doStartGame = function() {
+        initAudio();
+        sendMessage({ type: 'START_GAME' });
+    };
+
     function updateArenaUI() {
         if (!roomState) return;
 
@@ -872,37 +765,38 @@ const BINGO_PRESETS = [
             startClientTurnTimer(roomState.turn_time_remaining || 15);
         }
 
-    window.doToggleReady = function() {
-        initAudio();
-        sendMessage({ type: 'TOGGLE_READY' });
-    };
+        // Host controls
+        if (myPlayer && myPlayer.is_host) {
+            hostControls.style.display = 'block';
+            if (status === 'WAITING') {
+                btnHostStart.style.display = 'inline-block';
+                const nonHostPlayers = roomState.players.filter(p => !p.is_host);
+                const readyCount = nonHostPlayers.filter(p => p.is_ready).length;
+                const allNonHostsReady = nonHostPlayers.length > 0 && nonHostPlayers.every(p => p.is_ready);
 
-    window.doStartGame = function() {
-        initAudio();
-        sendMessage({ type: 'START_GAME' });
-    };
-
-    if (myPlayer && myPlayer.is_host) {
-        hostControls.style.display = 'block';
-
-        if (status === 'WAITING') {
-            btnHostStart.style.display = 'inline-block';
-            const readyCount = roomState.players.filter(p => p.is_ready).length;
-            const nonHostPlayers = roomState.players.filter(p => !p.is_host);
-            const allNonHostsReady = nonHostPlayers.length === 0 || nonHostPlayers.every(p => p.is_ready);
-
-            btnHostStart.disabled = false;
-            btnHostStart.style.opacity = '1';
-            btnHostStart.style.cursor = 'pointer';
-            btnHostStart.innerText = (allNonHostsReady || readyCount > 0) 
-                ? '🎮 게임 시작하기!' 
-                : `🎮 게임 시작 (${readyCount}/${roomState.players.length}명 준비 완료)`;
+                // Only enable if there's at least 1 participant and all are ready
+                if (nonHostPlayers.length === 0) {
+                    btnHostStart.disabled = true;
+                    btnHostStart.style.opacity = '0.4';
+                    btnHostStart.style.cursor = 'not-allowed';
+                    btnHostStart.innerText = '🎮 참가자를 기다리는 중...';
+                } else if (allNonHostsReady) {
+                    btnHostStart.disabled = false;
+                    btnHostStart.style.opacity = '1';
+                    btnHostStart.style.cursor = 'pointer';
+                    btnHostStart.innerText = '🎮 게임 시작하기!';
+                } else {
+                    btnHostStart.disabled = false;
+                    btnHostStart.style.opacity = '0.7';
+                    btnHostStart.style.cursor = 'pointer';
+                    btnHostStart.innerText = `🎮 게임 시작 (${readyCount}/${nonHostPlayers.length}명 준비 완료)`;
+                }
+            } else {
+                btnHostStart.style.display = 'none';
+            }
         } else {
-            btnHostStart.style.display = 'none';
+            hostControls.style.display = 'none';
         }
-    } else {
-        hostControls.style.display = 'none';
-    }
 
         if (myPlayer) {
             renderBingoBoard(myPlayer.board, myPlayer.marked, config.size, status, myPlayer.is_ready, isMyTurn);
@@ -914,7 +808,7 @@ const BINGO_PRESETS = [
         renderPlayersRoster(status);
         renderCalledItems();
         renderChatLogs();
-    }
+    } // end updateArenaUI
 
     function startClientTurnTimer(secondsLeft) {
         clearInterval(timerInterval);
@@ -1063,9 +957,15 @@ const BINGO_PRESETS = [
         if (!panelPlayers) return;
         panelPlayers.innerHTML = '';
 
+        const myNick = window.myNickname || (createNicknameInput && createNicknameInput.value.trim() ? createNicknameInput.value.trim() : null) || '방장';
+
         const playersList = (roomState && roomState.players && roomState.players.length > 0)
             ? roomState.players
-            : [{ player_id: myPlayerId || 'p1', nickname: (createNicknameInput ? createNicknameInput.value.trim() : null) || '김사원', is_host: isHost, is_ready: false, color: '#6366f1' }];
+            : [{ player_id: myPlayerId || 'p1', nickname: myNick, is_host: isHost, is_ready: false, color: '#6366f1' }];
+
+        if (isHost && playersList.length > 0 && myNick) {
+            playersList[0].nickname = myNick;
+        }
 
         if (playerCountSpan) {
             playerCountSpan.innerText = playersList.length;
@@ -1077,7 +977,7 @@ const BINGO_PRESETS = [
                 const isTurnPlayer = (p.player_id === (roomState ? roomState.current_turn_player_id : null) && status === 'PLAYING');
                 card.className = 'player-card' + (isTurnPlayer ? ' active-turn' : '');
 
-                const nickname = p.nickname || '참여자';
+                const nickname = String(p.nickname || '참여자');
                 const firstLetter = nickname.charAt(0).toUpperCase();
                 const avatarColor = p.color || '#6366f1';
 
