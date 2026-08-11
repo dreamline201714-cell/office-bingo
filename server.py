@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Office Bingo Live Unified Server (HTTP + WebSockets on Single Port)
+Office Bingo Live Unified Server (HTTP + WebSockets via aiohttp)
 Works seamlessly on Render.com, Heroku, Railway, Docker, and Localhost.
-Serves static files (index.html, app.js, etc.) AND handles WSS/WS real-time WebSocket connections.
+Serves static files (index.html, app.js, style.css) AND handles WSS/WS WebSocket connections on PORT.
 """
 
 import asyncio
@@ -10,13 +10,11 @@ import json
 import mimetypes
 import os
 import random
-import socket
 import string
 import sys
 import time
-import websockets
 
-# Ensure UTF-8 stdout on Windows console
+# Ensure UTF-8 output
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 
@@ -25,18 +23,15 @@ PORT = int(os.environ.get("PORT", 8000))
 PUBLIC_DIR = os.path.dirname(os.path.abspath(__file__))
 TURN_DURATION_SECONDS = 15
 
-# Color palette for player avatars
 AVATAR_COLORS = [
     "#FF5733", "#33FF57", "#3357FF", "#F39C12", "#8E44AD",
     "#1ABC9C", "#E91E63", "#00BCD4", "#8BC34A", "#FF9800"
 ]
 
-# Rooms storage
 ROOMS = {}
 
 
 def generate_room_code(length=6):
-    """Generate uppercase alphanumeric room code."""
     chars = string.ascii_uppercase + string.digits
     while True:
         code = ''.join(random.choice(chars) for _ in range(length))
@@ -45,28 +40,23 @@ def generate_room_code(length=6):
 
 
 def calculate_bingo_lines(board, marked_indices, size):
-    """Calculate completed bingo line count for a square board of dimension `size`."""
     if not board or len(board) < size * size:
         return 0
 
     marked_set = set(marked_indices)
     lines = 0
 
-    # Horizontal rows
     for r in range(size):
         if all((r * size + c) in marked_set for c in range(size)):
             lines += 1
 
-    # Vertical columns
     for c in range(size):
         if all((r * size + c) in marked_set for r in range(size)):
             lines += 1
 
-    # Main diagonal
     if all((i * size + i) in marked_set for i in range(size)):
         lines += 1
 
-    # Anti-diagonal
     if all((i * size + (size - 1 - i)) in marked_set for i in range(size)):
         lines += 1
 
@@ -74,7 +64,6 @@ def calculate_bingo_lines(board, marked_indices, size):
 
 
 def generate_player_board(word_pool, size):
-    """Generate an initial shuffled board of size*size cells from word_pool."""
     total_cells = size * size
     words = list(word_pool) if word_pool else []
 
@@ -83,12 +72,10 @@ def generate_player_board(word_pool, size):
         for i in range(1, extra_needed + 1):
             words.append(f"단어 {i}")
 
-    shuffled = random.sample(words, len(words))[:total_cells]
-    return shuffled
+    return random.sample(words, len(words))[:total_cells]
 
 
 def get_current_turn_player(room):
-    """Returns the current turn player socket and dict."""
     if not room or room['status'] != 'PLAYING' or not room['turn_order']:
         return None, None
     
@@ -99,7 +86,6 @@ def get_current_turn_player(room):
 
 
 def serialize_room_state(room_id):
-    """Serialize full room state for broadcasting."""
     if room_id not in ROOMS:
         return None
 
@@ -144,22 +130,22 @@ def serialize_room_state(room_id):
 
 
 async def broadcast_to_room(room_id, message_dict):
-    """Send JSON message to all WebSocket connections in a room."""
     if room_id not in ROOMS:
         return
     
-    payload = json.dumps(message_dict, ensure_ascii=False)
     target_sockets = list(ROOMS[room_id]['players'].keys())
     
     for ws in target_sockets:
         try:
-            await ws.send(payload)
-        except websockets.exceptions.ConnectionClosed:
+            if hasattr(ws, 'send_json'):
+                await ws.send_json(message_dict)
+            else:
+                await ws.send(json.dumps(message_dict, ensure_ascii=False))
+        except Exception:
             pass
 
 
 def start_turn_timer(room_id):
-    """Cancel existing turn timer and start a new 15-second countdown timer."""
     if room_id not in ROOMS:
         return
 
@@ -172,7 +158,6 @@ def start_turn_timer(room_id):
 
 
 async def run_turn_timer(room_id, expected_step):
-    """Wait 15s and auto-advance turn if player timed out."""
     try:
         await asyncio.sleep(TURN_DURATION_SECONDS)
         if room_id not in ROOMS:
@@ -212,7 +197,6 @@ async def run_turn_timer(room_id, expected_step):
 
 
 def advance_turn(room_id):
-    """Advance current_turn_index to next active un-escaped player in turn_order."""
     if room_id not in ROOMS:
         return
     
@@ -233,7 +217,6 @@ def advance_turn(room_id):
 
 
 async def execute_word_call(room_id, word_text, caller_nickname):
-    """Execute room-wide word marking for ALL players having word_text on their board."""
     if room_id not in ROOMS:
         return
 
@@ -291,98 +274,36 @@ async def execute_word_call(room_id, word_text, caller_nickname):
     })
 
 
-async def handle_websocket(websocket):
-    """Handle WebSockets messages."""
-    current_room_id = None
-    current_player_id = str(id(websocket))
+async def process_client_msg(ws, current_player_id, data, current_room_id):
+    msg_type = data.get('type')
 
-    try:
-        async for message in websocket:
-            try:
-                data = json.loads(message)
-            except json.JSONDecodeError:
-                continue
+    if msg_type == 'CREATE_ROOM':
+        nickname = data.get('nickname', '방장').strip() or '방장'
+        size = int(data.get('size', 5))
+        if size not in (3, 4, 5): size = 5
+        
+        topic = data.get('topic', '자유 주제').strip() or '자유 주제'
+        game_mode = data.get('game_mode', 'WINNER')
+        word_pool = data.get('word_pool', [])
 
-            msg_type = data.get('type')
+        room_id = generate_room_code()
+        board = generate_player_board(word_pool, size)
+        color = random.choice(AVATAR_COLORS)
 
-            if msg_type == 'CREATE_ROOM':
-                nickname = data.get('nickname', '방장').strip() or '방장'
-                size = int(data.get('size', 5))
-                if size not in (3, 4, 5): size = 5
-                
-                topic = data.get('topic', '자유 주제').strip() or '자유 주제'
-                game_mode = data.get('game_mode', 'WINNER')
-                word_pool = data.get('word_pool', [])
-
-                room_id = generate_room_code()
-                board = generate_player_board(word_pool, size)
-                color = random.choice(AVATAR_COLORS)
-
-                ROOMS[room_id] = {
-                    'status': 'WAITING',
-                    'config': {
-                        'size': size,
-                        'topic': topic,
-                        'game_mode': game_mode,
-                        'word_pool': word_pool,
-                        'target_lines': size
-                    },
-                    'players': {
-                        websocket: {
-                            'id': current_player_id,
-                            'nickname': nickname,
-                            'is_host': True,
-                            'is_ready': False,
-                            'is_escaped': False,
-                            'escape_rank': 0,
-                            'is_loser': False,
-                            'color': color,
-                            'board': board,
-                            'marked': set(),
-                            'score': 0
-                        }
-                    },
-                    'turn_order': [],
-                    'current_turn_index': 0,
-                    'turn_step': 0,
-                    'turn_start_time': None,
-                    'timer_task': None,
-                    'called_items': [],
-                    'chat_logs': []
-                }
-
-                current_room_id = room_id
-
-                await websocket.send(json.dumps({
-                    'type': 'ROOM_JOINED',
-                    'room_id': room_id,
-                    'player_id': current_player_id,
-                    'is_host': True,
-                    'state': serialize_room_state(room_id)
-                }, ensure_ascii=False))
-
-            elif msg_type == 'JOIN_ROOM':
-                room_id = data.get('room_id', '').upper().strip()
-                nickname = data.get('nickname', '참여자').strip() or '참여자'
-
-                if room_id not in ROOMS:
-                    await websocket.send(json.dumps({
-                        'type': 'ERROR',
-                        'message': '존재하지 않는 방 코드입니다.'
-                    }, ensure_ascii=False))
-                    continue
-
-                room = ROOMS[room_id]
-                size = room['config']['size']
-                word_pool = room['config']['word_pool']
-
-                board = generate_player_board(word_pool, size)
-                color = random.choice(AVATAR_COLORS)
-
-                room['players'][websocket] = {
+        ROOMS[room_id] = {
+            'status': 'WAITING',
+            'config': {
+                'size': size,
+                'topic': topic,
+                'game_mode': game_mode,
+                'word_pool': word_pool,
+                'target_lines': size
+            },
+            'players': {
+                ws: {
                     'id': current_player_id,
                     'nickname': nickname,
-                    'is_host': False,
+                    'is_host': True,
                     'is_ready': False,
                     'is_escaped': False,
                     'escape_rank': 0,
@@ -392,294 +313,378 @@ async def handle_websocket(websocket):
                     'marked': set(),
                     'score': 0
                 }
+            },
+            'turn_order': [],
+            'current_turn_index': 0,
+            'turn_step': 0,
+            'turn_start_time': None,
+            'timer_task': None,
+            'called_items': [],
+            'chat_logs': []
+        }
 
-                current_room_id = room_id
+        current_room_id = room_id
 
-                sys_msg = f"🎉 '{nickname}'님이 방에 입장하였습니다."
-                room['chat_logs'].append({'system': True, 'text': sys_msg})
+        res = {
+            'type': 'ROOM_JOINED',
+            'room_id': room_id,
+            'player_id': current_player_id,
+            'is_host': True,
+            'state': serialize_room_state(room_id)
+        }
+        if hasattr(ws, 'send_json'):
+            await ws.send_json(res)
+        else:
+            await ws.send(json.dumps(res, ensure_ascii=False))
 
-                await websocket.send(json.dumps({
-                    'type': 'ROOM_JOINED',
-                    'room_id': room_id,
-                    'player_id': current_player_id,
-                    'is_host': False,
-                    'state': serialize_room_state(room_id)
-                }, ensure_ascii=False))
+    elif msg_type == 'JOIN_ROOM':
+        room_id = data.get('room_id', '').upper().strip()
+        nickname = data.get('nickname', '참여자').strip() or '참여자'
 
-                await broadcast_to_room(room_id, {
-                    'type': 'ROOM_UPDATED',
-                    'state': serialize_room_state(room_id)
-                })
+        if room_id not in ROOMS:
+            err_msg = {'type': 'ERROR', 'message': '존재하지 않는 방 코드입니다.'}
+            if hasattr(ws, 'send_json'): await ws.send_json(err_msg)
+            else: await ws.send(json.dumps(err_msg, ensure_ascii=False))
+            return current_room_id
 
-            elif msg_type == 'UPDATE_CELL_TEXT':
-                if not current_room_id or current_room_id not in ROOMS: continue
+        room = ROOMS[room_id]
+        size = room['config']['size']
+        word_pool = room['config']['word_pool']
+
+        board = generate_player_board(word_pool, size)
+        color = random.choice(AVATAR_COLORS)
+
+        room['players'][ws] = {
+            'id': current_player_id,
+            'nickname': nickname,
+            'is_host': False,
+            'is_ready': False,
+            'is_escaped': False,
+            'escape_rank': 0,
+            'is_loser': False,
+            'color': color,
+            'board': board,
+            'marked': set(),
+            'score': 0
+        }
+
+        current_room_id = room_id
+
+        sys_msg = f"🎉 '{nickname}'님이 방에 입장하였습니다."
+        room['chat_logs'].append({'system': True, 'text': sys_msg})
+
+        res = {
+            'type': 'ROOM_JOINED',
+            'room_id': room_id,
+            'player_id': current_player_id,
+            'is_host': False,
+            'state': serialize_room_state(room_id)
+        }
+        if hasattr(ws, 'send_json'): await ws.send_json(res)
+        else: await ws.send(json.dumps(res, ensure_ascii=False))
+
+        await broadcast_to_room(room_id, {
+            'type': 'ROOM_UPDATED',
+            'state': serialize_room_state(room_id)
+        })
+
+    elif msg_type == 'UPDATE_CELL_TEXT':
+        if not current_room_id or current_room_id not in ROOMS: return current_room_id
+        room = ROOMS[current_room_id]
+        player = room['players'].get(ws)
+        if not player: return current_room_id
+        cell_index = data.get('cell_index')
+        new_text = str(data.get('text', '')).strip()
+
+        if cell_index is not None and 0 <= cell_index < len(player['board']):
+            player['board'][cell_index] = new_text
+            player['is_ready'] = False
+            await broadcast_to_room(current_room_id, {
+                'type': 'ROOM_UPDATED',
+                'state': serialize_room_state(current_room_id)
+            })
+
+    elif msg_type == 'UPDATE_BOARD':
+        if not current_room_id or current_room_id not in ROOMS: return current_room_id
+        room = ROOMS[current_room_id]
+        player = room['players'].get(ws)
+        if not player: return current_room_id
+
+        new_board = data.get('board', [])
+        size = room['config']['size']
+        if len(new_board) == size * size:
+            player['board'] = [str(cell).strip() for cell in new_board]
+            player['is_ready'] = False
+            await broadcast_to_room(current_room_id, {
+                'type': 'ROOM_UPDATED',
+                'state': serialize_room_state(current_room_id)
+            })
+
+    elif msg_type == 'TOGGLE_READY':
+        if not current_room_id or current_room_id not in ROOMS: return current_room_id
+        room = ROOMS[current_room_id]
+        player = room['players'].get(ws)
+        if not player: return current_room_id
+
+        empty_cells = [cell for cell in player['board'] if not cell.strip()]
+        if empty_cells and not player['is_ready']:
+            err_msg = {'type': 'ERROR', 'message': '빈 칸이 있습니다! 모든 칸을 채운 뒤 준비 완료를 눌러주세요.'}
+            if hasattr(ws, 'send_json'): await ws.send_json(err_msg)
+            else: await ws.send(json.dumps(err_msg, ensure_ascii=False))
+            return current_room_id
+
+        player['is_ready'] = not player['is_ready']
+        status_str = "준비 완료" if player['is_ready'] else "준비 해제"
+        sys_msg = f"✋ '{player['nickname']}'님이 {status_str} 하셨습니다."
+        room['chat_logs'].append({'system': True, 'text': sys_msg})
+
+        await broadcast_to_room(current_room_id, {
+            'type': 'ROOM_UPDATED',
+            'state': serialize_room_state(current_room_id)
+        })
+
+    elif msg_type == 'START_GAME':
+        if not current_room_id or current_room_id not in ROOMS: return current_room_id
+        room = ROOMS[current_room_id]
+        player = room['players'].get(ws)
+        if not player or not player['is_host']: return current_room_id
+
+        room['status'] = 'PLAYING'
+        room['called_items'] = []
+        
+        player_sockets = list(room['players'].keys())
+        random.shuffle(player_sockets)
+        room['turn_order'] = player_sockets
+        room['current_turn_index'] = 0
+        room['turn_step'] = 0
+
+        for socket_key, p in room['players'].items():
+            p['marked'] = set()
+            p['score'] = 0
+            p['is_escaped'] = False
+            p['escape_rank'] = 0
+            p['is_loser'] = False
+
+        first_ws, first_player = get_current_turn_player(room)
+        first_name = first_player['nickname'] if first_player else ''
+
+        turn_order_list = []
+        for idx, socket_key in enumerate(player_sockets):
+            p = room['players'][socket_key]
+            turn_order_list.append({
+                'rank': idx + 1,
+                'nickname': p['nickname'],
+                'color': p['color']
+            })
+
+        sys_msg = f"🎲 턴 순서 제비뽑기가 완료되었습니다! 첫 턴: [{first_name}]님"
+        room['chat_logs'].append({'system': True, 'text': sys_msg})
+
+        start_turn_timer(current_room_id)
+
+        await broadcast_to_room(current_room_id, {
+            'type': 'STARTING_DRAW',
+            'turn_order_list': turn_order_list,
+            'state': serialize_room_state(current_room_id)
+        })
+
+    elif msg_type == 'MARK_CELL':
+        if not current_room_id or current_room_id not in ROOMS: return current_room_id
+        room = ROOMS[current_room_id]
+        if room['status'] != 'PLAYING': return current_room_id
+
+        current_ws, turn_player = get_current_turn_player(room)
+        if ws != current_ws:
+            err_msg = {'type': 'ERROR', 'message': f"아직 내 턴이 아닙니다! (현재 턴: {turn_player['nickname']}님)"}
+            if hasattr(ws, 'send_json'): await ws.send_json(err_msg)
+            else: await ws.send(json.dumps(err_msg, ensure_ascii=False))
+            return current_room_id
+
+        cell_index = data.get('cell_index')
+        if cell_index is None or not (0 <= cell_index < len(turn_player['board'])): return current_room_id
+
+        word_text = turn_player['board'][cell_index].strip()
+        if not word_text or word_text in room['called_items']:
+            err_msg = {'type': 'ERROR', 'message': '이미 호출되었거나 빈 칸입니다.'}
+            if hasattr(ws, 'send_json'): await ws.send_json(err_msg)
+            else: await ws.send(json.dumps(err_msg, ensure_ascii=False))
+            return current_room_id
+
+        await execute_word_call(current_room_id, word_text, turn_player['nickname'])
+
+    elif msg_type == 'RESET_GAME':
+        if not current_room_id or current_room_id not in ROOMS: return current_room_id
+        room = ROOMS[current_room_id]
+        player = room['players'].get(ws)
+        if not player or not player['is_host']: return current_room_id
+
+        size = room['config']['size']
+        word_pool = room['config']['word_pool']
+        
+        if room.get('timer_task'): room['timer_task'].cancel()
+
+        room['status'] = 'WAITING'
+        room['called_items'] = []
+        room['turn_order'] = []
+        room['current_turn_index'] = 0
+
+        for socket_key, p in room['players'].items():
+            p['board'] = generate_player_board(word_pool, size)
+            p['marked'] = set()
+            p['score'] = 0
+            p['is_ready'] = False
+            p['is_escaped'] = False
+            p['escape_rank'] = 0
+            p['is_loser'] = False
+
+        sys_msg = "🔄 방장이 대기실로 리셋했습니다."
+        room['chat_logs'].append({'system': True, 'text': sys_msg})
+
+        await broadcast_to_room(current_room_id, {
+            'type': 'ROOM_UPDATED',
+            'state': serialize_room_state(current_room_id)
+        })
+
+    elif msg_type == 'CHAT_MESSAGE':
+        if not current_room_id or current_room_id not in ROOMS: return current_room_id
+        room = ROOMS[current_room_id]
+        player = room['players'].get(ws)
+        chat_text = data.get('message', '').strip()
+
+        if chat_text:
+            msg_obj = {
+                'system': False,
+                'nickname': player['nickname'] if player else '익명',
+                'color': player['color'] if player else '#ccc',
+                'text': chat_text
+            }
+            room['chat_logs'].append(msg_obj)
+            await broadcast_to_room(current_room_id, {
+                'type': 'CHAT_MESSAGE',
+                'chat': msg_obj
+            })
+
+    return current_room_id
+
+
+# --- Try aiohttp implementation ---
+try:
+    from aiohttp import web
+
+    async def aiohttp_ws_handler(request):
+        ws = web.WebSocketResponse()
+        await ws.prepare(request)
+
+        current_room_id = None
+        current_player_id = str(id(ws))
+
+        try:
+            async for msg in ws:
+                if msg.type == web.WSMsgType.TEXT:
+                    try:
+                        data = json.loads(msg.data)
+                        current_room_id = await process_client_msg(ws, current_player_id, data, current_room_id)
+                    except json.JSONDecodeError:
+                        pass
+        finally:
+            if current_room_id and current_room_id in ROOMS:
                 room = ROOMS[current_room_id]
-                player = room['players'].get(websocket)
-                if not player: continue
-                cell_index = data.get('cell_index')
-                new_text = str(data.get('text', '')).strip()
+                if ws in room['players']:
+                    p = room['players'].pop(ws)
+                    disc_msg = f"🚪 '{p['nickname']}'님이 퇴장하셨습니다."
+                    room['chat_logs'].append({'system': True, 'text': disc_msg})
 
-                if cell_index is not None and 0 <= cell_index < len(player['board']):
-                    player['board'][cell_index] = new_text
-                    player['is_ready'] = False
-                    await broadcast_to_room(current_room_id, {
-                        'type': 'ROOM_UPDATED',
-                        'state': serialize_room_state(current_room_id)
-                    })
+                    if ws in room['turn_order']:
+                        room['turn_order'].remove(ws)
 
-            elif msg_type == 'UPDATE_BOARD':
-                if not current_room_id or current_room_id not in ROOMS: continue
+                    if not room['players']:
+                        if room.get('timer_task'): room['timer_task'].cancel()
+                        del ROOMS[current_room_id]
+                    else:
+                        if p['is_host']:
+                            first_ws = next(iter(room['players'].keys()))
+                            room['players'][first_ws]['is_host'] = True
+                            new_host_name = room['players'][first_ws]['nickname']
+                            room['chat_logs'].append({
+                                'system': True,
+                                'text': f"👑 '{new_host_name}'님이 새로운 방장이 되었습니다."
+                            })
+
+                        await broadcast_to_room(current_room_id, {
+                            'type': 'ROOM_UPDATED',
+                            'state': serialize_room_state(current_room_id)
+                        })
+        return ws
+
+    async def handle_index_file(request):
+        index_path = os.path.join(PUBLIC_DIR, 'index.html')
+        if os.path.exists(index_path):
+            return web.FileResponse(index_path)
+        return web.Response(text="Office Bingo Live Server")
+
+    def run_aiohttp_server():
+        print(f"===============================================================")
+        print(f" [INFO] Office Bingo Live Server running on port {PORT} via aiohttp")
+        print(f" [HTTP/WS] Serving static files & WebSockets on single port!")
+        print(f"===============================================================")
+        app = web.Application()
+        app.router.add_get('/ws', aiohttp_ws_handler)
+        app.router.add_get('/', handle_index_file)
+        app.router.add_static('/', path=PUBLIC_DIR)
+        web.run_app(app, host='0.0.0.0', port=PORT)
+
+    if __name__ == '__main__':
+        run_aiohttp_server()
+
+except ImportError:
+    # Fallback to websockets if aiohttp is not installed
+    import websockets
+
+    async def websockets_handler(websocket):
+        current_room_id = None
+        current_player_id = str(id(websocket))
+
+        try:
+            async for message in websocket:
+                try:
+                    data = json.loads(message)
+                    current_room_id = await process_client_msg(websocket, current_player_id, data, current_room_id)
+                except json.JSONDecodeError:
+                    pass
+        except websockets.exceptions.ConnectionClosed:
+            pass
+        finally:
+            if current_room_id and current_room_id in ROOMS:
                 room = ROOMS[current_room_id]
-                player = room['players'].get(websocket)
-                if not player: continue
+                if websocket in room['players']:
+                    p = room['players'].pop(websocket)
+                    disc_msg = f"🚪 '{p['nickname']}'님이 퇴장하셨습니다."
+                    room['chat_logs'].append({'system': True, 'text': disc_msg})
 
-                new_board = data.get('board', [])
-                size = room['config']['size']
-                if len(new_board) == size * size:
-                    player['board'] = [str(cell).strip() for cell in new_board]
-                    player['is_ready'] = False
-                    await broadcast_to_room(current_room_id, {
-                        'type': 'ROOM_UPDATED',
-                        'state': serialize_room_state(current_room_id)
-                    })
+                    if websocket in room['turn_order']:
+                        room['turn_order'].remove(websocket)
 
-            elif msg_type == 'TOGGLE_READY':
-                if not current_room_id or current_room_id not in ROOMS: continue
-                room = ROOMS[current_room_id]
-                player = room['players'].get(websocket)
-                if not player: continue
+                    if not room['players']:
+                        if room.get('timer_task'): room['timer_task'].cancel()
+                        del ROOMS[current_room_id]
+                    else:
+                        if p['is_host']:
+                            first_ws = next(iter(room['players'].keys()))
+                            room['players'][first_ws]['is_host'] = True
+                            new_host_name = room['players'][first_ws]['nickname']
+                            room['chat_logs'].append({
+                                'system': True,
+                                'text': f"👑 '{new_host_name}'님이 새로운 방장이 되었습니다."
+                            })
 
-                empty_cells = [cell for cell in player['board'] if not cell.strip()]
-                if empty_cells and not player['is_ready']:
-                    await websocket.send(json.dumps({
-                        'type': 'ERROR',
-                        'message': '빈 칸이 있습니다! 모든 칸을 채운 뒤 준비 완료를 눌러주세요.'
-                    }, ensure_ascii=False))
-                    continue
-
-                player['is_ready'] = not player['is_ready']
-                status_str = "준비 완료" if player['is_ready'] else "준비 해제"
-                sys_msg = f"✋ '{player['nickname']}'님이 {status_str} 하셨습니다."
-                room['chat_logs'].append({'system': True, 'text': sys_msg})
-
-                await broadcast_to_room(current_room_id, {
-                    'type': 'ROOM_UPDATED',
-                    'state': serialize_room_state(current_room_id)
-                })
-
-            elif msg_type == 'START_GAME':
-                if not current_room_id or current_room_id not in ROOMS: continue
-                room = ROOMS[current_room_id]
-                player = room['players'].get(websocket)
-                if not player or not player['is_host']: continue
-
-                room['status'] = 'PLAYING'
-                room['called_items'] = []
-                
-                player_sockets = list(room['players'].keys())
-                random.shuffle(player_sockets)
-                room['turn_order'] = player_sockets
-                room['current_turn_index'] = 0
-                room['turn_step'] = 0
-
-                for ws, p in room['players'].items():
-                    p['marked'] = set()
-                    p['score'] = 0
-                    p['is_escaped'] = False
-                    p['escape_rank'] = 0
-                    p['is_loser'] = False
-
-                first_ws, first_player = get_current_turn_player(room)
-                first_name = first_player['nickname'] if first_player else ''
-
-                turn_order_list = []
-                for idx, ws in enumerate(player_sockets):
-                    p = room['players'][ws]
-                    turn_order_list.append({
-                        'rank': idx + 1,
-                        'nickname': p['nickname'],
-                        'color': p['color']
-                    })
-
-                sys_msg = f"🎲 턴 순서 제비뽑기가 완료되었습니다! 첫 턴: [{first_name}]님"
-                room['chat_logs'].append({'system': True, 'text': sys_msg})
-
-                start_turn_timer(current_room_id)
-
-                await broadcast_to_room(current_room_id, {
-                    'type': 'STARTING_DRAW',
-                    'turn_order_list': turn_order_list,
-                    'state': serialize_room_state(current_room_id)
-                })
-
-            elif msg_type == 'MARK_CELL':
-                if not current_room_id or current_room_id not in ROOMS: continue
-                room = ROOMS[current_room_id]
-                if room['status'] != 'PLAYING': continue
-
-                current_ws, turn_player = get_current_turn_player(room)
-                if websocket != current_ws:
-                    await websocket.send(json.dumps({
-                        'type': 'ERROR',
-                        'message': f"아직 내 턴이 아닙니다! (현재 턴: {turn_player['nickname']}님)"
-                    }, ensure_ascii=False))
-                    continue
-
-                cell_index = data.get('cell_index')
-                if cell_index is None or not (0 <= cell_index < len(turn_player['board'])): continue
-
-                word_text = turn_player['board'][cell_index].strip()
-                if not word_text or word_text in room['called_items']:
-                    await websocket.send(json.dumps({
-                        'type': 'ERROR',
-                        'message': '이미 호출되었거나 빈 칸입니다.'
-                    }, ensure_ascii=False))
-                    continue
-
-                await execute_word_call(current_room_id, word_text, turn_player['nickname'])
-
-            elif msg_type == 'RESET_GAME':
-                if not current_room_id or current_room_id not in ROOMS: continue
-                room = ROOMS[current_room_id]
-                player = room['players'].get(websocket)
-                if not player or not player['is_host']: continue
-
-                size = room['config']['size']
-                word_pool = room['config']['word_pool']
-                
-                if room.get('timer_task'): room['timer_task'].cancel()
-
-                room['status'] = 'WAITING'
-                room['called_items'] = []
-                room['turn_order'] = []
-                room['current_turn_index'] = 0
-
-                for ws, p in room['players'].items():
-                    p['board'] = generate_player_board(word_pool, size)
-                    p['marked'] = set()
-                    p['score'] = 0
-                    p['is_ready'] = False
-                    p['is_escaped'] = False
-                    p['escape_rank'] = 0
-                    p['is_loser'] = False
-
-                sys_msg = "🔄 방장이 대기실로 리셋했습니다."
-                room['chat_logs'].append({'system': True, 'text': sys_msg})
-
-                await broadcast_to_room(current_room_id, {
-                    'type': 'ROOM_UPDATED',
-                    'state': serialize_room_state(current_room_id)
-                })
-
-            elif msg_type == 'CHAT_MESSAGE':
-                if not current_room_id or current_room_id not in ROOMS: continue
-                room = ROOMS[current_room_id]
-                player = room['players'].get(websocket)
-                chat_text = data.get('message', '').strip()
-
-                if chat_text:
-                    msg_obj = {
-                        'system': False,
-                        'nickname': player['nickname'] if player else '익명',
-                        'color': player['color'] if player else '#ccc',
-                        'text': chat_text
-                    }
-                    room['chat_logs'].append(msg_obj)
-                    await broadcast_to_room(current_room_id, {
-                        'type': 'CHAT_MESSAGE',
-                        'chat': msg_obj
-                    })
-
-    except websockets.exceptions.ConnectionClosed:
-        pass
-    finally:
-        if current_room_id and current_room_id in ROOMS:
-            room = ROOMS[current_room_id]
-            if websocket in room['players']:
-                p = room['players'].pop(websocket)
-                disc_msg = f"🚪 '{p['nickname']}'님이 퇴장하셨습니다."
-                room['chat_logs'].append({'system': True, 'text': disc_msg})
-
-                if websocket in room['turn_order']:
-                    room['turn_order'].remove(websocket)
-
-                if not room['players']:
-                    if room.get('timer_task'): room['timer_task'].cancel()
-                    del ROOMS[current_room_id]
-                else:
-                    if p['is_host']:
-                        first_ws = next(iter(room['players'].keys()))
-                        room['players'][first_ws]['is_host'] = True
-                        new_host_name = room['players'][first_ws]['nickname']
-                        room['chat_logs'].append({
-                            'system': True,
-                            'text': f"👑 '{new_host_name}'님이 새로운 방장이 되었습니다."
+                        await broadcast_to_room(current_room_id, {
+                            'type': 'ROOM_UPDATED',
+                            'state': serialize_room_state(current_room_id)
                         })
 
-                    await broadcast_to_room(current_room_id, {
-                        'type': 'ROOM_UPDATED',
-                        'state': serialize_room_state(current_room_id)
-                    })
+    async def main_fallback():
+        async with websockets.serve(websockets_handler, "0.0.0.0", PORT):
+            await asyncio.Future()
 
-
-async def process_request(*args, **kwargs):
-    """Handle static HTTP requests or allow WebSocket upgrade on single PORT for websockets v9~v13."""
-    path = "/"
-    headers = {}
-
-    if len(args) >= 2:
-        arg1, arg2 = args[0], args[1]
-        if hasattr(arg2, 'path') and hasattr(arg2, 'headers'):
-            path = arg2.path
-            headers = arg2.headers
-        elif isinstance(arg1, str):
-            path = arg1
-            headers = arg2
-
-    upgrade = ""
-    if hasattr(headers, "get"):
-        upgrade = headers.get("Upgrade", "") or ""
-
-    if upgrade.lower() == "websocket":
-        return None  # Let websockets handle WebSocket Upgrade handshake!
-
-    clean_path = path.split("?")[0]
-    if clean_path in ("/", ""):
-        filepath = os.path.join(PUBLIC_DIR, "index.html")
-    else:
-        filepath = os.path.join(PUBLIC_DIR, clean_path.lstrip("/"))
-
-    if not os.path.exists(filepath) or os.path.isdir(filepath):
-        filepath = os.path.join(PUBLIC_DIR, "index.html")
-
-    mime_type, _ = mimetypes.guess_type(filepath)
-    mime_type = mime_type or "text/html"
-
-    try:
-        with open(filepath, "rb") as f:
-            content = f.read()
-        return (200, [("Content-Type", mime_type)], content)
-    except Exception:
-        return (404, [("Content-Type", "text/plain")], b"404 Not Found")
-
-
-async def main():
-    print("===============================================================")
-    print(f" [INFO] Office Bingo Live Server running on port {PORT}")
-    print(f" [HTTP/WS] Serving static files & WebSockets on single port!")
-    print("===============================================================")
-
-    async with websockets.serve(
-        handle_websocket,
-        "0.0.0.0",
-        PORT,
-        process_request=process_request
-    ):
-        await asyncio.Future()
-
-
-if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        print("\n[INFO] Server shutdown gracefully.")
+    if __name__ == '__main__':
+        asyncio.run(main_fallback())

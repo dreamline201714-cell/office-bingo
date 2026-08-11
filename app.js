@@ -266,56 +266,67 @@ const BINGO_PRESETS = [
     function connectNetwork() {
         const isFileProtocol = (window.location.protocol === 'file:');
         const hostname = window.location.hostname || 'localhost';
-        const isLocal = (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.'));
 
         if (isFileProtocol) {
-            // Local file:// execution -> Try local WebSocket server or fallback to Standalone Mode
-            tryLocalWebSocket("ws://localhost:8001");
+            tryLocalWebSocket("ws://localhost:8000/ws");
             return;
         }
 
-        if (isLocal) {
-            const protocol = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';
-            const host = window.location.host;
-            const wsUrl = `${protocol}//${host}`;
-            tryLocalWebSocket(wsUrl);
-        } else {
-            // Web Host (Render.com or Netlify) -> Connect via WSS or P2P Fallback
-            const protocol = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';
-            const host = window.location.host;
-            const wsUrl = `${protocol}//${host}`;
+        const protocol = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';
+        const host = window.location.host;
+        const wsUrl = `${protocol}//${host}/ws`;
 
-            statusText.innerText = '서버 연결 중...';
-            statusDot.className = 'status-dot';
+        statusText.innerText = '서버 연결 중...';
+        statusDot.className = 'status-dot';
 
-            try {
-                socket = new WebSocket(wsUrl);
+        try {
+            socket = new WebSocket(wsUrl);
 
-                socket.onopen = () => {
-                    statusText.innerText = '서버 연결됨';
-                    statusDot.className = 'status-dot connected';
-                    checkUrlQueryParams();
-                };
+            socket.onopen = () => {
+                statusText.innerText = '서버 연결됨';
+                statusDot.className = 'status-dot connected';
+                checkUrlQueryParams();
+            };
 
-                socket.onmessage = (event) => {
-                    try {
-                        const data = JSON.parse(event.data);
-                        handleServerMessage(data);
-                    } catch (e) {
-                        console.error('WS Parse Error:', e);
-                    }
-                };
+            socket.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleServerMessage(data);
+                } catch (e) {
+                    console.error('WS Parse Error:', e);
+                }
+            };
 
-                socket.onclose = () => {
-                    initP2PFallback();
-                };
+            socket.onclose = () => {
+                tryFallbackWebSocket(`${protocol}//${host}`);
+            };
 
-                socket.onerror = () => {
-                    initP2PFallback();
-                };
-            } catch (e) {
-                initP2PFallback();
-            }
+            socket.onerror = () => {
+                tryFallbackWebSocket(`${protocol}//${host}`);
+            };
+        } catch (e) {
+            initP2PFallback();
+        }
+    }
+
+    function tryFallbackWebSocket(fallbackUrl) {
+        try {
+            socket = new WebSocket(fallbackUrl);
+            socket.onopen = () => {
+                statusText.innerText = '서버 연결됨';
+                statusDot.className = 'status-dot connected';
+                checkUrlQueryParams();
+            };
+            socket.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleServerMessage(data);
+                } catch (e) {}
+            };
+            socket.onclose = () => initP2PFallback();
+            socket.onerror = () => initP2PFallback();
+        } catch (e) {
+            initP2PFallback();
         }
     }
 
@@ -1037,11 +1048,62 @@ const BINGO_PRESETS = [
         const targetGroup = document.getElementById('preset-chip-group');
         if (!targetGroup) return;
 
+        const presets = (typeof BINGO_PRESETS !== 'undefined' && Array.isArray(BINGO_PRESETS) && BINGO_PRESETS.length > 0)
+            ? BINGO_PRESETS
+            : [
+                {
+                    id: "custom",
+                    title: "✨ 자유 주제 (직접 입력)",
+                    words: []
+                },
+                {
+                    id: "kospi_100",
+                    title: "📈 코스피 시총 Top 100",
+                    words: [
+                        "삼성전자", "SK하이닉스", "LG에너지솔루션", "삼성바이오로직스", "현대차", 
+                        "기아", "셀트리온", "KB금융", "신한지주", "POSCO홀딩스", 
+                        "NAVER", "현대모비스", "삼성물산", "LG화학", "카카오", 
+                        "하나금융지주", "삼성SDI", "LG전자", "메리츠금융지주", "SK이노베이션", 
+                        "HMM", "한국전력", "KT&G", "삼성생명", "HD현대중공업", 
+                        "크래프톤", "한화에어로스페이스", "카카오뱅크", "삼성화재", "HD한국조선해양", 
+                        "삼성E&A", "SK텔레콤", "고려아연", "우리금융지주", "포스코퓨처엠", 
+                        "S-Oil", "KT", "기업은행", "대한항공", "포스코인터내셔널", 
+                        "HD현대일렉트릭", "삼성전기", "한화오션", "두산에너빌리티", "카카오페이", 
+                        "아모레퍼시픽", "한진칼", "하이브", "현대글로비스", "LG", 
+                        "한국타이어앤테크놀로지", "SK", "삼성중공업", "한화시스템", "LG디스플레이", 
+                        "유한양행", "금호석유", "한국항공우주", "두산밥캣", "현대제철", 
+                        "강원랜드", "DB손해보험", "현대해상", "LG생활건강", "CJ제일제당", 
+                        "에스원", "오리온", "롯데케미칼", "GS", "한미약품", 
+                        "한화", "현대건설", "SK바이오팜", "SKC", "포스코DX", 
+                        "한진", "두산", "BGF리테일", "LS", "효성티앤씨", 
+                        "영원무역", "GS리테일", "넷마블", "엔씨소프트", "키움증권", 
+                        "미래에셋증권", "한국금융지주", "NH투자증권", "삼성증권", "현대백화점", 
+                        "신세계", "이마트", "CJ", "롯데쇼핑", "대우건설", 
+                        "코웨이", "농심", "휠라홀딩스", "오뚜기", "삼양식품"
+                    ]
+                },
+                {
+                    id: "colors_30",
+                    title: "🎨 다양한 색깔 (30가지)",
+                    words: [
+                        "빨강", "파랑", "노랑", "초록", "분홍", 
+                        "보라", "주황", "검정", "하양", "갈색", 
+                        "하늘", "남색", "금색", "은색", "민트", 
+                        "코랄", "마젠타", "시안", "올리브", "카키", 
+                        "청록", "베이지", "차콜", "크림슨", "라벤더", 
+                        "핫핑크", "네온그린", "버건디", "아이보리", "연두"
+                    ]
+                },
+                {
+                    id: "numbers_1_50",
+                    title: "🔢 1~50 무작위 숫자",
+                    words: Array.from({ length: 50 }, (_, i) => String(i + 1))
+                }
+            ];
+
         targetGroup.innerHTML = '';
 
-        if (typeof BINGO_PRESETS === 'undefined' || !BINGO_PRESETS) return;
-
-        BINGO_PRESETS.forEach((preset, index) => {
+        presets.forEach((preset, index) => {
             const chip = document.createElement('div');
             chip.className = 'preset-chip' + (index === 0 ? ' active' : '');
             chip.innerText = preset.title;
@@ -1051,22 +1113,17 @@ const BINGO_PRESETS = [
                 chip.classList.add('active');
 
                 if (preset.id === 'custom') {
-                    createTopicInput.value = '';
-                    createWordsInput.value = '';
+                    if (createTopicInput) createTopicInput.value = '';
+                    if (createWordsInput) createWordsInput.value = '';
                 } else {
-                    createTopicInput.value = preset.title.replace(/^[^\s]+\s+/, '');
-                    createWordsInput.value = preset.words.join('\n');
+                    if (createTopicInput) createTopicInput.value = preset.title.replace(/^[^\s]+\s+/, '');
+                    if (createWordsInput) createWordsInput.value = preset.words.join('\n');
                 }
                 playSound('click');
             });
 
             targetGroup.appendChild(chip);
         });
-
-        if (BINGO_PRESETS.length > 0 && BINGO_PRESETS[0].id === 'custom') {
-            createTopicInput.value = '';
-            createWordsInput.value = '';
-        }
     }
 
     function openSpectateModal(playerId) {
