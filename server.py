@@ -622,9 +622,25 @@ async def handle_websocket(websocket):
                     })
 
 
-async def process_request(path, headers):
-    """Handle static HTTP request or allow WebSocket upgrade on single PORT."""
-    if headers.get("Upgrade", "").lower() == "websocket":
+async def process_request(*args, **kwargs):
+    """Handle static HTTP requests or allow WebSocket upgrade on single PORT for websockets v9~v13."""
+    path = "/"
+    headers = {}
+
+    if len(args) >= 2:
+        arg1, arg2 = args[0], args[1]
+        if hasattr(arg2, 'path') and hasattr(arg2, 'headers'):
+            path = arg2.path
+            headers = arg2.headers
+        elif isinstance(arg1, str):
+            path = arg1
+            headers = arg2
+
+    upgrade = ""
+    if hasattr(headers, "get"):
+        upgrade = headers.get("Upgrade", "") or ""
+
+    if upgrade.lower() == "websocket":
         return None  # Let websockets handle WebSocket Upgrade handshake!
 
     clean_path = path.split("?")[0]
@@ -633,19 +649,17 @@ async def process_request(path, headers):
     else:
         filepath = os.path.join(PUBLIC_DIR, clean_path.lstrip("/"))
 
-    if os.path.exists(filepath) and os.path.isfile(filepath):
-        mime_type, _ = mimetypes.guess_type(filepath)
-        mime_type = mime_type or "application/octet-stream"
+    if not os.path.exists(filepath) or os.path.isdir(filepath):
+        filepath = os.path.join(PUBLIC_DIR, "index.html")
+
+    mime_type, _ = mimetypes.guess_type(filepath)
+    mime_type = mime_type or "text/html"
+
+    try:
         with open(filepath, "rb") as f:
             content = f.read()
-        return (200, [("Content-Type", mime_type), ("Content-Length", str(len(content)))], content)
-    else:
-        # Fallback to index.html for SPA routing
-        index_path = os.path.join(PUBLIC_DIR, "index.html")
-        if os.path.exists(index_path):
-            with open(index_path, "rb") as f:
-                content = f.read()
-            return (200, [("Content-Type", "text/html")], content)
+        return (200, [("Content-Type", mime_type)], content)
+    except Exception:
         return (404, [("Content-Type", "text/plain")], b"404 Not Found")
 
 

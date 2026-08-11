@@ -1,8 +1,9 @@
 /**
  * Office Bingo Live Client Application Logic
- * Inlined Preset Topics, Single-Port WebSockets (Render.com/Localhost) & WebRTC Fallback.
+ * Supports Local file:// Execution, Standalone Offline Mode, WebSockets & WebRTC.
  */
 
+// Global Presets Definition (Ensures 100% visibility under any environment)
 const BINGO_PRESETS = [
     {
         id: "custom",
@@ -64,6 +65,7 @@ const BINGO_PRESETS = [
     let p2pConnections = [];
     let p2pHostConn = null;
     let isP2P = false;
+    let isStandalone = false;
 
     let currentRoomId = null;
     let myPlayerId = null;
@@ -262,18 +264,70 @@ const BINGO_PRESETS = [
     const spectateGrid = document.getElementById('spectate-grid');
 
     function connectNetwork() {
-        const protocol = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';
-        const host = window.location.host;
-        const wsUrl = `${protocol}//${host}`;
+        const isFileProtocol = (window.location.protocol === 'file:');
+        const hostname = window.location.hostname || 'localhost';
+        const isLocal = (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.'));
 
-        statusText.innerText = '서버 연결 중...';
+        if (isFileProtocol) {
+            // Local file:// execution -> Try local WebSocket server or fallback to Standalone Mode
+            tryLocalWebSocket("ws://localhost:8001");
+            return;
+        }
+
+        if (isLocal) {
+            const protocol = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';
+            const host = window.location.host;
+            const wsUrl = `${protocol}//${host}`;
+            tryLocalWebSocket(wsUrl);
+        } else {
+            // Web Host (Render.com or Netlify) -> Connect via WSS or P2P Fallback
+            const protocol = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';
+            const host = window.location.host;
+            const wsUrl = `${protocol}//${host}`;
+
+            statusText.innerText = '서버 연결 중...';
+            statusDot.className = 'status-dot';
+
+            try {
+                socket = new WebSocket(wsUrl);
+
+                socket.onopen = () => {
+                    statusText.innerText = '서버 연결됨';
+                    statusDot.className = 'status-dot connected';
+                    checkUrlQueryParams();
+                };
+
+                socket.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        handleServerMessage(data);
+                    } catch (e) {
+                        console.error('WS Parse Error:', e);
+                    }
+                };
+
+                socket.onclose = () => {
+                    initP2PFallback();
+                };
+
+                socket.onerror = () => {
+                    initP2PFallback();
+                };
+            } catch (e) {
+                initP2PFallback();
+            }
+        }
+    }
+
+    function tryLocalWebSocket(wsUrl) {
+        statusText.innerText = '로컬 서버 연결 중...';
         statusDot.className = 'status-dot';
 
         try {
             socket = new WebSocket(wsUrl);
 
             socket.onopen = () => {
-                statusText.innerText = '서버 연결됨';
+                statusText.innerText = '로컬 서버 연결됨';
                 statusDot.className = 'status-dot connected';
                 checkUrlQueryParams();
             };
@@ -288,20 +342,27 @@ const BINGO_PRESETS = [
             };
 
             socket.onclose = () => {
-                initP2PFallback();
+                initStandaloneMode();
             };
 
             socket.onerror = () => {
-                initP2PFallback();
+                initStandaloneMode();
             };
         } catch (e) {
-            initP2PFallback();
+            initStandaloneMode();
         }
     }
 
     function initP2PFallback() {
         isP2P = true;
-        statusText.innerText = 'P2P 연결 준비됨';
+        statusText.innerText = 'P2P 클라우드 연결 준비됨';
+        statusDot.className = 'status-dot connected';
+        checkUrlQueryParams();
+    }
+
+    function initStandaloneMode() {
+        isStandalone = true;
+        statusText.innerText = '오프라인 단독 모드 가동됨';
         statusDot.className = 'status-dot connected';
         checkUrlQueryParams();
     }
@@ -316,20 +377,20 @@ const BINGO_PRESETS = [
     }
 
     function sendMessage(msgDict) {
-        if (!isP2P && socket && socket.readyState === WebSocket.OPEN) {
+        if (!isP2P && !isStandalone && socket && socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify(msgDict));
-        } else if (isP2P) {
-            handleP2PAction(msgDict);
+        } else {
+            handleLocalOrP2PAction(msgDict);
         }
     }
 
-    function handleP2PAction(data) {
+    function handleLocalOrP2PAction(data) {
         const type = data.type;
 
         if (type === 'CREATE_ROOM') {
             const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
             currentRoomId = roomCode;
-            myPlayerId = 'peer_' + Math.random().toString(36).substring(2, 6);
+            myPlayerId = 'player_' + Math.random().toString(36).substring(2, 6);
             isHost = true;
 
             const size = data.size || 5;
@@ -351,7 +412,7 @@ const BINGO_PRESETS = [
                 current_turn_index: 0,
                 players: [{
                     player_id: myPlayerId,
-                    nickname: data.nickname,
+                    nickname: data.nickname || '방장',
                     is_host: true,
                     is_ready: false,
                     is_escaped: false,
@@ -365,14 +426,18 @@ const BINGO_PRESETS = [
                 chat_logs: []
             };
 
-            if (typeof Peer !== 'undefined') {
-                peer = new Peer('bingo-room-' + roomCode);
-                peer.on('connection', (conn) => {
-                    p2pConnections.push(conn);
-                    conn.on('data', (playerMsg) => {
-                        handleP2PHostMessage(conn, playerMsg);
+            if (isP2P && typeof Peer !== 'undefined') {
+                try {
+                    peer = new Peer('bingo-room-' + roomCode);
+                    peer.on('connection', (conn) => {
+                        p2pConnections.push(conn);
+                        conn.on('data', (playerMsg) => {
+                            handleP2PHostMessage(conn, playerMsg);
+                        });
                     });
-                });
+                } catch (e) {
+                    console.error('PeerJS init fallback:', e);
+                }
             }
 
             lobbySection.style.display = 'none';
@@ -383,25 +448,29 @@ const BINGO_PRESETS = [
         else if (type === 'JOIN_ROOM') {
             const roomCode = data.room_id.toUpperCase();
             currentRoomId = roomCode;
-            myPlayerId = 'peer_' + Math.random().toString(36).substring(2, 6);
+            myPlayerId = 'player_' + Math.random().toString(36).substring(2, 6);
             isHost = false;
 
-            if (typeof Peer !== 'undefined') {
-                peer = new Peer();
-                peer.on('open', () => {
-                    p2pHostConn = peer.connect('bingo-room-' + roomCode);
-                    p2pHostConn.on('open', () => {
-                        p2pHostConn.send({
-                            type: 'P2P_JOIN_REQUEST',
-                            player_id: myPlayerId,
-                            nickname: data.nickname
+            if (isP2P && typeof Peer !== 'undefined') {
+                try {
+                    peer = new Peer();
+                    peer.on('open', () => {
+                        p2pHostConn = peer.connect('bingo-room-' + roomCode);
+                        p2pHostConn.on('open', () => {
+                            p2pHostConn.send({
+                                type: 'P2P_JOIN_REQUEST',
+                                player_id: myPlayerId,
+                                nickname: data.nickname || '참여자'
+                            });
+                        });
+
+                        p2pHostConn.on('data', (hostMsg) => {
+                            handleServerMessage(hostMsg);
                         });
                     });
-
-                    p2pHostConn.on('data', (hostMsg) => {
-                        handleServerMessage(hostMsg);
-                    });
-                });
+                } catch (e) {
+                    console.error('PeerJS Join Exception:', e);
+                }
             }
         }
         else if (isHost) {
@@ -965,7 +1034,12 @@ const BINGO_PRESETS = [
     }
 
     function initPresetChips() {
-        presetChipGroup.innerHTML = '';
+        const targetGroup = document.getElementById('preset-chip-group');
+        if (!targetGroup) return;
+
+        targetGroup.innerHTML = '';
+
+        if (typeof BINGO_PRESETS === 'undefined' || !BINGO_PRESETS) return;
 
         BINGO_PRESETS.forEach((preset, index) => {
             const chip = document.createElement('div');
@@ -986,7 +1060,7 @@ const BINGO_PRESETS = [
                 playSound('click');
             });
 
-            presetChipGroup.appendChild(chip);
+            targetGroup.appendChild(chip);
         });
 
         if (BINGO_PRESETS.length > 0 && BINGO_PRESETS[0].id === 'custom') {
@@ -1263,7 +1337,13 @@ const BINGO_PRESETS = [
         themeToggleBtn.innerText = currentTheme === 'dark' ? '🌙' : '☀️';
     });
 
-    initPresetChips();
+    // Run initPresetChips on load & DOMContentLoaded
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initPresetChips);
+    } else {
+        initPresetChips();
+    }
+
     connectNetwork();
 
 })();
