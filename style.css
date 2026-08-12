@@ -771,11 +771,54 @@ body {
     margin: 0 auto;
 }
 
-/* 모바일 기기 최적화 (가로 폭 768px 이하 처리) */
+/* =========================================
+   모바일 기기 최적화 (플로팅 사이드바 UI 개편)
+   ========================================= */
+
+/* 플로팅 액션 버튼 (데스크톱에서는 숨김) */
+.mobile-fab {
+    display: none;
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--border-block);
+    color: var(--bg-surface);
+    border: 4px solid var(--border-block);
+    padding: 14px 20px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    z-index: 1500;
+    box-shadow: 4px 4px 0px var(--border-block);
+}
+
+.mobile-fab:active {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0px var(--border-block);
+}
+
+/* 사이드바 닫기 버튼 (데스크톱 숨김) */
+.mobile-sidebar-close {
+    display: none;
+    width: 100%;
+    padding: 14px;
+    background: var(--warning);
+    color: var(--border-block);
+    border: none;
+    border-bottom: 4px solid var(--border-block);
+    font-size: 1.1rem;
+    cursor: pointer;
+}
+
+.mobile-sidebar-close:active {
+    background: var(--border-block);
+    color: var(--warning);
+}
+
 @media screen and (max-width: 768px) {
     .arena-main {
         grid-template-columns: 1fr;
         gap: 16px;
+        padding-bottom: 80px; /* 플로팅 버튼 영역 확보 */
     }
 
     .container {
@@ -790,15 +833,36 @@ body {
         font-size: 1.5rem;
     }
 
-    .sidebar-panel {
-        height: auto; 
-    }
-
-    .sidebar-content {
-        min-height: 350px;
-    }
-
     .bingo-cell {
         font-size: clamp(0.7rem, 3.5vw, 1.1rem);
+    }
+
+    /* 📱 사이드바를 하단 팝업(Bottom Sheet)으로 변신 */
+    .sidebar-panel {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100vw;
+        height: 85vh; /* 화면 높이의 85% */
+        z-index: 2000;
+        transform: translateY(100%); /* 기본 상태: 화면 아래로 숨김 */
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: none;
+        border-top: 4px solid var(--border-block);
+        border-radius: 0;
+    }
+
+    /* Javascript로 active 클래스가 추가되면 위로 솟아오름 */
+    .sidebar-panel.active {
+        transform: translateY(0);
+        box-shadow: 0px -4px 0px var(--border-block);
+    }
+
+    .mobile-fab {
+        display: block !important; 
+    }
+    
+    .mobile-sidebar-close {
+        display: block !important; 
     }
 }
