@@ -15,7 +15,7 @@
     let myPlayerId = null;
     let isHost = false;
     let soundEnabled = true;
-    let currentTheme = 'dark';
+    let currentTheme = 'light';
 
     let roomState = null;
     let selectedSize = 5;
