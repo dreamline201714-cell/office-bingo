@@ -16,7 +16,7 @@
     let isHost = false;
     let soundEnabled = true;
     let currentTheme = 'dark';
-    
+
     let roomState = null;
     let selectedSize = 5;
     let selectedGameMode = 'WINNER';
@@ -329,7 +329,7 @@
             const wordPool = data.word_pool || [];
 
             const board = generateBoard(wordPool, size);
-            const color = '#' + Math.floor(Math.random()*16777215).toString(16);
+            const color = '#' + Math.floor(Math.random() * 16777215).toString(16);
 
             roomState = {
                 room_id: roomCode,
@@ -382,7 +382,7 @@
             arenaSection.style.display = 'block';
             updateArenaUI();
             playSound('mark');
-        } 
+        }
         else if (type === 'JOIN_ROOM') {
             const roomCode = data.room_id.toUpperCase();
             currentRoomId = roomCode;
@@ -398,7 +398,7 @@
                     const size = parsedState.config.size || 5;
                     const wordPool = parsedState.config.word_pool || [];
                     const board = generateBoard(wordPool, size);
-                    const color = '#' + Math.floor(Math.random()*16777215).toString(16);
+                    const color = '#' + Math.floor(Math.random() * 16777215).toString(16);
 
                     const existingPlayer = parsedState.players.find(p => p.nickname === data.nickname);
                     if (!existingPlayer) {
@@ -430,7 +430,7 @@
                         });
                         localSyncChannel.postMessage({ type: 'ROOM_UPDATED', roomCode: roomCode, state: roomState });
                     }
-                } catch(e) {}
+                } catch (e) { }
             }
 
             if (isP2P && typeof Peer !== 'undefined') {
@@ -476,7 +476,7 @@
             const size = roomState.config.size;
             const wordPool = roomState.config.word_pool;
             const board = generateBoard(wordPool, size);
-            const color = '#' + Math.floor(Math.random()*16777215).toString(16);
+            const color = '#' + Math.floor(Math.random() * 16777215).toString(16);
 
             roomState.players.push({
                 player_id: msg.player_id,
@@ -523,7 +523,7 @@
             roomState.status = 'PLAYING';
             roomState.turn_order = roomState.players.map(p => p.player_id).sort(() => 0.5 - Math.random());
             roomState.current_turn_player_id = roomState.turn_order[0];
-            
+
             const turnList = roomState.turn_order.map((pid, idx) => {
                 const p = roomState.players.find(pl => pl.player_id === pid);
                 return { rank: idx + 1, nickname: p.nickname, color: p.color };
@@ -539,7 +539,7 @@
             const word = player.board[data.cell_index];
             if (word && !roomState.called_items.includes(word)) {
                 roomState.called_items.push(word);
-                
+
                 roomState.players.forEach(p => {
                     p.board.forEach((w, idx) => {
                         if (w === word && !p.marked.includes(idx)) {
@@ -595,13 +595,13 @@
         const m = new Set(marked);
         let lines = 0;
         for (let r = 0; r < size; r++) {
-            if (Array.from({length: size}, (_, c) => r * size + c).every(idx => m.has(idx))) lines++;
+            if (Array.from({ length: size }, (_, c) => r * size + c).every(idx => m.has(idx))) lines++;
         }
         for (let c = 0; c < size; c++) {
-            if (Array.from({length: size}, (_, r) => r * size + c).every(idx => m.has(idx))) lines++;
+            if (Array.from({ length: size }, (_, r) => r * size + c).every(idx => m.has(idx))) lines++;
         }
-        if (Array.from({length: size}, (_, i) => i * size + i).every(idx => m.has(idx))) lines++;
-        if (Array.from({length: size}, (_, i) => i * size + (size - 1 - i)).every(idx => m.has(idx))) lines++;
+        if (Array.from({ length: size }, (_, i) => i * size + i).every(idx => m.has(idx))) lines++;
+        if (Array.from({ length: size }, (_, i) => i * size + (size - 1 - i)).every(idx => m.has(idx))) lines++;
         return lines;
     }
 
@@ -628,7 +628,7 @@
             case 'STARTING_DRAW':
                 playSound('raffle');
                 showTurnOrderDrawModal(msg.turn_order_list);
-                
+
                 setTimeout(() => {
                     drawModal.classList.remove('active');
                     roomState = msg.state;
@@ -673,7 +673,20 @@
                 if (roomState && msg.chat) {
                     roomState.chat_logs.push(msg.chat);
                     renderChatLogs();
+                    // Auto-switch to chat tab to show new message
+                    const chatTab = document.getElementById('stab-chat');
+                    if (chatTab && !chatTab.classList.contains('active')) {
+                        // Just update the tab badge, don't force-switch
+                    }
                 }
+                break;
+
+            case 'GAME_ENDED':
+                roomState = msg.state;
+                updateArenaUI();
+                setTimeout(() => {
+                    showGameEndModal(msg.result);
+                }, 400);
                 break;
 
             case 'ERROR':
@@ -698,12 +711,85 @@
         drawModal.classList.add('active');
     }
 
-    window.doToggleReady = function() {
-        initAudio();
-        sendMessage({ type: 'TOGGLE_READY' });
-    };
+    function showGameEndModal(result) {
+        if (!result) return;
+        const modal = document.getElementById('game-end-modal');
+        const emojiEl = document.getElementById('game-end-emoji');
+        const titleEl = document.getElementById('game-end-title');
+        const nameEl = document.getElementById('game-end-player-name');
+        const badgeEl = document.getElementById('game-end-name-badge');
+        const descEl = document.getElementById('game-end-desc');
+        const resetBtn = document.getElementById('btn-game-end-reset');
+        const closeBtn = document.getElementById('btn-game-end-close');
+        if (!modal) return;
 
-    window.doStartGame = function() {
+        if (result.mode === 'WINNER') {
+            emojiEl.innerText = '🏆';
+            emojiEl.style.animation = 'none';
+            setTimeout(() => { emojiEl.style.animation = 'bounceIn 0.6s ease'; }, 10);
+            titleEl.innerText = '🎉 승리자 탄생!';
+            nameEl.innerText = result.winner_nickname;
+            badgeEl.style.background = 'linear-gradient(135deg, #f59e0b, #ef4444)';
+            descEl.innerText = `${result.winner_nickname}님이 모든 빙고 칸을 완성하여 1등 승리자가 되었습니다!`;
+            triggerConfetti(1.0);
+            setTimeout(() => triggerConfetti(0.8), 800);
+            setTimeout(() => triggerConfetti(0.6), 1600);
+            playSound('bingo');
+        } else {
+            emojiEl.innerText = '💣';
+            emojiEl.style.animation = 'none';
+            setTimeout(() => { emojiEl.style.animation = 'shakeX 0.6s ease'; }, 10);
+            titleEl.innerText = '💀 최종 패자 선정!';
+            nameEl.innerText = result.loser_nickname;
+            badgeEl.style.background = 'linear-gradient(135deg, #6b7280, #ef4444)';
+            descEl.innerText = `${result.loser_nickname}님이 마지막까지 남아 벌칙 당첨자가 되었습니다!`;
+            playSound('mark');
+        }
+
+        // Show reset button only for host
+        if (isHost) {
+            resetBtn.style.display = 'inline-block';
+            resetBtn.onclick = () => {
+                clearInterval(autoResetTimer);
+                modal.classList.remove('active');
+                sendMessage({ type: 'RESET_GAME' });
+            };
+        } else {
+            resetBtn.style.display = 'none';
+        }
+
+        closeBtn.onclick = () => {
+            clearInterval(autoResetTimer);
+            modal.classList.remove('active');
+        };
+
+        modal.classList.add('active');
+
+        // Auto countdown: 15 seconds to return to lobby
+        let countdown = 15;
+        const countdownEl = document.createElement('p');
+        countdownEl.id = 'game-end-countdown';
+        countdownEl.style.cssText = 'margin-top: 12px; font-size: 0.85rem; color: var(--text-secondary);';
+        countdownEl.innerText = `⏱ ${countdown}초 후 자동으로 대기방으로 돌아갑니다...`;
+        modal.querySelector('.modal-box').appendChild(countdownEl);
+
+        const autoResetTimer = setInterval(() => {
+            countdown--;
+            if (countdownEl) countdownEl.innerText = `⏱ ${countdown}초 후 자동으로 대기방으로 돌아갑니다...`;
+            if (countdown <= 0) {
+                clearInterval(autoResetTimer);
+                modal.classList.remove('active');
+                if (countdownEl.parentNode) countdownEl.parentNode.removeChild(countdownEl);
+                if (isHost) {
+                    sendMessage({ type: 'RESET_GAME' });
+                }
+            }
+        }, 1000);
+    }
+
+
+
+    window.doStartGame = function () {
         initAudio();
         sendMessage({ type: 'START_GAME' });
     };
@@ -813,7 +899,7 @@
     function startClientTurnTimer(secondsLeft) {
         clearInterval(timerInterval);
         timerSecondsLeft = secondsLeft;
-        
+
         updateTimerBar();
 
         timerInterval = setInterval(() => {
@@ -983,7 +1069,7 @@
 
                 let statusHtml = '';
                 if (status === 'WAITING' || !status) {
-                    statusHtml = p.is_ready 
+                    statusHtml = p.is_ready
                         ? '<span class="ready-tag ready">🟢 준비 완료</span>'
                         : '<span class="ready-tag waiting">🟡 작성 중...</span>';
                 } else {
@@ -1088,25 +1174,25 @@
                     id: "kospi_100",
                     title: "📈 코스피 시총 Top 100",
                     words: [
-                        "삼성전자", "SK하이닉스", "LG에너지솔루션", "삼성바이오로직스", "현대차", 
-                        "기아", "셀트리온", "KB금융", "신한지주", "POSCO홀딩스", 
-                        "NAVER", "현대모비스", "삼성물산", "LG화학", "카카오", 
-                        "하나금융지주", "삼성SDI", "LG전자", "메리츠금융지주", "SK이노베이션", 
-                        "HMM", "한국전력", "KT&G", "삼성생명", "HD현대중공업", 
-                        "크래프톤", "한화에어로스페이스", "카카오뱅크", "삼성화재", "HD한국조선해양", 
-                        "삼성E&A", "SK텔레콤", "고려아연", "우리금융지주", "포스코퓨처엠", 
-                        "S-Oil", "KT", "기업은행", "대한항공", "포스코인터내셔널", 
-                        "HD현대일렉트릭", "삼성전기", "한화오션", "두산에너빌리티", "카카오페이", 
-                        "아모레퍼시픽", "한진칼", "하이브", "현대글로비스", "LG", 
-                        "한국타이어앤테크놀로지", "SK", "삼성중공업", "한화시스템", "LG디스플레이", 
-                        "유한양행", "금호석유", "한국항공우주", "두산밥캣", "현대제철", 
-                        "강원랜드", "DB손해보험", "현대해상", "LG생활건강", "CJ제일제당", 
-                        "에스원", "오리온", "롯데케미칼", "GS", "한미약품", 
-                        "한화", "현대건설", "SK바이오팜", "SKC", "포스코DX", 
-                        "한진", "두산", "BGF리테일", "LS", "효성티앤씨", 
-                        "영원무역", "GS리테일", "넷마블", "엔씨소프트", "키움증권", 
-                        "미래에셋증권", "한국금융지주", "NH투자증권", "삼성증권", "현대백화점", 
-                        "신세계", "이마트", "CJ", "롯데쇼핑", "대우건설", 
+                        "삼성전자", "SK하이닉스", "LG에너지솔루션", "삼성바이오로직스", "현대차",
+                        "기아", "셀트리온", "KB금융", "신한지주", "POSCO홀딩스",
+                        "NAVER", "현대모비스", "삼성물산", "LG화학", "카카오",
+                        "하나금융지주", "삼성SDI", "LG전자", "메리츠금융지주", "SK이노베이션",
+                        "HMM", "한국전력", "KT&G", "삼성생명", "HD현대중공업",
+                        "크래프톤", "한화에어로스페이스", "카카오뱅크", "삼성화재", "HD한국조선해양",
+                        "삼성E&A", "SK텔레콤", "고려아연", "우리금융지주", "포스코퓨처엠",
+                        "S-Oil", "KT", "기업은행", "대한항공", "포스코인터내셔널",
+                        "HD현대일렉트릭", "삼성전기", "한화오션", "두산에너빌리티", "카카오페이",
+                        "아모레퍼시픽", "한진칼", "하이브", "현대글로비스", "LG",
+                        "한국타이어앤테크놀로지", "SK", "삼성중공업", "한화시스템", "LG디스플레이",
+                        "유한양행", "금호석유", "한국항공우주", "두산밥캣", "현대제철",
+                        "강원랜드", "DB손해보험", "현대해상", "LG생활건강", "CJ제일제당",
+                        "에스원", "오리온", "롯데케미칼", "GS", "한미약품",
+                        "한화", "현대건설", "SK바이오팜", "SKC", "포스코DX",
+                        "한진", "두산", "BGF리테일", "LS", "효성티앤씨",
+                        "영원무역", "GS리테일", "넷마블", "엔씨소프트", "키움증권",
+                        "미래에셋증권", "한국금융지주", "NH투자증권", "삼성증권", "현대백화점",
+                        "신세계", "이마트", "CJ", "롯데쇼핑", "대우건설",
                         "코웨이", "농심", "휠라홀딩스", "오뚜기", "삼양식품"
                     ]
                 },
@@ -1114,11 +1200,11 @@
                     id: "colors_30",
                     title: "🎨 다양한 색깔 (30가지)",
                     words: [
-                        "빨강", "파랑", "노랑", "초록", "분홍", 
-                        "보라", "주황", "검정", "하양", "갈색", 
-                        "하늘", "남색", "금색", "은색", "민트", 
-                        "코랄", "마젠타", "시안", "올리브", "카키", 
-                        "청록", "베이지", "차콜", "크림슨", "라벤더", 
+                        "빨강", "파랑", "노랑", "초록", "분홍",
+                        "보라", "주황", "검정", "하양", "갈색",
+                        "하늘", "남색", "금색", "은색", "민트",
+                        "코랄", "마젠타", "시안", "올리브", "카키",
+                        "청록", "베이지", "차콜", "크림슨", "라벤더",
                         "핫핑크", "네온그린", "버건디", "아이보리", "연두"
                     ]
                 },
@@ -1178,7 +1264,7 @@
         player.board.forEach((text, idx) => {
             const cell = document.createElement('div');
             cell.className = 'spectate-cell' + (markedSet.has(idx) ? ' marked' : '');
-            cell.innerText = text || `(${idx+1})`;
+            cell.innerText = text || `(${idx + 1})`;
             spectateGrid.appendChild(cell);
         });
     }
@@ -1227,7 +1313,7 @@
             const presetId = presetChip.getAttribute('data-preset');
             const presetsList = (typeof BINGO_PRESETS !== 'undefined') ? BINGO_PRESETS : [];
             const preset = presetsList.find(p => p.id === presetId);
-            
+
             if (preset) {
                 if (preset.id === 'custom') {
                     if (createTopicInput) createTopicInput.value = '자유 주제';
@@ -1278,7 +1364,7 @@
         }
     });
 
-    window.doCreateRoom = function(opts) {
+    window.doCreateRoom = function (opts) {
         initAudio();
         const nickname = (opts && opts.nickname) || (createNicknameInput && createNicknameInput.value.trim()) || '김사원';
         const topic = (opts && opts.topic) || (createTopicInput && createTopicInput.value.trim()) || '자유 주제';
@@ -1299,7 +1385,7 @@
         });
     };
 
-    window.doJoinRoom = function(opts) {
+    window.doJoinRoom = function (opts) {
         initAudio();
         const nickname = (opts && opts.nickname) || (joinNicknameInput && joinNicknameInput.value.trim()) || '이대리';
         const roomCode = (opts && opts.roomCode) || (joinRoomCodeInput && joinRoomCodeInput.value.trim().toUpperCase()) || '';
@@ -1416,7 +1502,7 @@
     btnShowQr.addEventListener('click', () => {
         const shareUrl = `${window.location.origin}${window.location.pathname}?room=${currentRoomId}`;
         qrCodeContainer.innerHTML = '';
-        
+
         if (typeof QRCode === 'function') {
             new QRCode(qrCodeContainer, {
                 text: shareUrl,
@@ -1460,7 +1546,10 @@
         stabCalls.classList.remove('active');
         panelChat.style.display = 'flex';
         panelPlayers.style.display = 'none';
-        panelChat.style.display = 'none';
+        panelCalls.style.display = 'none';
+        // Scroll chat to bottom when switching to chat tab
+        const chatBox = document.getElementById('chat-messages');
+        if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
     });
 
     chatForm.addEventListener('submit', (e) => {

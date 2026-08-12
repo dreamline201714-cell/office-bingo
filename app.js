@@ -673,7 +673,20 @@
                 if (roomState && msg.chat) {
                     roomState.chat_logs.push(msg.chat);
                     renderChatLogs();
+                    // Auto-switch to chat tab to show new message
+                    const chatTab = document.getElementById('stab-chat');
+                    if (chatTab && !chatTab.classList.contains('active')) {
+                        // Just update the tab badge, don't force-switch
+                    }
                 }
+                break;
+
+            case 'GAME_ENDED':
+                roomState = msg.state;
+                updateArenaUI();
+                setTimeout(() => {
+                    showGameEndModal(msg.result);
+                }, 400);
                 break;
 
             case 'ERROR':
@@ -696,6 +709,82 @@
             });
         }
         drawModal.classList.add('active');
+    }
+
+    function showGameEndModal(result) {
+        if (!result) return;
+        const modal = document.getElementById('game-end-modal');
+        const emojiEl = document.getElementById('game-end-emoji');
+        const titleEl = document.getElementById('game-end-title');
+        const nameEl = document.getElementById('game-end-player-name');
+        const badgeEl = document.getElementById('game-end-name-badge');
+        const descEl = document.getElementById('game-end-desc');
+        const resetBtn = document.getElementById('btn-game-end-reset');
+        const closeBtn = document.getElementById('btn-game-end-close');
+        if (!modal) return;
+
+        if (result.mode === 'WINNER') {
+            emojiEl.innerText = '🏆';
+            emojiEl.style.animation = 'none';
+            setTimeout(() => { emojiEl.style.animation = 'bounceIn 0.6s ease'; }, 10);
+            titleEl.innerText = '🎉 승리자 탄생!';
+            nameEl.innerText = result.winner_nickname;
+            badgeEl.style.background = 'linear-gradient(135deg, #f59e0b, #ef4444)';
+            descEl.innerText = `${result.winner_nickname}님이 모든 빙고 칸을 완성하여 1등 승리자가 되었습니다!`;
+            triggerConfetti(1.0);
+            setTimeout(() => triggerConfetti(0.8), 800);
+            setTimeout(() => triggerConfetti(0.6), 1600);
+            playSound('bingo');
+        } else {
+            emojiEl.innerText = '💣';
+            emojiEl.style.animation = 'none';
+            setTimeout(() => { emojiEl.style.animation = 'shakeX 0.6s ease'; }, 10);
+            titleEl.innerText = '💀 최종 패자 선정!';
+            nameEl.innerText = result.loser_nickname;
+            badgeEl.style.background = 'linear-gradient(135deg, #6b7280, #ef4444)';
+            descEl.innerText = `${result.loser_nickname}님이 마지막까지 남아 벌칙 당첨자가 되었습니다!`;
+            playSound('mark');
+        }
+
+        // Show reset button only for host
+        if (isHost) {
+            resetBtn.style.display = 'inline-block';
+            resetBtn.onclick = () => {
+                clearInterval(autoResetTimer);
+                modal.classList.remove('active');
+                sendMessage({ type: 'RESET_GAME' });
+            };
+        } else {
+            resetBtn.style.display = 'none';
+        }
+
+        closeBtn.onclick = () => {
+            clearInterval(autoResetTimer);
+            modal.classList.remove('active');
+        };
+
+        modal.classList.add('active');
+
+        // Auto countdown: 15 seconds to return to lobby
+        let countdown = 15;
+        const countdownEl = document.createElement('p');
+        countdownEl.id = 'game-end-countdown';
+        countdownEl.style.cssText = 'margin-top: 12px; font-size: 0.85rem; color: var(--text-secondary);';
+        countdownEl.innerText = `⏱ ${countdown}초 후 자동으로 대기방으로 돌아갑니다...`;
+        modal.querySelector('.modal-box').appendChild(countdownEl);
+
+        const autoResetTimer = setInterval(() => {
+            countdown--;
+            if (countdownEl) countdownEl.innerText = `⏱ ${countdown}초 후 자동으로 대기방으로 돌아갑니다...`;
+            if (countdown <= 0) {
+                clearInterval(autoResetTimer);
+                modal.classList.remove('active');
+                if (countdownEl.parentNode) countdownEl.parentNode.removeChild(countdownEl);
+                if (isHost) {
+                    sendMessage({ type: 'RESET_GAME' });
+                }
+            }
+        }, 1000);
     }
 
 
@@ -1457,7 +1546,10 @@
         stabCalls.classList.remove('active');
         panelChat.style.display = 'flex';
         panelPlayers.style.display = 'none';
-        panelChat.style.display = 'none';
+        panelCalls.style.display = 'none';
+        // Scroll chat to bottom when switching to chat tab
+        const chatBox = document.getElementById('chat-messages');
+        if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
     });
 
     chatForm.addEventListener('submit', (e) => {

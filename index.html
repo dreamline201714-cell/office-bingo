@@ -698,6 +698,19 @@
             100% { transform: scale(1.1) rotate(10deg); }
         }
 
+        @keyframes bounceIn {
+            0%   { transform: scale(0.3); opacity: 0; }
+            50%  { transform: scale(1.15); opacity: 1; }
+            75%  { transform: scale(0.92); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes shakeX {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-10px); }
+            40%, 80% { transform: translateX(10px); }
+        }
+
         .draw-result-list {
             display: flex;
             flex-direction: column;
@@ -1855,7 +1868,7 @@
 
                     <div class="board-footer" id="board-footer">
                         <div id="footer-waiting-controls" style="display: flex; gap: 8px; flex-wrap: wrap; width: 100%; align-items: center; justify-content: space-between;">
-                            <button class="primary-btn" id="btn-toggle-ready" onclick="toggleReadyDirect()" style="width: auto; padding: 10px 20px;">✋ 준비 완료</button>
+                            <button class="primary-btn" id="btn-toggle-ready" style="width: auto; padding: 10px 20px;">✋ 준비 완료</button>
                             <div style="display: flex; gap: 6px;">
                                 <button class="secondary-btn" id="btn-auto-fill" onclick="autoFillDirect()">✨ 무작위 자동 채우기</button>
                                 <button class="secondary-btn" id="btn-clear-board" onclick="clearBoardDirect()">🗑️ 보드 비우기</button>
@@ -1906,6 +1919,21 @@
             <h3 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 8px;">턴 순서 제비뽑기 진행 중!</h3>
             <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 20px;">누가 첫 번째로 단어를 부르게 될까요?</p>
             <div class="draw-result-list" id="draw-result-list"></div>
+    </div>
+
+    <!-- 게임 종료 결과 모달 -->
+    <div class="modal-overlay" id="game-end-modal">
+        <div class="modal-box" style="text-align: center; max-width: 420px;">
+            <div id="game-end-emoji" style="font-size: 5rem; margin-bottom: 12px; animation: bounceIn 0.6s ease;">🏆</div>
+            <h2 id="game-end-title" style="font-size: 1.8rem; font-weight: 900; margin-bottom: 8px;">게임 종료!</h2>
+            <div id="game-end-name-badge" style="display: inline-block; padding: 10px 24px; border-radius: 50px; font-size: 1.3rem; font-weight: 800; margin: 12px 0 20px; background: linear-gradient(135deg, var(--primary), var(--accent));">
+                <span id="game-end-player-name">-</span>
+            </div>
+            <p id="game-end-desc" style="color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 24px;"></p>
+            <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                <button class="primary-btn" id="btn-game-end-reset" style="display: none; min-width: 160px;">🔄 대기실로 돌아가기</button>
+                <button class="secondary-btn" id="btn-game-end-close" style="min-width: 120px;">✕ 닫기</button>
+            </div>
         </div>
     </div>
     
