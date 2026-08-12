@@ -354,7 +354,7 @@ body {
     opacity: 1; 
 }
 
-/* ✅ 활성화된 게임 시작 버튼 (레트로 반전 액션 추가) */
+/* ✅ 활성화된 게임 시작 버튼 (레트로 반전 깜빡임 액션 추가) */
 .start-game-btn:not(:disabled) {
     background: var(--border-block) !important;
     color: var(--bg-surface) !important;
@@ -362,19 +362,18 @@ body {
     box-shadow: var(--shadow-block) !important;
     border-radius: 0 !important;
     cursor: pointer;
-    transition: all 0.1s ease;
+    animation: retroStartBlink 1s step-end infinite !important; /* 애니메이션 적용 */
 }
 
-.start-game-btn:not(:disabled):hover {
-    background: var(--bg-primary) !important;
-    color: var(--text-primary) !important;
-    transform: translate(-2px, -2px) !important;
-    box-shadow: 6px 6px 0px var(--border-block) !important;
-}
-
-.start-game-btn:not(:disabled):active {
-    transform: translate(2px, 2px) !important;
-    box-shadow: none !important;
+@keyframes retroStartBlink {
+    0%, 100% {
+        background: var(--border-block) !important;
+        color: var(--bg-surface) !important;
+    }
+    50% {
+        background: var(--bg-surface) !important;
+        color: var(--border-block) !important;
+    }
 }
 
 
@@ -474,6 +473,7 @@ body {
     height: 14px;
     background: var(--bg-surface);
     border: 2px solid var(--border-block);
+    margin-top: 12px;
     box-shadow: var(--shadow-block-inset);
 }
 
@@ -535,8 +535,7 @@ body {
     background-image: repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255,255,255,0.2) 2px, rgba(255,255,255,0.2) 4px);
 }
 
-
-/* ✅ 하단 완성 줄 수 및 안내 텍스트 영역 (겹침 방지) */
+/* 하단 완성 줄 수 및 안내 텍스트 영역 */
 .board-footer {
     margin-top: 24px;
     width: 100%;
@@ -552,7 +551,7 @@ body {
     padding: 16px;
     box-shadow: var(--shadow-block);
     display: flex;
-    flex-direction: column; /* 가로 배열을 세로로 변경하여 완전 겹침 방지 */
+    flex-direction: column; 
     align-items: flex-start;
     gap: 8px;
     width: 100%;
@@ -566,7 +565,7 @@ body {
     border: 2px solid var(--border-block);
 }
 
-/* ✅ 주제 참고 단어 목록 (스크롤 처리) */
+/* 주제 참고 단어 목록 */
 .topic-words-panel {
     background: var(--bg-surface);
     border: 2px solid var(--border-block);
@@ -634,12 +633,14 @@ body {
     border-bottom: 2px solid var(--border-block);
 }
 
+/* ✅ 사이드바 탭 글자색 명시적 지정 (다크모드 묻힘 방지) */
 .sidebar-tab-btn {
     flex: 1;
     padding: 10px 4px;
     border: none;
     border-right: 2px solid var(--border-block);
     background: var(--bg-primary);
+    color: var(--text-muted); /* 비활성화 탭 글자색 강제지정 */
     cursor: pointer;
     font-size: 0.9rem;
     white-space: nowrap; 
@@ -651,6 +652,7 @@ body {
 
 .sidebar-tab-btn.active {
     background: var(--bg-surface);
+    color: var(--text-primary); /* 활성화 탭 글자색 강제지정 */
 }
 
 .sidebar-content {
@@ -683,7 +685,7 @@ body {
     white-space: nowrap; 
 }
 
-/* ✅ 대화창 버튼 이탈 및 레이아웃 완벽 고정 */
+/* 대화창 레이아웃 */
 #panel-chat {
     display: flex;
     flex-direction: column;
@@ -707,12 +709,12 @@ body {
 .chat-input-box {
     display: flex;
     gap: 6px;
-    width: 100%; /* 부모 너비를 벗어나지 않도록 제한 */
+    width: 100%; 
 }
 
 .chat-input {
     flex: 1;
-    min-width: 0; /* 글자가 입력창 너비 이상으로 길어질 때 창이 튀어나가는 버그 방지 */
+    min-width: 0; 
     border: 2px solid var(--border-block);
     border-radius: 0;
     box-shadow: var(--shadow-block-inset);
@@ -724,7 +726,7 @@ body {
 }
 
 .chat-send-btn {
-    flex-shrink: 0; /* 전송 버튼이 절대 찌그러지거나 바깥으로 밀려나지 않음 */
+    flex-shrink: 0; 
     border: 2px solid var(--border-block);
     border-radius: 0;
     background: var(--bg-primary);
