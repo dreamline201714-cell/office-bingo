@@ -156,6 +156,9 @@
     const statusText = document.getElementById('status-text');
     const soundToggleBtn = document.getElementById('sound-toggle-btn');
     const themeToggleBtn = document.getElementById('theme-toggle-btn');
+    const btnHelp = document.getElementById('btn-help');
+    const helpModal = document.getElementById('help-modal');
+    const helpModalClose = document.getElementById('help-modal-close');
 
     const lobbySection = document.getElementById('lobby-section');
     const arenaSection = document.getElementById('arena-section');
@@ -1580,6 +1583,19 @@
         document.documentElement.setAttribute('data-theme', currentTheme);
         themeToggleBtn.innerText = currentTheme === 'dark' ? '🌙' : '☀️';
     });
+
+    // 도움말 모달
+    if (btnHelp) {
+        btnHelp.addEventListener('click', () => helpModal.classList.add('active'));
+    }
+    if (helpModalClose) {
+        helpModalClose.addEventListener('click', () => helpModal.classList.remove('active'));
+    }
+    if (helpModal) {
+        helpModal.addEventListener('click', (e) => {
+            if (e.target === helpModal) helpModal.classList.remove('active');
+        });
+    }
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initPresetChips);

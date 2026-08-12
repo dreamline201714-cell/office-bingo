@@ -1,6 +1,5 @@
 /**
  * Office Bingo Live Client Application Logic
- * Supports Local file:// Execution, Standalone Offline Mode, WebSockets & WebRTC.
  */
 
 (function () {
@@ -15,13 +14,15 @@
     let myPlayerId = null;
     let isHost = false;
     let soundEnabled = true;
-    let currentTheme = 'dark';
+    let currentTheme = 'light';
 
     let roomState = null;
     let selectedSize = 5;
     let selectedGameMode = 'WINNER';
     let spectatingPlayerId = null;
     let editingCellIndex = null;
+
+    let configModalSelectedSize = 5;
 
     let timerInterval = null;
     let timerSecondsLeft = 15;
@@ -118,16 +119,46 @@
                     g.gain.linearRampToValueAtTime(0.01, now + 0.6);
                     o.start(now + idx * 0.08); o.stop(now + 0.6);
                 });
+            } else if (type === 'error') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.linearRampToValueAtTime(100, now + 0.15);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+                osc.start(now); osc.stop(now + 0.15);
             }
         } catch (e) {
             console.error('Audio synth error:', e);
         }
     }
 
+    function showToast(message, type = 'info') {
+        const container = document.getElementById('toast-container');
+        if (!container) return;
+
+        const toast = document.createElement('div');
+        toast.className = `toast-item toast-${type}`;
+        toast.innerText = message;
+
+        container.appendChild(toast);
+
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+            }
+        }, 2500);
+    }
+
     const statusDot = document.getElementById('status-dot');
     const statusText = document.getElementById('status-text');
     const soundToggleBtn = document.getElementById('sound-toggle-btn');
     const themeToggleBtn = document.getElementById('theme-toggle-btn');
+    const btnHelp = document.getElementById('btn-help');
+    const helpModal = document.getElementById('help-modal');
+    const helpModalClose = document.getElementById('help-modal-close');
 
     const lobbySection = document.getElementById('lobby-section');
     const arenaSection = document.getElementById('arena-section');
@@ -140,7 +171,6 @@
     const createNicknameInput = document.getElementById('create-nickname');
     const createTopicInput = document.getElementById('create-topic');
     const createWordsInput = document.getElementById('create-words');
-    const presetChipGroup = document.getElementById('preset-chip-group');
 
     const joinNicknameInput = document.getElementById('join-nickname');
     const joinRoomCodeInput = document.getElementById('join-room-code');
@@ -163,6 +193,7 @@
     const btnHostStart = document.getElementById('btn-host-start');
     const btnHostReset = document.getElementById('btn-host-reset');
     const btnHostConfig = document.getElementById('btn-host-config');
+    const unreadyPlayersInfo = document.getElementById('unready-players-info');
 
     const bingoBoardGrid = document.getElementById('bingo-board-grid');
     const footerWaitingControls = document.getElementById('footer-waiting-controls');
@@ -171,6 +202,7 @@
     const btnToggleReady = document.getElementById('btn-toggle-ready');
     const btnAutoFill = document.getElementById('btn-auto-fill');
     const btnClearBoard = document.getElementById('btn-clear-board');
+    const emptyCellCountSpan = document.getElementById('empty-cell-count');
     const myLineCountBadge = document.getElementById('my-line-count');
 
     const topicWordsPanel = document.getElementById('topic-words-panel');
@@ -184,12 +216,23 @@
     const chatForm = document.getElementById('chat-form');
     const chatInput = document.getElementById('chat-input');
 
-    const stabPlayers = document.getElementById('stab-players');
     const stabCalls = document.getElementById('stab-calls');
     const stabChat = document.getElementById('stab-chat');
 
     const drawModal = document.getElementById('draw-modal');
     const drawResultList = document.getElementById('draw-result-list');
+
+    const configModal = document.getElementById('config-modal');
+    const configModalClose = document.getElementById('config-modal-close');
+    const configTopicInput = document.getElementById('config-topic-input');
+    const configWordsInput = document.getElementById('config-words-input');
+    const btnConfigSave = document.getElementById('btn-config-save');
+    const btnConfigCancel = document.getElementById('btn-config-cancel');
+
+    const resetOptionModal = document.getElementById('reset-option-modal');
+    const btnResetKeep = document.getElementById('btn-reset-keep');
+    const btnResetShuffle = document.getElementById('btn-reset-shuffle');
+    const btnResetCancel = document.getElementById('btn-reset-cancel');
 
     const editCellModal = document.getElementById('edit-cell-modal');
     const editCellModalClose = document.getElementById('edit-cell-modal-close');
@@ -207,6 +250,10 @@
     const spectateModalScore = document.getElementById('spectate-modal-score');
     const spectateGrid = document.getElementById('spectate-grid');
 
+    const mobileFab = document.getElementById('mobile-fab');
+    const mobileSidebarClose = document.getElementById('mobile-sidebar-close');
+    const mobileSidebar = document.getElementById('mobile-sidebar');
+    const sidebarBackdrop = document.getElementById('sidebar-backdrop');
 
     function checkUrlQueryParams() {
         const urlParams = new URLSearchParams(window.location.search);
@@ -217,7 +264,6 @@
         }
     }
 
-    // Message queue for messages sent before WebSocket is open
     let messageQueue = [];
 
     function drainMessageQueue() {
@@ -256,13 +302,10 @@
             socket.onclose = () => {
                 statusText.innerText = '서버 연결 중...';
                 statusDot.className = 'status-dot';
-                // Retry after 2 seconds
                 setTimeout(() => connectWebSocket(wsUrl), 2000);
             };
 
-            socket.onerror = () => {
-                // onclose will fire after onerror, retry is handled there
-            };
+            socket.onerror = () => {};
         } catch (e) {
             setTimeout(() => connectWebSocket(wsUrl), 2000);
         }
@@ -280,10 +323,8 @@
         if (socket && socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify(msgDict));
         } else if (socket && (socket.readyState === WebSocket.CONNECTING)) {
-            // Queue the message - will be sent when connection opens
             messageQueue.push(msgDict);
         } else {
-            // Fallback to local/P2P only if definitely no server
             handleLocalOrP2PAction(msgDict);
         }
     }
@@ -363,21 +404,6 @@
                 localSyncChannel.postMessage({ type: 'ROOM_UPDATED', roomCode: roomCode, state: roomState });
             }
 
-            if (isP2P && typeof Peer !== 'undefined') {
-                try {
-                    const peerId = 'bingo-room-' + roomCode.toLowerCase();
-                    peer = new Peer(peerId);
-                    peer.on('connection', (conn) => {
-                        p2pConnections.push(conn);
-                        conn.on('data', (playerMsg) => {
-                            handleP2PHostMessage(conn, playerMsg);
-                        });
-                    });
-                } catch (e) {
-                    console.error('PeerJS init fallback:', e);
-                }
-            }
-
             lobbySection.style.display = 'none';
             arenaSection.style.display = 'block';
             updateArenaUI();
@@ -433,29 +459,6 @@
                 } catch (e) { }
             }
 
-            if (isP2P && typeof Peer !== 'undefined') {
-                try {
-                    peer = new Peer();
-                    peer.on('open', () => {
-                        const targetPeerId = 'bingo-room-' + roomCode.toLowerCase();
-                        p2pHostConn = peer.connect(targetPeerId);
-                        p2pHostConn.on('open', () => {
-                            p2pHostConn.send({
-                                type: 'P2P_JOIN_REQUEST',
-                                player_id: myPlayerId,
-                                nickname: data.nickname || '참여자'
-                            });
-                        });
-
-                        p2pHostConn.on('data', (hostMsg) => {
-                            handleServerMessage(hostMsg);
-                        });
-                    });
-                } catch (e) {
-                    console.error('PeerJS Join Exception:', e);
-                }
-            }
-
             lobbySection.style.display = 'none';
             arenaSection.style.display = 'block';
             updateArenaUI();
@@ -471,42 +474,6 @@
         }
     }
 
-    function handleP2PHostMessage(conn, msg) {
-        if (msg.type === 'P2P_JOIN_REQUEST') {
-            const size = roomState.config.size;
-            const wordPool = roomState.config.word_pool;
-            const board = generateBoard(wordPool, size);
-            const color = '#' + Math.floor(Math.random() * 16777215).toString(16);
-
-            roomState.players.push({
-                player_id: msg.player_id,
-                nickname: msg.nickname,
-                is_host: false,
-                is_ready: false,
-                is_escaped: false,
-                escape_rank: 0,
-                is_loser: false,
-                color: color,
-                score: 0,
-                board: board,
-                marked: []
-            });
-
-            conn.send({
-                type: 'ROOM_JOINED',
-                room_id: currentRoomId,
-                player_id: msg.player_id,
-                is_host: false,
-                state: roomState
-            });
-
-            broadcastP2PState();
-        } else {
-            processHostAction(msg);
-            broadcastP2PState();
-        }
-    }
-
     function processHostAction(data) {
         const type = data.type;
         const player = roomState.players.find(p => p.player_id === (data.player_id || myPlayerId));
@@ -517,6 +484,27 @@
         } else if (type === 'UPDATE_BOARD' && player) {
             player.board = data.board;
             player.is_ready = false;
+        } else if (type === 'UPDATE_CONFIG' && isHost) {
+            const newSize = parseInt(data.size) || roomState.config.size;
+            const newTopic = data.topic || roomState.config.topic;
+            const newWordPool = data.word_pool || roomState.config.word_pool;
+
+            roomState.config.size = newSize;
+            roomState.config.topic = newTopic;
+            roomState.config.word_pool = newWordPool;
+
+            roomState.players.forEach(p => {
+                p.board = generateBoard(newWordPool, newSize);
+                p.marked = [];
+                p.score = 0;
+                p.is_ready = false;
+            });
+
+            roomState.called_items = [];
+            roomState.status = 'WAITING';
+
+            updateArenaUI();
+            broadcastP2PState();
         } else if (type === 'TOGGLE_READY' && player) {
             player.is_ready = !player.is_ready;
         } else if (type === 'START_GAME' && isHost) {
@@ -561,6 +549,24 @@
                 });
                 return;
             }
+        } else if (type === 'RESET_GAME' && isHost) {
+            const keepBoard = data.keep_board || false;
+            roomState.status = 'WAITING';
+            roomState.called_items = [];
+
+            roomState.players.forEach(p => {
+                p.marked = [];
+                p.score = 0;
+                p.is_ready = false;
+                p.is_escaped = false;
+                p.is_loser = false;
+                if (!keepBoard) {
+                    p.board = generateBoard(roomState.config.word_pool, roomState.config.size);
+                }
+            });
+
+            updateArenaUI();
+            broadcastP2PState();
         } else if (type === 'CHAT_MESSAGE') {
             roomState.chat_logs.push({
                 system: false,
@@ -584,10 +590,15 @@
 
     function generateBoard(wordPool, size) {
         const total = size * size;
-        let words = [...wordPool];
+        let words = parseWordList(Array.isArray(wordPool) ? wordPool.join('\n') : (wordPool || ''));
+
         if (words.length < total) {
-            for (let i = 1; i <= total - words.length; i++) words.push(`단어 ${i}`);
+            const need = total - words.length;
+            for (let i = 1; i <= need; i++) {
+                words.push(`단어 ${words.length + 1}`);
+            }
         }
+
         return words.sort(() => 0.5 - Math.random()).slice(0, total);
     }
 
@@ -621,6 +632,7 @@
                 break;
 
             case 'ROOM_UPDATED':
+            case 'CONFIG_UPDATED':
                 roomState = msg.state;
                 updateArenaUI();
                 break;
@@ -662,6 +674,10 @@
 
                 if (prevTurnPlayer !== myPlayerId && roomState.current_turn_player_id === myPlayerId) {
                     playSound('myTurn');
+                    showToast('🎯 내 턴이 시작되었습니다!', 'warning');
+                    if (mobileSidebar && mobileSidebar.classList.contains('active')) {
+                        closeMobileSidebar();
+                    }
                 }
 
                 if (spectatingPlayerId) {
@@ -673,11 +689,6 @@
                 if (roomState && msg.chat) {
                     roomState.chat_logs.push(msg.chat);
                     renderChatLogs();
-                    // Auto-switch to chat tab to show new message
-                    const chatTab = document.getElementById('stab-chat');
-                    if (chatTab && !chatTab.classList.contains('active')) {
-                        // Just update the tab badge, don't force-switch
-                    }
                 }
                 break;
 
@@ -690,7 +701,8 @@
                 break;
 
             case 'ERROR':
-                alert(msg.message || '오류가 발생했습니다.');
+                showToast(msg.message || '오류가 발생했습니다.', 'error');
+                playSound('error');
                 break;
         }
     }
@@ -725,74 +737,45 @@
 
         if (result.mode === 'WINNER') {
             emojiEl.innerText = '🏆';
-            emojiEl.style.animation = 'none';
-            setTimeout(() => { emojiEl.style.animation = 'bounceIn 0.6s ease'; }, 10);
-            titleEl.innerText = '🎉 승리자 탄생!';
+            titleEl.innerText = '승리자 탄생!';
             nameEl.innerText = result.winner_nickname;
             badgeEl.style.background = 'linear-gradient(135deg, #f59e0b, #ef4444)';
             descEl.innerText = `${result.winner_nickname}님이 모든 빙고 칸을 완성하여 1등 승리자가 되었습니다!`;
             triggerConfetti(1.0);
-            setTimeout(() => triggerConfetti(0.8), 800);
-            setTimeout(() => triggerConfetti(0.6), 1600);
             playSound('bingo');
         } else {
             emojiEl.innerText = '💣';
-            emojiEl.style.animation = 'none';
-            setTimeout(() => { emojiEl.style.animation = 'shakeX 0.6s ease'; }, 10);
-            titleEl.innerText = '💀 최종 패자 선정!';
+            titleEl.innerText = '최종 패자 선정!';
             nameEl.innerText = result.loser_nickname;
             badgeEl.style.background = 'linear-gradient(135deg, #6b7280, #ef4444)';
             descEl.innerText = `${result.loser_nickname}님이 마지막까지 남아 벌칙 당첨자가 되었습니다!`;
             playSound('mark');
         }
 
-        // Show reset button only for host
         if (isHost) {
             resetBtn.style.display = 'inline-block';
             resetBtn.onclick = () => {
-                clearInterval(autoResetTimer);
                 modal.classList.remove('active');
-                sendMessage({ type: 'RESET_GAME' });
+                openResetOptionModal();
             };
         } else {
             resetBtn.style.display = 'none';
         }
 
         closeBtn.onclick = () => {
-            clearInterval(autoResetTimer);
             modal.classList.remove('active');
         };
 
         modal.classList.add('active');
-
-        // Auto countdown: 15 seconds to return to lobby
-        let countdown = 15;
-        const countdownEl = document.createElement('p');
-        countdownEl.id = 'game-end-countdown';
-        countdownEl.style.cssText = 'margin-top: 12px; font-size: 0.85rem; color: var(--text-secondary);';
-        countdownEl.innerText = `⏱ ${countdown}초 후 자동으로 대기방으로 돌아갑니다...`;
-        modal.querySelector('.modal-box').appendChild(countdownEl);
-
-        const autoResetTimer = setInterval(() => {
-            countdown--;
-            if (countdownEl) countdownEl.innerText = `⏱ ${countdown}초 후 자동으로 대기방으로 돌아갑니다...`;
-            if (countdown <= 0) {
-                clearInterval(autoResetTimer);
-                modal.classList.remove('active');
-                if (countdownEl.parentNode) countdownEl.parentNode.removeChild(countdownEl);
-                if (isHost) {
-                    sendMessage({ type: 'RESET_GAME' });
-                }
-            }
-        }, 1000);
     }
 
-
-
-    window.doStartGame = function () {
-        initAudio();
-        sendMessage({ type: 'START_GAME' });
-    };
+    function openResetOptionModal() {
+        if (resetOptionModal) {
+            resetOptionModal.classList.add('active');
+        } else {
+            sendMessage({ type: 'RESET_GAME', keep_board: false });
+        }
+    }
 
     function updateArenaUI() {
         if (!roomState) return;
@@ -803,16 +786,16 @@
         const isMyTurn = (myPlayerId === roomState.current_turn_player_id);
 
         displayTopicTitle.innerText = config.topic;
-        displayGridInfo.innerText = `${config.size}x${config.size} 빙고 | 총 ${config.word_pool.length}개 추천 단어`;
+        displayGridInfo.innerText = `${config.size}x${config.size} 빙고 | 총 ${config.word_pool ? config.word_pool.length : 0}개 추천 단어`;
         displayRoomCode.innerText = roomState.room_id;
 
         const isLoserMode = (config.game_mode === 'LOSER');
-        displayGameMode.innerText = isLoserMode ? '💣 패자 결정전 (벌칙 당첨전)' : '🏆 승자 결정전 (1등 승리)';
+        displayGameMode.innerText = isLoserMode ? '패자 결정전 (벌칙 당첨전)' : '승자 결정전 (1등 승리)';
         displayGameMode.style.background = isLoserMode ? 'var(--accent)' : 'var(--primary)';
 
         if (status === 'WAITING') {
             roomStateBadge.className = 'room-state-badge waiting';
-            roomStateBadge.innerText = '⏳ 대기 중 (작성 중)';
+            roomStateBadge.innerText = '대기 중 (작성 중)';
             footerWaitingControls.style.display = 'flex';
             footerPlayingControls.style.display = 'none';
             topicWordsPanel.style.display = 'block';
@@ -820,16 +803,16 @@
 
             if (myPlayer) {
                 if (myPlayer.is_ready) {
-                    btnToggleReady.innerText = '🟢 준비 완료됨 (해제)';
+                    btnToggleReady.innerText = '준비 완료됨 (해제)';
                     btnToggleReady.style.background = 'var(--success)';
                 } else {
-                    btnToggleReady.innerText = '✋ 준비 완료';
+                    btnToggleReady.innerText = '준비 완료';
                     btnToggleReady.style.background = 'linear-gradient(135deg, var(--primary), var(--accent))';
                 }
             }
         } else {
             roomStateBadge.className = 'room-state-badge playing';
-            roomStateBadge.innerText = '🔥 게임 진행 중';
+            roomStateBadge.innerText = '게임 진행 중';
             footerWaitingControls.style.display = 'none';
             footerPlayingControls.style.display = 'flex';
             topicWordsPanel.style.display = 'none';
@@ -839,11 +822,11 @@
             if (turnPlayer) {
                 if (isMyTurn) {
                     turnPlayerBadge.className = 'turn-player-badge my-turn';
-                    turnPlayerBadge.innerHTML = '🎯 내 턴입니다! (내 보드에서 단어를 클릭하세요)';
-                    turnGuideText.innerText = '🎯 내 턴입니다! 선택한 단어가 방 전원의 보드에서 동시에 지워집니다.';
+                    turnPlayerBadge.innerHTML = '내 턴입니다! (내 보드에서 단어를 클릭하세요)';
+                    turnGuideText.innerText = '내 턴입니다! 선택한 단어가 방 전원의 보드에서 동시에 지워집니다.';
                 } else {
                     turnPlayerBadge.className = 'turn-player-badge';
-                    turnPlayerBadge.innerHTML = `👤 <span style="color:${turnPlayer.color}; font-weight:800;">${escapeHtml(turnPlayer.nickname)}</span> 님의 턴`;
+                    turnPlayerBadge.innerHTML = `<span style="color:${turnPlayer.color}; font-weight:800;">${escapeHtml(turnPlayer.nickname)}</span> 님의 턴`;
                     turnGuideText.innerText = `현재 ${turnPlayer.nickname}님의 턴입니다. 잠시 기다려주세요!`;
                 }
             }
@@ -851,34 +834,42 @@
             startClientTurnTimer(roomState.turn_time_remaining || 15);
         }
 
-        // Host controls
         if (myPlayer && myPlayer.is_host) {
             hostControls.style.display = 'block';
             if (status === 'WAITING') {
                 btnHostStart.style.display = 'inline-block';
                 const nonHostPlayers = roomState.players.filter(p => !p.is_host);
-                const readyCount = nonHostPlayers.filter(p => p.is_ready).length;
-                const allNonHostsReady = nonHostPlayers.length > 0 && nonHostPlayers.every(p => p.is_ready);
+                const unreadyList = nonHostPlayers.filter(p => !p.is_ready);
+                const allNonHostsReady = nonHostPlayers.length > 0 && unreadyList.length === 0;
 
-                // Only enable if there's at least 1 participant and all are ready
+                if (unreadyPlayersInfo) {
+                    if (unreadyList.length > 0) {
+                        const names = unreadyList.map(p => p.nickname).join(', ');
+                        unreadyPlayersInfo.innerText = `미준비 참가자: ${names}`;
+                    } else {
+                        unreadyPlayersInfo.innerText = nonHostPlayers.length > 0 ? '모든 참가자가 준비 완료되었습니다.' : '';
+                    }
+                }
+
                 if (nonHostPlayers.length === 0) {
                     btnHostStart.disabled = true;
                     btnHostStart.style.opacity = '0.4';
                     btnHostStart.style.cursor = 'not-allowed';
-                    btnHostStart.innerText = '🎮 참가자를 기다리는 중...';
+                    btnHostStart.innerText = '참가자를 기다리는 중...';
                 } else if (allNonHostsReady) {
                     btnHostStart.disabled = false;
                     btnHostStart.style.opacity = '1';
                     btnHostStart.style.cursor = 'pointer';
-                    btnHostStart.innerText = '🎮 게임 시작하기!';
+                    btnHostStart.innerText = '게임 시작하기!';
                 } else {
                     btnHostStart.disabled = false;
                     btnHostStart.style.opacity = '0.7';
                     btnHostStart.style.cursor = 'pointer';
-                    btnHostStart.innerText = `🎮 게임 시작 (${readyCount}/${nonHostPlayers.length}명 준비 완료)`;
+                    btnHostStart.innerText = `게임 시작 (${nonHostPlayers.length - unreadyList.length}/${nonHostPlayers.length}명 준비 완료)`;
                 }
             } else {
                 btnHostStart.style.display = 'none';
+                if (unreadyPlayersInfo) unreadyPlayersInfo.innerText = '';
             }
         } else {
             hostControls.style.display = 'none';
@@ -888,18 +879,30 @@
             renderBingoBoard(myPlayer.board, myPlayer.marked, config.size, status, myPlayer.is_ready, isMyTurn);
             myLineCountBadge.innerText = `${myPlayer.score} 줄`;
             renderTopicWordChips(myPlayer.board);
+            updateEmptyCellCounter(myPlayer.board);
         }
 
         playerCountSpan.innerText = roomState.players.length;
         renderPlayersRoster(status);
         renderCalledItems();
         renderChatLogs();
-    } // end updateArenaUI
+    }
+
+    function updateEmptyCellCounter(board) {
+        if (!emptyCellCountSpan) return;
+        const emptyCount = board.filter(cell => !cell || !cell.trim()).length;
+        if (emptyCount > 0) {
+            emptyCellCountSpan.innerText = `빈 칸: ${emptyCount}개 남음`;
+            emptyCellCountSpan.className = 'empty-cell-counter has-empty';
+        } else {
+            emptyCellCountSpan.innerText = `모든 칸 채움`;
+            emptyCellCountSpan.className = 'empty-cell-counter';
+        }
+    }
 
     function startClientTurnTimer(secondsLeft) {
         clearInterval(timerInterval);
         timerSecondsLeft = secondsLeft;
-
         updateTimerBar();
 
         timerInterval = setInterval(() => {
@@ -918,8 +921,17 @@
         turnTimerFill.style.width = `${pct}%`;
     }
 
+    function triggerCellShake(cellEl) {
+        if (!cellEl) return;
+        cellEl.classList.remove('cell-invalid');
+        void cellEl.offsetWidth;
+        cellEl.classList.add('cell-invalid');
+        setTimeout(() => cellEl.classList.remove('cell-invalid'), 300);
+    }
+
     function renderBingoBoard(board, markedIndices, size, status, isReady, isMyTurn) {
         bingoBoardGrid.setAttribute('data-size', size);
+        bingoBoardGrid.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
         bingoBoardGrid.innerHTML = '';
         const markedSet = new Set(markedIndices);
 
@@ -940,9 +952,10 @@
 
                 cell.addEventListener('click', () => {
                     if (isReady) {
-                        if (!confirm('준비 완료 상태에서는 수정 시 준비가 해제됩니다. 수정하시겠습니까?')) {
-                            return;
-                        }
+                        showToast('준비 완료 해제 후 수정할 수 있습니다.', 'warning');
+                        triggerCellShake(cell);
+                        playSound('error');
+                        return;
                     }
                     openEditCellModal(index, hasText ? text : '');
                 });
@@ -954,17 +967,23 @@
                     if (!isMyTurn) {
                         const turnPlayer = roomState.players.find(p => p.player_id === roomState.current_turn_player_id);
                         const turnName = turnPlayer ? turnPlayer.nickname : '다른 사람';
-                        alert(`아직 내 턴이 아닙니다! (현재 ${turnName}님의 턴)`);
+                        showToast(`아직 내 턴이 아닙니다! (${turnName}님의 턴)`, 'warning');
+                        triggerCellShake(cell);
+                        playSound('error');
                         return;
                     }
 
                     if (isMarked) {
-                        alert('이미 호출되어 지워진 항목입니다.');
+                        showToast('이미 지워진 칸입니다.', 'warning');
+                        triggerCellShake(cell);
+                        playSound('error');
                         return;
                     }
 
                     if (!hasText) {
-                        alert('빈 칸은 선택할 수 없습니다.');
+                        showToast('빈 칸은 선택할 수 없습니다.', 'warning');
+                        triggerCellShake(cell);
+                        playSound('error');
                         return;
                     }
 
@@ -999,7 +1018,8 @@
                         updateCellText(emptyIdx, word);
                         playSound('click');
                     } else {
-                        alert('모든 칸이 채워져 있습니다! 수정할 칸을 먼저 클릭하세요.');
+                        showToast('모든 칸이 채워져 있습니다!', 'warning');
+                        playSound('error');
                     }
                 });
             }
@@ -1043,19 +1063,10 @@
         if (!panelPlayers) return;
         panelPlayers.innerHTML = '';
 
-        const myNick = window.myNickname || (createNicknameInput && createNicknameInput.value.trim() ? createNicknameInput.value.trim() : null) || '방장';
-
+        const myNick = createNicknameInput && createNicknameInput.value.trim() ? createNicknameInput.value.trim() : '방장';
         const playersList = (roomState && roomState.players && roomState.players.length > 0)
             ? roomState.players
             : [{ player_id: myPlayerId || 'p1', nickname: myNick, is_host: isHost, is_ready: false, color: '#6366f1' }];
-
-        if (isHost && playersList.length > 0 && myNick) {
-            playersList[0].nickname = myNick;
-        }
-
-        if (playerCountSpan) {
-            playerCountSpan.innerText = playersList.length;
-        }
 
         playersList.forEach(p => {
             try {
@@ -1070,13 +1081,13 @@
                 let statusHtml = '';
                 if (status === 'WAITING' || !status) {
                     statusHtml = p.is_ready
-                        ? '<span class="ready-tag ready">🟢 준비 완료</span>'
-                        : '<span class="ready-tag waiting">🟡 작성 중...</span>';
+                        ? '<span class="ready-tag ready">준비 완료</span>'
+                        : '<span class="ready-tag waiting">작성 중...</span>';
                 } else {
                     if (p.is_loser) {
-                        statusHtml = '<span class="loser-tag">💣 패자 (벌칙)</span>';
+                        statusHtml = '<span class="loser-tag">패자 (벌칙)</span>';
                     } else if (p.is_escaped) {
-                        statusHtml = `<span class="escaped-tag">🟢 ${p.escape_rank}등 탈출</span>`;
+                        statusHtml = `<span class="escaped-tag">${p.escape_rank}등 탈출</span>`;
                     } else {
                         statusHtml = `<span>${p.score || 0}줄 ${isTurnPlayer ? '🎯' : ''}</span>`;
                     }
@@ -1085,16 +1096,14 @@
                 card.innerHTML = `
                     <div class="player-info">
                         <div class="player-avatar" style="background-color: ${avatarColor};">${firstLetter}</div>
-                        <div class="player-name-box">
-                            <div class="player-name">
-                                ${escapeHtml(nickname)}
-                                ${p.is_host ? '<span class="host-tag">방장</span>' : ''}
-                            </div>
+                        <div class="player-name">
+                            ${escapeHtml(nickname)}
+                            ${p.is_host ? '<span class="host-tag">방장</span>' : ''}
                         </div>
                     </div>
-                    <div class="player-score">
+                    <div style="display:flex; align-items:center; gap:4px;">
                         ${statusHtml}
-                        <button class="spectate-btn" data-pid="${p.player_id || ''}">👁️ 관전</button>
+                        <button class="spectate-btn" data-pid="${p.player_id || ''}">관전</button>
                     </div>
                 `;
 
@@ -1115,32 +1124,31 @@
 
     function renderCalledItems() {
         panelCalls.innerHTML = '';
-        if (!roomState.called_items || roomState.called_items.length === 0) {
-            panelCalls.innerHTML = '<p style="font-size:0.85rem; color:var(--text-muted);">아직 불린 단어가 없습니다.</p>';
+        const systemLogs = (roomState && roomState.chat_logs) ? roomState.chat_logs.filter(chat => chat.system) : [];
+
+        if (!systemLogs || systemLogs.length === 0) {
+            panelCalls.innerHTML = '<p style="font-size:0.8rem; color:var(--text-muted); text-align:center; margin-top:10px;">알림 기록이 없습니다.</p>';
             return;
         }
 
-        roomState.called_items.forEach(item => {
-            const chip = document.createElement('div');
-            chip.className = 'call-item';
-            chip.innerText = item;
-            panelCalls.appendChild(chip);
+        systemLogs.slice().reverse().forEach(chat => {
+            const item = document.createElement('div');
+            item.className = 'call-item-system';
+            item.innerText = chat.text;
+            panelCalls.appendChild(item);
         });
     }
 
     function renderChatLogs() {
         chatMessagesBox.innerHTML = '';
+        if (!roomState || !roomState.chat_logs) return;
 
         roomState.chat_logs.forEach(chat => {
-            const msgEl = document.createElement('div');
+            if (chat.system) return;
 
-            if (chat.system) {
-                msgEl.className = 'chat-msg system';
-                msgEl.innerText = chat.text;
-            } else {
-                msgEl.className = 'chat-msg';
-                msgEl.innerHTML = `<span class="sender" style="color:${chat.color}">${escapeHtml(chat.nickname)}:</span> <span>${escapeHtml(chat.text)}</span>`;
-            }
+            const msgEl = document.createElement('div');
+            msgEl.className = 'chat-msg';
+            msgEl.innerHTML = `<span class="sender" style="color:${chat.color}">${escapeHtml(chat.nickname)}:</span> <span>${escapeHtml(chat.text)}</span>`;
 
             chatMessagesBox.appendChild(msgEl);
         });
@@ -1159,85 +1167,89 @@
     }
 
     function initPresetChips() {
-        const targetGroup = document.getElementById('preset-chip-group');
-        if (!targetGroup) return;
+        const createGroup = document.getElementById('preset-chip-group');
+        const configGroup = document.getElementById('config-preset-chip-group');
 
         const presets = (typeof BINGO_PRESETS !== 'undefined' && Array.isArray(BINGO_PRESETS) && BINGO_PRESETS.length > 0)
             ? BINGO_PRESETS
             : [
-                {
-                    id: "custom",
-                    title: "✨ 자유 주제 (직접 입력)",
-                    words: []
-                },
-                {
-                    id: "kospi_100",
-                    title: "📈 코스피 시총 Top 100",
-                    words: [
-                        "삼성전자", "SK하이닉스", "LG에너지솔루션", "삼성바이오로직스", "현대차",
-                        "기아", "셀트리온", "KB금융", "신한지주", "POSCO홀딩스",
-                        "NAVER", "현대모비스", "삼성물산", "LG화학", "카카오",
-                        "하나금융지주", "삼성SDI", "LG전자", "메리츠금융지주", "SK이노베이션",
-                        "HMM", "한국전력", "KT&G", "삼성생명", "HD현대중공업",
-                        "크래프톤", "한화에어로스페이스", "카카오뱅크", "삼성화재", "HD한국조선해양",
-                        "삼성E&A", "SK텔레콤", "고려아연", "우리금융지주", "포스코퓨처엠",
-                        "S-Oil", "KT", "기업은행", "대한항공", "포스코인터내셔널",
-                        "HD현대일렉트릭", "삼성전기", "한화오션", "두산에너빌리티", "카카오페이",
-                        "아모레퍼시픽", "한진칼", "하이브", "현대글로비스", "LG",
-                        "한국타이어앤테크놀로지", "SK", "삼성중공업", "한화시스템", "LG디스플레이",
-                        "유한양행", "금호석유", "한국항공우주", "두산밥캣", "현대제철",
-                        "강원랜드", "DB손해보험", "현대해상", "LG생활건강", "CJ제일제당",
-                        "에스원", "오리온", "롯데케미칼", "GS", "한미약품",
-                        "한화", "현대건설", "SK바이오팜", "SKC", "포스코DX",
-                        "한진", "두산", "BGF리테일", "LS", "효성티앤씨",
-                        "영원무역", "GS리테일", "넷마블", "엔씨소프트", "키움증권",
-                        "미래에셋증권", "한국금융지주", "NH투자증권", "삼성증권", "현대백화점",
-                        "신세계", "이마트", "CJ", "롯데쇼핑", "대우건설",
-                        "코웨이", "농심", "휠라홀딩스", "오뚜기", "삼양식품"
-                    ]
-                },
-                {
-                    id: "colors_30",
-                    title: "🎨 다양한 색깔 (30가지)",
-                    words: [
-                        "빨강", "파랑", "노랑", "초록", "분홍",
-                        "보라", "주황", "검정", "하양", "갈색",
-                        "하늘", "남색", "금색", "은색", "민트",
-                        "코랄", "마젠타", "시안", "올리브", "카키",
-                        "청록", "베이지", "차콜", "크림슨", "라벤더",
-                        "핫핑크", "네온그린", "버건디", "아이보리", "연두"
-                    ]
-                },
-                {
-                    id: "numbers_1_50",
-                    title: "🔢 1~50 무작위 숫자",
-                    words: Array.from({ length: 50 }, (_, i) => String(i + 1))
-                }
+                { id: "custom", title: "자유 주제 (직접 입력)", words: [] },
+                { id: "kospi_100", title: "코스피 시총 Top 100", words: ["삼성전자", "SK하이닉스", "LG에너지솔루션"] },
+                { id: "colors_30", title: "다양한 색깔 (30가지)", words: ["빨강", "파랑", "노랑", "초록"] },
+                { id: "numbers_1_50", title: "1~50 무작위 숫자", words: Array.from({ length: 50 }, (_, i) => String(i + 1)) }
             ];
 
-        targetGroup.innerHTML = '';
+        if (createGroup) {
+            createGroup.innerHTML = '';
+            presets.forEach((preset, index) => {
+                const chip = document.createElement('div');
+                chip.className = 'preset-chip' + (index === 0 ? ' active' : '');
+                chip.innerText = preset.title;
 
-        presets.forEach((preset, index) => {
-            const chip = document.createElement('div');
-            chip.className = 'preset-chip' + (index === 0 ? ' active' : '');
-            chip.innerText = preset.title;
+                chip.addEventListener('click', () => {
+                    createGroup.querySelectorAll('.preset-chip').forEach(c => c.classList.remove('active'));
+                    chip.classList.add('active');
 
-            chip.addEventListener('click', () => {
-                document.querySelectorAll('.preset-chip').forEach(c => c.classList.remove('active'));
-                chip.classList.add('active');
+                    if (preset.id === 'custom') {
+                        if (createTopicInput) createTopicInput.value = '자유 주제';
+                        if (createWordsInput) createWordsInput.value = '';
+                    } else {
+                        if (createTopicInput) createTopicInput.value = preset.title.replace(/^[^\s]+\s+/, '');
+                        if (createWordsInput) createWordsInput.value = (preset.words || []).join('\n');
+                    }
+                    playSound('click');
+                });
 
-                if (preset.id === 'custom') {
-                    if (createTopicInput) createTopicInput.value = '';
-                    if (createWordsInput) createWordsInput.value = '';
-                } else {
-                    if (createTopicInput) createTopicInput.value = preset.title.replace(/^[^\s]+\s+/, '');
-                    if (createWordsInput) createWordsInput.value = preset.words.join('\n');
-                }
-                playSound('click');
+                createGroup.appendChild(chip);
             });
+        }
 
-            targetGroup.appendChild(chip);
+        if (configGroup) {
+            configGroup.innerHTML = '';
+            presets.forEach((preset, index) => {
+                const chip = document.createElement('div');
+                chip.className = 'preset-chip' + (index === 0 ? ' active' : '');
+                chip.innerText = preset.title;
+
+                chip.addEventListener('click', () => {
+                    configGroup.querySelectorAll('.preset-chip').forEach(c => c.classList.remove('active'));
+                    chip.classList.add('active');
+
+                    if (preset.id === 'custom') {
+                        if (configTopicInput) configTopicInput.value = '자유 주제';
+                        if (configWordsInput) configWordsInput.value = '';
+                    } else {
+                        if (configTopicInput) configTopicInput.value = preset.title.replace(/^[^\s]+\s+/, '');
+                        if (configWordsInput) configWordsInput.value = (preset.words || []).join('\n');
+                    }
+                    playSound('click');
+                });
+
+                configGroup.appendChild(chip);
+            });
+        }
+    }
+
+    function openConfigModal() {
+        if (!roomState || !roomState.config) return;
+        configTopicInput.value = roomState.config.topic || '자유 주제';
+        configWordsInput.value = (roomState.config.word_pool || []).join('\n');
+        configModalSelectedSize = roomState.config.size || 5;
+
+        document.querySelectorAll('.config-size-btn').forEach(btn => {
+            const btnSize = parseInt(btn.getAttribute('data-size'));
+            if (btnSize === configModalSelectedSize) {
+                btn.classList.add('selected');
+            } else {
+                btn.classList.remove('selected');
+            }
         });
+
+        configModal.classList.add('active');
+    }
+
+    function closeConfigModal() {
+        configModal.classList.remove('active');
     }
 
     function openSpectateModal(playerId) {
@@ -1250,10 +1262,10 @@
         const player = roomState.players.find(p => p.player_id === playerId);
         if (!player) return;
 
-        spectateModalTitle.innerText = `👀 ${player.nickname}님의 빙고 보드`;
+        spectateModalTitle.innerText = `${player.nickname}님의 빙고 보드`;
         spectateModalScore.innerText = roomState.status === 'WAITING'
-            ? (player.is_ready ? '🟢 준비 완료 상태' : '🟡 보드 작성 중...')
-            : `현재 ${player.score}줄 완성! (총 ${player.marked_count}개 체크됨)`;
+            ? (player.is_ready ? '준비 완료 상태' : '보드 작성 중...')
+            : `현재 ${player.score}줄 완성!`;
 
         const size = roomState.config.size;
         spectateGrid.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
@@ -1284,17 +1296,24 @@
     }
 
     document.addEventListener('click', (e) => {
-        // Mode Button (승자 결정전 / 패자 결정전)
-        const modeBtn = e.target.closest('.mode-btn');
-        if (modeBtn) {
-            document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('selected'));
-            modeBtn.classList.add('selected');
-            selectedGameMode = modeBtn.getAttribute('data-mode') || (modeBtn.innerText.includes('패자') ? 'LOSER' : 'WINNER');
+        const configSizeBtn = e.target.closest('.config-size-btn');
+        if (configSizeBtn) {
+            document.querySelectorAll('.config-size-btn').forEach(b => b.classList.remove('selected'));
+            configSizeBtn.classList.add('selected');
+            configModalSelectedSize = parseInt(configSizeBtn.getAttribute('data-size')) || 5;
             playSound('click');
             return;
         }
 
-        // Size Button (3x3 / 4x4 / 5x5)
+        const modeBtn = e.target.closest('.mode-btn');
+        if (modeBtn) {
+            document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('selected'));
+            modeBtn.classList.add('selected');
+            selectedGameMode = modeBtn.getAttribute('data-mode') || 'WINNER';
+            playSound('click');
+            return;
+        }
+
         const sizeBtn = e.target.closest('.size-btn');
         if (sizeBtn) {
             document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('selected'));
@@ -1304,76 +1323,33 @@
             return;
         }
 
-        // Preset Chip Click
-        const presetChip = e.target.closest('.preset-chip');
-        if (presetChip) {
-            document.querySelectorAll('.preset-chip').forEach(c => c.classList.remove('active'));
-            presetChip.classList.add('active');
-
-            const presetId = presetChip.getAttribute('data-preset');
-            const presetsList = (typeof BINGO_PRESETS !== 'undefined') ? BINGO_PRESETS : [];
-            const preset = presetsList.find(p => p.id === presetId);
-
-            if (preset) {
-                if (preset.id === 'custom') {
-                    if (createTopicInput) createTopicInput.value = '자유 주제';
-                    if (createWordsInput) createWordsInput.value = '';
-                } else {
-                    if (createTopicInput) createTopicInput.value = preset.title.replace(/^[^\s]+\s+/, '');
-                    if (createWordsInput) createWordsInput.value = (preset.words || []).join('\n');
-                }
-            } else {
-                const text = presetChip.innerText.trim();
-                if (text.includes('자유')) {
-                    if (createTopicInput) createTopicInput.value = '자유 주제';
-                    if (createWordsInput) createWordsInput.value = '';
-                } else if (text.includes('코스피')) {
-                    const pK = presetsList.find(p => p.id === 'kospi_100');
-                    if (createTopicInput) createTopicInput.value = '코스피 시총 Top 100';
-                    if (createWordsInput && pK) createWordsInput.value = pK.words.join('\n');
-                } else if (text.includes('색깔')) {
-                    const pC = presetsList.find(p => p.id === 'colors_30');
-                    if (createTopicInput) createTopicInput.value = '다양한 색깔 (30가지)';
-                    if (createWordsInput && pC) createWordsInput.value = pC.words.join('\n');
-                } else if (text.includes('숫자')) {
-                    const pN = presetsList.find(p => p.id === 'numbers_1_50');
-                    if (createTopicInput) createTopicInput.value = '1~50 무작위 숫자';
-                    if (createWordsInput && pN) createWordsInput.value = pN.words.join('\n');
-                }
-            }
-            playSound('click');
-            return;
-        }
-
-        // Tab Buttons
         const tabBtn = e.target.closest('.tab-btn');
         if (tabBtn) {
-            if (tabBtn.id === 'tab-btn-create' || tabBtn.innerText.includes('방 만들기')) {
-                if (tabBtnCreate) tabBtnCreate.classList.add('active');
-                if (tabBtnJoin) tabBtnJoin.classList.remove('active');
-                if (createRoomForm) createRoomForm.style.display = 'block';
-                if (joinRoomForm) joinRoomForm.style.display = 'none';
-            } else if (tabBtn.id === 'tab-btn-join' || tabBtn.innerText.includes('방 참여하기')) {
-                if (tabBtnJoin) tabBtnJoin.classList.add('active');
-                if (tabBtnCreate) tabBtnCreate.classList.remove('active');
-                if (joinRoomForm) joinRoomForm.style.display = 'block';
-                if (createRoomForm) createRoomForm.style.display = 'none';
+            if (tabBtn.id === 'tab-btn-create') {
+                tabBtnCreate.classList.add('active');
+                tabBtnJoin.classList.remove('active');
+                createRoomForm.style.display = 'block';
+                joinRoomForm.style.display = 'none';
+            } else if (tabBtn.id === 'tab-btn-join') {
+                tabBtnJoin.classList.add('active');
+                tabBtnCreate.classList.remove('active');
+                joinRoomForm.style.display = 'block';
+                createRoomForm.style.display = 'none';
             }
             playSound('click');
             return;
         }
     });
 
-    window.doCreateRoom = function (opts) {
+    createRoomForm.addEventListener('submit', (e) => {
+        e.preventDefault();
         initAudio();
-        const nickname = (opts && opts.nickname) || (createNicknameInput && createNicknameInput.value.trim()) || '김사원';
-        const topic = (opts && opts.topic) || (createTopicInput && createTopicInput.value.trim()) || '자유 주제';
-        const size = (opts && opts.size) || selectedSize || 5;
-        const mode = (opts && opts.mode) || selectedGameMode || 'WINNER';
-        const words = parseWordList((opts && opts.wordsRaw) ? opts.wordsRaw : (createWordsInput ? createWordsInput.value : ''));
 
-        if (createNicknameInput) createNicknameInput.value = nickname;
-        if (createTopicInput) createTopicInput.value = topic;
+        const nickname = createNicknameInput.value.trim() || '김사원';
+        const topic = createTopicInput.value.trim() || '자유 주제';
+        const size = selectedSize || 5;
+        const mode = selectedGameMode || 'WINNER';
+        const words = parseWordList(createWordsInput.value);
 
         sendMessage({
             type: 'CREATE_ROOM',
@@ -1383,17 +1359,17 @@
             game_mode: mode,
             word_pool: words
         });
-    };
+    });
 
-    window.doJoinRoom = function (opts) {
+    joinRoomForm.addEventListener('submit', (e) => {
+        e.preventDefault();
         initAudio();
-        const nickname = (opts && opts.nickname) || (joinNicknameInput && joinNicknameInput.value.trim()) || '이대리';
-        const roomCode = (opts && opts.roomCode) || (joinRoomCodeInput && joinRoomCodeInput.value.trim().toUpperCase()) || '';
 
-        if (joinNicknameInput) joinNicknameInput.value = nickname;
+        const nickname = joinNicknameInput.value.trim() || '이대리';
+        const roomCode = joinRoomCodeInput.value.trim().toUpperCase();
 
         if (!roomCode) {
-            alert('방 코드를 6자리 입력해주세요.');
+            showToast('방 코드를 입력해주세요.', 'warning');
             return;
         }
 
@@ -1402,19 +1378,19 @@
             nickname: nickname,
             room_id: roomCode
         });
-    };
-
-    createRoomForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        window.doCreateRoom({});
-    });
-
-    joinRoomForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        window.doJoinRoom({});
     });
 
     btnToggleReady.addEventListener('click', () => {
+        const myPlayer = roomState ? roomState.players.find(p => p.player_id === myPlayerId) : null;
+        if (myPlayer) {
+            const emptyCount = myPlayer.board.filter(c => !c || !c.trim()).length;
+            if (emptyCount > 0 && !myPlayer.is_ready) {
+                showToast(`빈 칸이 ${emptyCount}개 남아있습니다. 먼저 모두 채워주세요!`, 'error');
+                playSound('error');
+                return;
+            }
+        }
+
         sendMessage({
             type: 'TOGGLE_READY',
             room_id: currentRoomId,
@@ -1424,8 +1400,8 @@
     });
 
     btnAutoFill.addEventListener('click', () => {
-        const pool = roomState.config.word_pool || [];
-        const size = roomState.config.size;
+        const pool = (roomState && roomState.config && roomState.config.word_pool) ? roomState.config.word_pool : [];
+        const size = (roomState && roomState.config && roomState.config.size) ? roomState.config.size : selectedSize;
         const total = size * size;
 
         let words = [...pool];
@@ -1444,10 +1420,11 @@
             player_id: myPlayerId
         });
         playSound('click');
+        showToast('보드를 무작위로 채웠습니다.');
     });
 
     btnClearBoard.addEventListener('click', () => {
-        const size = roomState.config.size;
+        const size = (roomState && roomState.config && roomState.config.size) ? roomState.config.size : selectedSize;
         const emptyBoard = Array(size * size).fill('');
 
         sendMessage({
@@ -1457,9 +1434,11 @@
             player_id: myPlayerId
         });
         playSound('click');
+        showToast('보드를 초기화했습니다.');
     });
 
     btnHostStart.addEventListener('click', () => {
+        initAudio();
         sendMessage({
             type: 'START_GAME',
             room_id: currentRoomId,
@@ -1468,35 +1447,61 @@
     });
 
     btnHostReset.addEventListener('click', () => {
-        if (confirm('대기실 상태로 돌아가며 보드를 다시 작성할 수 있게 됩니다. 진행하시겠습니까?')) {
-            sendMessage({
-                type: 'RESET_GAME',
-                room_id: currentRoomId,
-                player_id: myPlayerId
-            });
-        }
+        openResetOptionModal();
+    });
+
+    btnResetKeep.addEventListener('click', () => {
+        sendMessage({ type: 'RESET_GAME', room_id: currentRoomId, player_id: myPlayerId, keep_board: true });
+        if (resetOptionModal) resetOptionModal.classList.remove('active');
+        showToast('기존 보드를 유지한 채 대기실로 돌아왔습니다.');
+    });
+
+    btnResetShuffle.addEventListener('click', () => {
+        sendMessage({ type: 'RESET_GAME', room_id: currentRoomId, player_id: myPlayerId, keep_board: false });
+        if (resetOptionModal) resetOptionModal.classList.remove('active');
+        showToast('보드를 새로 섞고 대기실로 돌아왔습니다.');
+    });
+
+    btnResetCancel.addEventListener('click', () => {
+        if (resetOptionModal) resetOptionModal.classList.remove('active');
     });
 
     btnHostConfig.addEventListener('click', () => {
-        const newTopic = prompt('새 주제를 입력하세요:', roomState.config.topic);
-        if (newTopic !== null) {
-            sendMessage({
-                type: 'UPDATE_CONFIG',
-                topic: newTopic.trim() || roomState.config.topic,
-                size: roomState.config.size,
-                word_pool: roomState.config.word_pool,
-                player_id: myPlayerId
-            });
-        }
+        openConfigModal();
     });
+
+    btnConfigSave.addEventListener('click', () => {
+        const newTopic = configTopicInput.value.trim() || '자유 주제';
+        const newWords = parseWordList(configWordsInput.value);
+        const newSize = configModalSelectedSize || 5;
+
+        sendMessage({
+            type: 'UPDATE_CONFIG',
+            room_id: currentRoomId,
+            topic: newTopic,
+            size: newSize,
+            word_pool: newWords,
+            player_id: myPlayerId
+        });
+
+        closeConfigModal();
+        showToast('주제 및 설정이 변경되었습니다.');
+    });
+
+    btnConfigCancel.addEventListener('click', closeConfigModal);
+    configModalClose.addEventListener('click', closeConfigModal);
 
     btnCopyLink.addEventListener('click', () => {
         const shareUrl = `${window.location.origin}${window.location.pathname}?room=${currentRoomId}`;
-        navigator.clipboard.writeText(shareUrl).then(() => {
-            alert(`초대 링크가 복사되었습니다!\n${shareUrl}`);
-        }).catch(err => {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(shareUrl).then(() => {
+                showToast('초대 링크가 복사되었습니다!');
+            }).catch(() => {
+                prompt('아래 링크를 복사하세요:', shareUrl);
+            });
+        } else {
             prompt('아래 링크를 복사하세요:', shareUrl);
-        });
+        }
     });
 
     btnShowQr.addEventListener('click', () => {
@@ -1522,32 +1527,34 @@
         spectatingPlayerId = null;
     });
 
-    stabPlayers.addEventListener('click', () => {
-        stabPlayers.classList.add('active');
-        stabCalls.classList.remove('active');
-        stabChat.classList.remove('active');
-        panelPlayers.style.display = 'flex';
-        panelCalls.style.display = 'none';
-        panelChat.style.display = 'none';
-    });
+    function openMobileSidebar() {
+        if (mobileSidebar) mobileSidebar.classList.add('active');
+        if (mobileFab) mobileFab.style.display = 'none';
+        if (sidebarBackdrop) sidebarBackdrop.classList.add('active');
+    }
+
+    function closeMobileSidebar() {
+        if (mobileSidebar) mobileSidebar.classList.remove('active');
+        if (mobileFab) mobileFab.style.display = 'block';
+        if (sidebarBackdrop) sidebarBackdrop.classList.remove('active');
+    }
+
+    if (mobileFab) mobileFab.addEventListener('click', openMobileSidebar);
+    if (mobileSidebarClose) mobileSidebarClose.addEventListener('click', closeMobileSidebar);
+    if (sidebarBackdrop) sidebarBackdrop.addEventListener('click', closeMobileSidebar);
 
     stabCalls.addEventListener('click', () => {
         stabCalls.classList.add('active');
-        stabPlayers.classList.remove('active');
         stabChat.classList.remove('active');
         panelCalls.style.display = 'flex';
-        panelPlayers.style.display = 'none';
         panelChat.style.display = 'none';
     });
 
     stabChat.addEventListener('click', () => {
         stabChat.classList.add('active');
-        stabPlayers.classList.remove('active');
         stabCalls.classList.remove('active');
         panelChat.style.display = 'flex';
-        panelPlayers.style.display = 'none';
         panelCalls.style.display = 'none';
-        // Scroll chat to bottom when switching to chat tab
         const chatBox = document.getElementById('chat-messages');
         if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
     });
@@ -1577,7 +1584,19 @@
         themeToggleBtn.innerText = currentTheme === 'dark' ? '🌙' : '☀️';
     });
 
-    // Run initPresetChips on load & DOMContentLoaded
+    // 도움말 모달
+    if (btnHelp) {
+        btnHelp.addEventListener('click', () => helpModal.classList.add('active'));
+    }
+    if (helpModalClose) {
+        helpModalClose.addEventListener('click', () => helpModal.classList.remove('active'));
+    }
+    if (helpModal) {
+        helpModal.addEventListener('click', (e) => {
+            if (e.target === helpModal) helpModal.classList.remove('active');
+        });
+    }
+
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initPresetChips);
     } else {
