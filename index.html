@@ -3,523 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>🏢 실시간 사내 빙고 - Office Bingo Live</title>
+    <title>실시간 사내 빙고 - Office Bingo Live</title>
     <meta name="description" content="종이 없이 웹 브라우저와 모바일로 동료들과 실시간 함께 즐기는 사내 빙고 게임!">
     
-    <!-- Embedded Full CSS System (Guarantees 100% flawless glassmorphic styling on Netlify) -->
-   
-
-    <!-- Main Stylesheet -->
     <link rel="stylesheet" href="style.css">
     
-    <!-- External Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <!-- Inline Guaranteed Fast Interactive Handlers -->
-    <script>
-        window.selectedGameMode = 'WINNER';
-        window.selectedSize = 5;
-
-        function selectMode(btn, mode) {
-            var btns = document.querySelectorAll('.mode-btn');
-            for (var i = 0; i < btns.length; i++) {
-                btns[i].classList.remove('selected');
-            }
-            btn.classList.add('selected');
-            window.selectedGameMode = mode;
-        }
-
-        function selectSize(btn, size) {
-            var btns = document.querySelectorAll('.size-btn');
-            for (var i = 0; i < btns.length; i++) {
-                btns[i].classList.remove('selected');
-            }
-            btn.classList.add('selected');
-            window.selectedSize = parseInt(size);
-        }
-
-        function selectPreset(btn, presetId) {
-            var chips = document.querySelectorAll('.preset-chip');
-            for (var i = 0; i < chips.length; i++) {
-                chips[i].classList.remove('active');
-            }
-            btn.classList.add('active');
-            
-            var topicInput = document.getElementById('create-topic');
-            var wordsInput = document.getElementById('create-words');
-            
-            if (presetId === 'custom') {
-                if (topicInput) topicInput.value = '자유 주제';
-                if (wordsInput) wordsInput.value = '';
-            } else if (presetId === 'kospi_100') {
-                if (topicInput) topicInput.value = '코스피 시총 Top 100';
-                if (wordsInput && typeof BINGO_PRESETS !== 'undefined') {
-                    var p = BINGO_PRESETS.find(function(x){ return x.id === 'kospi_100'; });
-                    if (p) wordsInput.value = p.words.join('\n');
-                }
-            } else if (presetId === 'colors_30') {
-                if (topicInput) topicInput.value = '다양한 색깔 (30가지)';
-                if (wordsInput && typeof BINGO_PRESETS !== 'undefined') {
-                    var p = BINGO_PRESETS.find(function(x){ return x.id === 'colors_30'; });
-                    if (p) wordsInput.value = p.words.join('\n');
-                }
-            } else if (presetId === 'numbers_1_50') {
-                if (topicInput) topicInput.value = '1~50 무작위 숫자';
-                if (wordsInput && typeof BINGO_PRESETS !== 'undefined') {
-                    var p = BINGO_PRESETS.find(function(x){ return x.id === 'numbers_1_50'; });
-                    if (p) wordsInput.value = p.words.join('\n');
-                }
-            }
-        }
-
-        function createRoomDirect(e) {
-            if (e && e.preventDefault) e.preventDefault();
-
-            var nicknameInput = document.getElementById('create-nickname');
-            var topicInput = document.getElementById('create-topic');
-            var wordsInput = document.getElementById('create-words');
-
-            var nickname = (nicknameInput && nicknameInput.value.trim()) ? nicknameInput.value.trim() : '김사원';
-            var topic = (topicInput && topicInput.value.trim()) ? topicInput.value.trim() : '자유 주제';
-            var wordsRaw = wordsInput ? wordsInput.value : '';
-
-            if (nicknameInput) nicknameInput.value = nickname;
-            if (topicInput) topicInput.value = topic;
-
-            var mode = window.selectedGameMode || 'WINNER';
-            var size = window.selectedSize || 5;
-
-            var roomCode = 'ROOM' + Math.floor(1000 + Math.random() * 9000);
-            window.currentRoomId = roomCode;
-            window.currentRoomCode = roomCode;
-            window.myNickname = nickname;
-            window.isHost = true;
-
-            var words = [];
-            if (wordsRaw) {
-                words = wordsRaw.split(/[\n,]/).map(function(w){ return w.trim(); }).filter(function(w){ return w.length > 0; });
-            }
-
-            var initialState = {
-                room_id: roomCode,
-                status: 'WAITING',
-                config: { size: size, topic: topic, game_mode: mode, word_pool: words },
-                called_items: [],
-                current_turn_player_id: null,
-                players: [{
-                    player_id: 'host_' + Math.random().toString(36).substring(2,6),
-                    nickname: nickname,
-                    is_host: true,
-                    is_ready: true,
-                    color: '#6366f1'
-                }]
-            };
-
-            window.roomState = initialState;
-            try {
-                localStorage.setItem('bingo_room_' + roomCode, JSON.stringify(initialState));
-            } catch(err){}
-
-            var lobby = document.getElementById('lobby-section');
-            var arena = document.getElementById('arena-section');
-            if (lobby) lobby.style.display = 'none';
-            if (arena) arena.style.display = 'block';
-
-            renderStandaloneBoard({
-                roomCode: roomCode,
-                nickname: nickname,
-                topic: topic,
-                size: size,
-                mode: mode,
-                wordsRaw: wordsRaw
-            });
-
-            if (window.doCreateRoom) {
-                window.doCreateRoom({
-                    nickname: nickname,
-                    topic: topic,
-                    size: size,
-                    mode: mode,
-                    wordsRaw: wordsRaw
-                });
-            }
-            return false;
-        }
-
-        function renderStandaloneBoard(opts) {
-            var size = opts.size || 5;
-            var topic = opts.topic || '자유 주제';
-            var mode = opts.mode || 'WINNER';
-            var wordsRaw = opts.wordsRaw || '';
-
-            var roomCode = (opts && opts.roomCode) || (window.currentRoomId ? window.currentRoomId : null) || ('ROOM' + Math.floor(1000 + Math.random() * 9000));
-            window.currentRoomId = roomCode;
-            window.currentRoomCode = roomCode;
-            window.myNickname = (opts && opts.nickname) || '김사원';
-            window.isReady = false;
-            var total = size * size;
-
-            var words = [];
-            if (wordsRaw) {
-                words = wordsRaw.split(/[\n,]/).map(function(w){ return w.trim(); }).filter(function(w){ return w.length > 0; });
-            }
-
-            if (words.length < total) {
-                var diff = total - words.length;
-                for (var i = 1; i <= diff; i++) {
-                    words.push('단어 ' + (words.length + 1));
-                }
-            }
-
-            words = words.sort(function(){ return 0.5 - Math.random(); }).slice(0, total);
-
-            var titleEl = document.getElementById('display-topic-title');
-            var codeEl = document.getElementById('display-room-code');
-            var gridInfoEl = document.getElementById('display-grid-info');
-            var gameModeEl = document.getElementById('display-game-mode');
-            var stateBadgeEl = document.getElementById('room-state-badge');
-
-            if (titleEl) titleEl.innerText = topic;
-            if (codeEl) codeEl.innerText = roomCode;
-            if (gridInfoEl) gridInfoEl.innerText = size + 'x' + size + ' 빙고 | 완성 목표: ' + size + '줄';
-            if (gameModeEl) {
-                gameModeEl.innerText = (mode === 'LOSER') ? '💣 패자 결정전 (벌칙 당첨전)' : '🏆 승자 결정전 (1등 승리)';
-                gameModeEl.style.background = (mode === 'LOSER') ? 'var(--accent)' : 'var(--primary)';
-            }
-            if (stateBadgeEl) {
-                stateBadgeEl.className = 'room-state-badge waiting';
-                stateBadgeEl.innerText = '⏳ 대기 중 (작성 중)';
-            }
-
-            var gridEl = document.getElementById('bingo-board-grid');
-            if (gridEl) {
-                gridEl.setAttribute('data-size', size);
-                gridEl.style.gridTemplateColumns = 'repeat(' + size + ', 1fr)';
-                gridEl.innerHTML = '';
-
-                for (var idx = 0; idx < total; idx++) {
-                    var cell = document.createElement('div');
-                    var wordText = words[idx] || ('단어 ' + (idx + 1));
-                    cell.className = 'bingo-cell editable';
-                    cell.innerText = wordText;
-
-                    (function(c, i, val) {
-                        c.addEventListener('click', function() {
-                            var newText = prompt((i + 1) + '번 빙고 칸 내용 수정:', val);
-                            if (newText !== null && newText.trim().length > 0) {
-                                c.innerText = newText.trim();
-                            }
-                        });
-                    })(cell, idx, wordText);
-
-                    gridEl.appendChild(cell);
-                }
-            }
-
-            var waitingCtrl = document.getElementById('footer-waiting-controls');
-            var playingCtrl = document.getElementById('footer-playing-controls');
-            var topicPanel = document.getElementById('topic-words-panel');
-
-            if (waitingCtrl) waitingCtrl.style.display = 'flex';
-            if (playingCtrl) playingCtrl.style.display = 'none';
-            if (topicPanel) topicPanel.style.display = 'block';
-
-            var chipsBox = document.getElementById('topic-words-chips');
-            if (chipsBox) {
-                chipsBox.innerHTML = '';
-                words.forEach(function(w) {
-                    var chip = document.createElement('div');
-                    chip.className = 'topic-word-chip used';
-                    chip.innerText = w;
-                    chipsBox.appendChild(chip);
-                });
-            }
-        }
-
-        var soundMuted = false;
-        function toggleSoundDirect() {
-            soundMuted = !soundMuted;
-            window.soundMuted = soundMuted;
-            var btn = document.getElementById('sound-toggle-btn');
-            if (btn) {
-                btn.innerText = soundMuted ? '🔇' : '🔊';
-            }
-        }
-
-        var darkTheme = true;
-        function toggleThemeDirect() {
-            darkTheme = !darkTheme;
-            var btn = document.getElementById('theme-toggle-btn');
-            if (darkTheme) {
-                document.body.classList.remove('light-theme');
-                document.documentElement.removeAttribute('data-theme');
-                document.body.removeAttribute('data-theme');
-                if (btn) btn.innerText = '🌙';
-            } else {
-                document.body.classList.add('light-theme');
-                document.documentElement.setAttribute('data-theme', 'light');
-                document.body.setAttribute('data-theme', 'light');
-                if (btn) btn.innerText = '☀️';
-            }
-        }
-
-        function escapeHtml(str) {
-            if (str === null || str === undefined) return '';
-            return String(str).replace(/[&<>"']/g, function (m) {
-                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
-            });
-        }
-
-        function autoFillDirect() {
-            var grid = document.getElementById('bingo-board-grid');
-            if (!grid) return;
-            var cells = grid.querySelectorAll('.bingo-cell');
-            if (!cells || cells.length === 0) return;
-
-            var wordsInput = document.getElementById('create-words');
-            var wordsRaw = wordsInput ? wordsInput.value : '';
-
-            var words = [];
-            if (wordsRaw) {
-                words = wordsRaw.split(/[\n,]/).map(function(w){ return w.trim(); }).filter(function(w){ return w.length > 0; });
-            }
-
-            if (words.length < cells.length) {
-                var diff = cells.length - words.length;
-                for (var i = 1; i <= diff; i++) {
-                    words.push('단어 ' + (words.length + 1));
-                }
-            }
-
-            words = words.sort(function(){ return 0.5 - Math.random(); });
-
-            for (var idx = 0; idx < cells.length; idx++) {
-                cells[idx].innerText = words[idx] || ('단어 ' + (idx + 1));
-            }
-
-            if (window.doAutoFill) {
-                window.doAutoFill();
-            }
-        }
-
-        function clearBoardDirect() {
-            var grid = document.getElementById('bingo-board-grid');
-            if (!grid) return;
-            var cells = grid.querySelectorAll('.bingo-cell');
-            for (var idx = 0; idx < cells.length; idx++) {
-                cells[idx].innerText = '';
-            }
-            if (window.doClearBoard) {
-                window.doClearBoard();
-            }
-        }
-
-        window.addEventListener('storage', function(e) {
-            if (e.key && e.key.indexOf('bingo_room_') === 0) {
-                var roomCode = e.key.replace('bingo_room_', '');
-                var activeCode = getActiveRoomCode();
-                if (roomCode === activeCode && e.newValue) {
-                    try {
-                        var state = JSON.parse(e.newValue);
-                        window.roomState = state;
-
-                        if (state.config && state.config.topic) {
-                            var titleEl = document.getElementById('display-topic-title');
-                            if (titleEl) titleEl.innerText = state.config.topic;
-                        }
-                        if (window.isHost) {
-                            var ctrl = document.getElementById('host-controls');
-                            if (ctrl) ctrl.style.display = 'block';
-                        }
-                    } catch(err){}
-                }
-            }
-        });
-
-        // setInterval for offline sync removed as it conflicts with WebSocket Server.
-
-        function checkUrlQueryParamsInline() {
-            var params = new URLSearchParams(window.location.search);
-            var room = params.get('room');
-            if (room) {
-                var tabJoin = document.getElementById('tab-btn-join');
-                var tabCreate = document.getElementById('tab-btn-create');
-                var formJoin = document.getElementById('join-room-form');
-                var formCreate = document.getElementById('create-room-form');
-                var codeInput = document.getElementById('join-room-code');
-
-                if (tabJoin) tabJoin.classList.add('active');
-                if (tabCreate) tabCreate.classList.remove('active');
-                if (formJoin) formJoin.style.display = 'block';
-                if (formCreate) formCreate.style.display = 'none';
-                if (codeInput) codeInput.value = room.toUpperCase();
-            }
-        }
-
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', checkUrlQueryParamsInline);
-        } else {
-            checkUrlQueryParamsInline();
-        }
-
-        function getActiveRoomCode() {
-            var codeEl = document.getElementById('display-room-code');
-            if (codeEl && codeEl.innerText && codeEl.innerText.trim().length > 0 && codeEl.innerText.trim() !== 'ROOM123') {
-                return codeEl.innerText.trim();
-            }
-            if (window.currentRoomId && String(window.currentRoomId).trim().length > 0) {
-                return String(window.currentRoomId).trim();
-            }
-            if (window.currentRoomCode && String(window.currentRoomCode).trim().length > 0) {
-                return String(window.currentRoomCode).trim();
-            }
-            return 'ROOM3043';
-        }
-
-        function copyLinkDirect() {
-            var roomCode = getActiveRoomCode();
-            var shareUrl = window.location.origin + window.location.pathname + '?room=' + roomCode;
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(shareUrl).then(function() {
-                    alert('📋 초대 링크가 복사되었습니다!\n동료에게 공유하세요:\n\n' + shareUrl);
-                }).catch(function() {
-                    prompt('아래 링크를 복사하여 공유하세요:', shareUrl);
-                });
-            } else {
-                prompt('아래 링크를 복사하여 공유하세요:', shareUrl);
-            }
-        }
-
-        function showQrDirect() {
-            var roomCode = getActiveRoomCode();
-            var shareUrl = window.location.origin + window.location.pathname + '?room=' + roomCode;
-            var qrContainer = document.getElementById('qrcode');
-            var modal = document.getElementById('qr-modal');
-
-            if (qrContainer) {
-                qrContainer.innerHTML = '';
-                if (typeof QRCode === 'function') {
-                    new QRCode(qrContainer, {
-                        text: shareUrl,
-                        width: 200,
-                        height: 200
-                    });
-                } else {
-                    var img = document.createElement('img');
-                    img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(shareUrl);
-                    img.alt = 'QR Code';
-                    img.style.width = '200px';
-                    img.style.height = '200px';
-                    qrContainer.appendChild(img);
-                }
-            }
-
-            if (modal) {
-                modal.classList.add('active');
-            }
-        }
-
-        function closeQrModal() {
-            var modal = document.getElementById('qr-modal');
-            if (modal) modal.classList.remove('active');
-        }
-
-        function toggleReadyDirect() {
-            window.isReady = !window.isReady;
-            var btn = document.getElementById('btn-toggle-ready');
-            if (btn) {
-                if (window.isReady) {
-                    btn.innerText = '🟢 준비 완료됨 (해제)';
-                    btn.style.background = 'var(--success)';
-                } else {
-                    btn.innerText = '✋ 준비 완료';
-                    btn.style.background = 'linear-gradient(135deg, var(--primary), var(--accent))';
-                }
-            }
-
-            if (window.doToggleReady) {
-                window.doToggleReady();
-            }
-        }
-
-        function doStartGameDirect() {
-            if (window.doStartGame) {
-                window.doStartGame();
-            }
-        }
-
-        function joinRoomDirect(e) {
-            if (e && e.preventDefault) e.preventDefault();
-
-            var nicknameInput = document.getElementById('join-nickname');
-            var roomCodeInput = document.getElementById('join-room-code');
-
-            var nickname = (nicknameInput && nicknameInput.value.trim()) ? nicknameInput.value.trim() : '이대리';
-            var roomCode = (roomCodeInput && roomCodeInput.value.trim().toUpperCase()) ? roomCodeInput.value.trim().toUpperCase() : '';
-
-            if (nicknameInput) nicknameInput.value = nickname;
-
-            if (!roomCode) {
-                alert('입장할 방 코드 (6자리)를 입력해주세요.');
-                return false;
-            }
-
-            var lobby = document.getElementById('lobby-section');
-            var arena = document.getElementById('arena-section');
-            if (lobby) lobby.style.display = 'none';
-            if (arena) arena.style.display = 'block';
-
-            var roomTopic = '참여한 빙고방';
-            var roomWords = '';
-            var roomSize = 5;
-
-            var stored = localStorage.getItem('bingo_room_' + roomCode);
-            if (stored) {
-                try {
-                    var state = JSON.parse(stored);
-                    if (state.config) {
-                        roomTopic = state.config.topic || roomTopic;
-                        roomSize = state.config.size || 5;
-                        if (state.config.word_pool) roomWords = state.config.word_pool.join('\n');
-                    }
-
-                    var exists = state.players.some(function(p){ return p.nickname === nickname; });
-                    if (!exists) {
-                        state.players.push({
-                            player_id: 'player_' + Math.random().toString(36).substring(2,6),
-                            nickname: nickname,
-                            is_host: false,
-                            is_ready: true,
-                            color: '#ec4899'
-                        });
-                    }
-                    window.roomState = state;
-                    localStorage.setItem('bingo_room_' + roomCode, JSON.stringify(state));
-                } catch(err){}
-            }
-
-            renderStandaloneBoard({
-                roomCode: roomCode,
-                nickname: nickname,
-                topic: roomTopic,
-                size: roomSize,
-                mode: 'WINNER',
-                wordsRaw: roomWords
-            });
-
-            if (window.doJoinRoom) {
-                window.doJoinRoom({
-                    nickname: nickname,
-                    roomCode: roomCode
-                });
-            }
-            return false;
-        }
-    </script>
 </head>
 <body>
     <canvas id="confetti-canvas"></canvas>
+
+    <!-- 화면 내 자체 토스트 알림 컨테이너 -->
+    <div id="toast-container" class="toast-container"></div>
 
     <header class="navbar">
         <a href="#" class="brand" id="nav-logo">
@@ -531,8 +28,8 @@
                 <span class="status-dot" id="status-dot"></span>
                 <span id="status-text">연결 대기 중</span>
             </div>
-            <button class="icon-btn" id="sound-toggle-btn" title="사운드 온/오프" onclick="toggleSoundDirect()">🔊</button>
-            <button class="icon-btn" id="theme-toggle-btn" title="테마 변경" onclick="toggleThemeDirect()">🌙</button>
+            <button class="icon-btn" id="sound-toggle-btn" title="사운드 설정">🔊</button>
+            <button class="icon-btn" id="theme-toggle-btn" title="테마 변경">🌙</button>
         </div>
     </header>
 
@@ -540,16 +37,16 @@
         <section id="lobby-section" class="lobby-grid">
             <div class="glass-card">
                 <div style="text-align: center; margin-bottom: 24px;">
-                    <h1 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 8px;">사내 실시간 빙고 🎲</h1>
-                    <p style="color: var(--text-secondary); font-size: 0.95rem;">링크 하나로 사내 동료들과 실시간 빙고 게임을 즐겨보세요!</p>
+                    <h1 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 8px;">사내 실시간 빙고</h1>
+                    <p style="color: var(--text-secondary); font-size: 0.95rem;">링크 하나로 사내 동료들과 실시간 빙고 게임을 즐겨보세요.</p>
                 </div>
 
                 <div class="tab-selector">
-                    <button class="tab-btn active" id="tab-btn-create">✨ 방 만들기</button>
-                    <button class="tab-btn" id="tab-btn-join">🔑 방 참여하기</button>
+                    <button class="tab-btn active" id="tab-btn-create">방 만들기</button>
+                    <button class="tab-btn" id="tab-btn-join">방 참여하기</button>
                 </div>
 
-                <form id="create-room-form" onsubmit="return createRoomDirect(event)">
+                <form id="create-room-form">
                     <div class="form-group">
                         <label class="form-label" for="create-nickname">내 닉네임</label>
                         <input type="text" id="create-nickname" class="form-input" placeholder="예: 김사원 (마케팅팀)" maxlength="12">
@@ -558,33 +55,28 @@
                     <div class="form-group">
                         <label class="form-label">게임 승패 방식 선택</label>
                         <div class="size-options">
-                            <button type="button" class="mode-btn selected" data-mode="WINNER" onclick="selectMode(this, 'WINNER')">🏆 승자 결정전 (1등 승리)</button>
-                            <button type="button" class="mode-btn" data-mode="LOSER" onclick="selectMode(this, 'LOSER')">💣 패자 결정전 (벌칙 당첨전)</button>
+                            <button type="button" class="mode-btn selected" data-mode="WINNER">승자 결정전 (1등 승리)</button>
+                            <button type="button" class="mode-btn" data-mode="LOSER">패자 결정전 (벌칙 당첨전)</button>
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">격자 크기 선택</label>
                         <div class="size-options">
-                            <button type="button" class="size-btn" data-size="3" onclick="selectSize(this, 3)">3 x 3 (스피드전)</button>
-                            <button type="button" class="size-btn" data-size="4" onclick="selectSize(this, 4)">4 x 4 (클래식)</button>
-                            <button type="button" class="size-btn selected" data-size="5" onclick="selectSize(this, 5)">5 x 5 (정통전)</button>
+                            <button type="button" class="size-btn" data-size="3">3 x 3 (스피드전)</button>
+                            <button type="button" class="size-btn" data-size="4">4 x 4 (클래식)</button>
+                            <button type="button" class="size-btn selected" data-size="5">5 x 5 (정통전)</button>
                         </div>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label" for="create-topic">빙고 주제 (상단 상시 표시)</label>
+                        <label class="form-label" for="create-topic">빙고 주제</label>
                         <input type="text" id="create-topic" class="form-input" value="자유 주제" placeholder="예: 회식 메뉴 추천, 우리 팀원 특징">
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">주제 및 단어 프리셋 선택</label>
-                        <div class="preset-chip-group" id="preset-chip-group">
-                            <div class="preset-chip active" data-preset="custom" onclick="selectPreset(this, 'custom')">✨ 자유 주제 (직접 입력)</div>
-                            <div class="preset-chip" data-preset="kospi_100" onclick="selectPreset(this, 'kospi_100')">📈 코스피 시총 Top 100</div>
-                            <div class="preset-chip" data-preset="colors_30" onclick="selectPreset(this, 'colors_30')">🎨 다양한 색깔 (30가지)</div>
-                            <div class="preset-chip" data-preset="numbers_1_50" onclick="selectPreset(this, 'numbers_1_50')">🔢 1~50 무작위 숫자</div>
-                        </div>
+                        <div class="preset-chip-group" id="preset-chip-group"></div>
                     </div>
 
                     <div class="form-group">
@@ -592,12 +84,12 @@
                         <textarea id="create-words" class="form-textarea" rows="4" placeholder="자유 주제를 선택하여 직접 입력하거나 상단 프리셋을 선택하세요."></textarea>
                     </div>
 
-                    <button type="button" class="primary-btn" id="btn-create-submit" onclick="createRoomDirect(event)">
-                        <span>🚀 게임 방 생성하기</span>
+                    <button type="submit" class="primary-btn" id="btn-create-submit">
+                        <span>게임 방 생성하기</span>
                     </button>
                 </form>
 
-                <form id="join-room-form" style="display: none;" onsubmit="return joinRoomDirect(event)">
+                <form id="join-room-form" style="display: none;">
                     <div class="form-group">
                         <label class="form-label" for="join-nickname">내 닉네임</label>
                         <input type="text" id="join-nickname" class="form-input" placeholder="예: 이대리 (개발팀)" maxlength="12">
@@ -608,8 +100,8 @@
                         <input type="text" id="join-room-code" class="form-input" placeholder="예: WORK12" style="text-transform: uppercase; letter-spacing: 2px;" maxlength="8">
                     </div>
 
-                    <button type="button" class="primary-btn" id="btn-join-submit" onclick="joinRoomDirect(event)">
-                        <span>🎮 게임 방 입장하기</span>
+                    <button type="submit" class="primary-btn" id="btn-join-submit">
+                        <span>게임 방 입장하기</span>
                     </button>
                 </form>
             </div>
@@ -620,34 +112,38 @@
                 <div class="topic-banner">
                     <div class="topic-info">
                         <span class="topic-tag">CURRENT TOPIC</span>
-                        <span class="mode-tag" id="display-game-mode">🏆 승자 결정전</span>
-                        <span class="room-state-badge waiting" id="room-state-badge">⏳ 대기 중 (작성 중)</span>
+                        <span class="mode-tag" id="display-game-mode">승자 결정전</span>
+                        <span class="room-state-badge waiting" id="room-state-badge">대기 중</span>
                         <h2 id="display-topic-title">주제 이름</h2>
                         <span style="font-size: 0.85rem; color: var(--text-secondary);" id="display-grid-info">5x5 빙고 | 완성 목표: 5줄</span>
                     </div>
 
                     <div class="room-share-box">
                         <div class="room-code-badge" id="display-room-code">ROOM123</div>
-                        <button class="secondary-btn" id="btn-copy-link" onclick="copyLinkDirect()">📋 링크 복사</button>
-                        <button class="secondary-btn" id="btn-show-qr" onclick="showQrDirect()">📱 QR 코드</button>
+                        <button class="secondary-btn" id="btn-copy-link">링크 복사</button>
+                        <button class="secondary-btn" id="btn-show-qr">QR 코드</button>
                     </div>
                 </div>
             </div>
 
             <div class="turn-banner" id="turn-banner" style="display: none;">
                 <div class="turn-banner-header">
-                    <span>🎯 현재 턴: <span class="turn-player-badge" id="turn-player-badge">홍길동님</span></span>
-                    <span>⏱️ <span id="turn-timer-num">15</span>초</span>
+                    <span>현재 턴: <span class="turn-player-badge" id="turn-player-badge">홍길동님</span></span>
+                    <span><span id="turn-timer-num">15</span>초</span>
                 </div>
                 <div class="turn-timer-track">
                     <div class="turn-timer-fill" id="turn-timer-fill"></div>
                 </div>
             </div>
 
-            <div id="host-controls" style="display: none; margin-bottom: 20px; text-align: right;">
-                <button class="start-game-btn" id="btn-host-start">🎮 게임 시작하기!</button>
-                <button class="secondary-btn" id="btn-host-reset" style="border-color: var(--accent); color: var(--accent); margin-left: 8px;">🔄 대기실로 리셋</button>
-                <button class="secondary-btn" id="btn-host-config" style="margin-left: 8px;">⚙️ 주제/설정 변경</button>
+            <!-- 방장 전용 컨트롤 및 미준비자 안내 -->
+            <div id="host-controls" class="host-controls-box" style="display: none;">
+                <div id="unready-players-info" class="unready-info-text"></div>
+                <div style="text-align: right;">
+                    <button class="start-game-btn" id="btn-host-start">게임 시작하기!</button>
+                    <button class="secondary-btn" id="btn-host-reset" style="border-color: var(--accent); color: var(--accent); margin-left: 8px;">대기실로 리셋</button>
+                    <button class="secondary-btn" id="btn-host-config" style="margin-left: 8px;">주제/설정 변경</button>
+                </div>
             </div>
 
             <div class="arena-main">
@@ -656,10 +152,13 @@
 
                     <div class="board-footer" id="board-footer">
                         <div id="footer-waiting-controls" style="display: flex; gap: 8px; flex-wrap: wrap; width: 100%; align-items: center; justify-content: space-between;">
-                            <button class="primary-btn" id="btn-toggle-ready" style="width: auto; padding: 10px 20px;">✋ 준비 완료</button>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <button class="primary-btn" id="btn-toggle-ready" style="width: auto; padding: 10px 20px; margin: 0;">준비 완료</button>
+                                <span id="empty-cell-count" class="empty-cell-counter">빈 칸: 0개</span>
+                            </div>
                             <div style="display: flex; gap: 6px;">
-                                <button class="secondary-btn" id="btn-auto-fill" onclick="autoFillDirect()">✨ 무작위 자동 채우기</button>
-                                <button class="secondary-btn" id="btn-clear-board" onclick="clearBoardDirect()">🗑️ 보드 비우기</button>
+                                <button class="secondary-btn" id="btn-auto-fill">무작위 자동 채우기</button>
+                                <button class="secondary-btn" id="btn-clear-board">보드 비우기</button>
                             </div>
                         </div>
 
@@ -668,66 +167,89 @@
                                 <span>내 완성 줄 수:</span>
                                 <span class="bingo-badge" id="my-line-count">0 줄</span>
                             </div>
-                            <span style="font-size: 0.85rem; color: var(--text-secondary);" id="turn-guide-text">내 턴에 단어를 클릭하면 모두의 보드에서 자동 지워집니다!</span>
+                            <span style="font-size: 0.85rem; color: var(--text-secondary);" id="turn-guide-text">내 턴에 단어를 클릭하면 모두의 보드에서 자동 지워집니다.</span>
                         </div>
                     </div>
 
                     <div class="topic-words-panel" id="topic-words-panel">
-                        <h4>💡 주제 참고 단어 목록 (클릭 시 빈 칸에 자동 채우기)</h4>
+                        <h4>주제 참고 단어 목록 (클릭 시 빈 칸에 자동 채우기)</h4>
                         <div class="topic-words-chips" id="topic-words-chips"></div>
                     </div>
                 </div>
 
                 <div class="sidebar-panel glass-card" id="mobile-sidebar">
-                    <!-- 모바일 전용 닫기 버튼 -->
-                    <button class="mobile-sidebar-close" onclick="document.getElementById('mobile-sidebar').classList.remove('active'); document.getElementById('mobile-fab').style.display='block';">▼ 창 닫기</button>
+                    <button class="mobile-sidebar-close" id="mobile-sidebar-close">창 닫기</button>
                     
-                    <div class="sidebar-tabs">
-                        <button class="sidebar-tab-btn active" id="stab-players">👥 참가자(<span id="player-count">1</span>)</button>
-                        <button class="sidebar-tab-btn" id="stab-calls">🔔 시스템 알림</button>
-                        <button class="sidebar-tab-btn" id="stab-chat">💬 대화</button>
+                    <!-- 1. 항상 상단에 고정 표시되는 참가자 목록 -->
+                    <div class="sidebar-players-fixed">
+                        <div class="sidebar-section-title">
+                            <span>참가자 목록</span>
+                            <span class="player-count-badge">(<span id="player-count">1</span>명)</span>
+                        </div>
+                        <div id="panel-players" class="player-list-scroll"></div>
                     </div>
 
-                    <div class="sidebar-content">
-                        <div id="panel-players" class="player-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
-                        <div id="panel-calls" style="display: none;" class="call-list"></div>
-                        <div id="panel-chat" style="display: none;" class="chat-container">
-                            <div class="chat-messages" id="chat-messages"></div>
-                            <form id="chat-form" class="chat-input-box">
-                                <input type="text" id="chat-input" class="chat-input" placeholder="메세지를 입력하세요..." autocomplete="off">
-                                <button type="submit" class="chat-send-btn">전송</button>
-                            </form>
+                    <!-- 2. 시스템 알림과 대화(채팅) 간 탭 전환 영역 -->
+                    <div class="sidebar-tabbed-area">
+                        <div class="sidebar-tabs">
+                            <button class="sidebar-tab-btn active" id="stab-chat">대화</button>
+                            <button class="sidebar-tab-btn" id="stab-calls">시스템 알림</button>
+                        </div>
+
+                        <div class="sidebar-content">
+                            <div id="panel-chat" class="chat-container">
+                                <div class="chat-messages" id="chat-messages"></div>
+                                <form id="chat-form" class="chat-input-box">
+                                    <input type="text" id="chat-input" class="chat-input" placeholder="메세지를 입력하세요..." autocomplete="off">
+                                    <button type="submit" class="chat-send-btn">전송</button>
+                                </form>
+                            </div>
+                            <div id="panel-calls" style="display: none;" class="call-list"></div>
                         </div>
                     </div>
                 </div>
 
-                <!-- 모바일 전용 플로팅 버튼 -->
-                <button id="mobile-fab" class="mobile-fab" onclick="document.getElementById('mobile-sidebar').classList.add('active'); this.style.display='none';">💬 대화 / 참가자 보기</button>
+                <button id="mobile-fab" class="mobile-fab">대화 / 참가자 보기</button>
             </div>
         </section>
     </main>
 
+    <!-- 모달 오버레이 배경 (모바일 사이드바 닫기용) -->
+    <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
+
     <div class="modal-overlay" id="draw-modal">
         <div class="modal-box" style="text-align: center;">
-            <div class="draw-spinner" id="draw-spinner">🎲</div>
-            <h3 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 8px;">턴 순서 제비뽑기 진행 중!</h3>
+            <div class="draw-spinner" id="draw-spinner" style="font-size: 3rem; margin-bottom: 12px;">🎲</div>
+            <h3 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 8px;">턴 순서 제비뽑기 진행 중</h3>
             <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 20px;">누가 첫 번째로 단어를 부르게 될까요?</p>
             <div class="draw-result-list" id="draw-result-list"></div>
-		</div>
+        </div>
     </div>
 
-    <!-- 게임 종료 결과 모달 -->
     <div class="modal-overlay" id="game-end-modal">
         <div class="modal-box" style="text-align: center; max-width: 420px;">
-            <div id="game-end-emoji" style="font-size: 5rem; margin-bottom: 12px; animation: bounceIn 0.6s ease;">🏆</div>
-            <h2 id="game-end-title" style="font-size: 1.8rem; font-weight: 900; margin-bottom: 8px;">게임 종료!</h2>
+            <div id="game-end-emoji" style="font-size: 4rem; margin-bottom: 12px;">🏆</div>
+            <h2 id="game-end-title" style="font-size: 1.8rem; font-weight: 900; margin-bottom: 8px;">게임 종료</h2>
             <div id="game-end-name-badge" style="display: inline-block; padding: 10px 24px; border-radius: 50px; font-size: 1.3rem; font-weight: 800; margin: 12px 0 20px; background: linear-gradient(135deg, var(--primary), var(--accent));">
                 <span id="game-end-player-name">-</span>
             </div>
             <p id="game-end-desc" style="color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 24px;"></p>
             <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-                <button class="primary-btn" id="btn-game-end-reset" style="display: none; min-width: 160px;">🔄 대기실로 돌아가기</button>
-                <button class="secondary-btn" id="btn-game-end-close" style="min-width: 120px;">✕ 닫기</button>
+                <button class="primary-btn" id="btn-game-end-reset" style="display: none; min-width: 160px;">대기실로 돌아가기</button>
+                <button class="secondary-btn" id="btn-game-end-close" style="min-width: 120px;">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 방장 전용 대기실 리셋 옵션 모달 -->
+    <div class="modal-overlay" id="reset-option-modal">
+        <div class="modal-box" style="text-align: center; max-width: 400px;">
+            <h3 style="font-size: 1.3rem; margin-bottom: 12px;">대기실 리셋 방식 선택</h3>
+            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 20px;">보드 재배치 여부를 선택하세요.</p>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button class="primary-btn" id="btn-reset-keep" style="margin:0; font-size: 1rem; padding: 12px;">동일 단어 보드 유지 (체크만 초기화)</button>
+                <button class="secondary-btn" id="btn-reset-shuffle" style="font-size: 1rem; padding: 12px;">보드 단어 새로 섞기 (랜덤 재배치)</button>
+                <button class="secondary-btn" id="btn-reset-cancel" style="margin-top: 6px;">취소</button>
             </div>
         </div>
     </div>
@@ -735,7 +257,7 @@
     <div class="modal-overlay" id="edit-cell-modal">
         <div class="modal-box">
             <div class="modal-header">
-                <h3>✏️ 빙고 칸 단어 입력</h3>
+                <h3>빙고 칸 단어 입력</h3>
                 <button class="modal-close" id="edit-cell-modal-close">&times;</button>
             </div>
             <div class="form-group">
@@ -749,12 +271,12 @@
     <div class="modal-overlay" id="qr-modal">
         <div class="modal-box">
             <div class="modal-header">
-                <h3>📱 모바일 초대 QR 코드</h3>
-                <button class="modal-close" id="qr-modal-close" onclick="closeQrModal()">&times;</button>
+                <h3>모바일 초대 QR 코드</h3>
+                <button class="modal-close" id="qr-modal-close">&times;</button>
             </div>
             <div class="qr-box">
                 <div id="qrcode"></div>
-                <p style="font-size: 0.85rem; color: var(--text-secondary); text-align: center;">
+                <p style="font-size: 0.85rem; color: var(--text-secondary); text-align: center; margin-top: 12px;">
                     스마트폰 카메라로 QR 코드를 스캔하면<br>동일한 게임방으로 바로 연결됩니다!
                 </p>
             </div>
@@ -764,7 +286,7 @@
     <div class="modal-overlay" id="spectate-modal">
         <div class="modal-box">
             <div class="modal-header">
-                <h3 id="spectate-modal-title">👀 참가자 보드 실시간 관전</h3>
+                <h3 id="spectate-modal-title">참가자 보드 실시간 관전</h3>
                 <button class="modal-close" id="spectate-modal-close">&times;</button>
             </div>
             <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;" id="spectate-modal-score">
@@ -774,7 +296,7 @@
         </div>
     </div>
 
-    <script src="presets.js?v=20260811c"></script>
-    <script src="app.js?v=20260811c"></script>
+    <script src="presets.js?v=20260812b"></script>
+    <script src="app.js?v=20260812b"></script>
 </body>
 </html>

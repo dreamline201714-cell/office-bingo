@@ -82,6 +82,47 @@ body {
     z-index: 9999;
 }
 
+/* 자체 토스트 알림 UI */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: none;
+}
+
+.toast-item {
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    border: 3px solid var(--border-block);
+    padding: 10px 18px;
+    font-size: 0.95rem;
+    box-shadow: var(--shadow-block);
+    animation: toastIn 0.25s ease-out forwards;
+    pointer-events: auto;
+}
+
+.toast-item.toast-error {
+    background: #fee2e2;
+    color: #991b1b;
+    border-color: #991b1b;
+}
+
+.toast-item.toast-warning {
+    background: #fef3c7;
+    color: #92400e;
+    border-color: #92400e;
+}
+
+@keyframes toastIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
 .navbar {
     display: flex;
     justify-content: space-between;
@@ -332,6 +373,35 @@ body {
     box-shadow: none !important;
 }
 
+.empty-cell-counter {
+    font-size: 0.85rem;
+    padding: 6px 10px;
+    background: var(--bg-surface);
+    border: 2px solid var(--border-block);
+    color: var(--text-secondary);
+}
+
+.empty-cell-counter.has-empty {
+    color: #b91c1c;
+    border-color: #b91c1c;
+    font-weight: bold;
+}
+
+.host-controls-box {
+    margin-bottom: 20px;
+    background: var(--bg-surface);
+    border: 2px solid var(--border-block);
+    padding: 12px 16px;
+    box-shadow: var(--shadow-block-sm);
+}
+
+.unready-info-text {
+    font-size: 0.85rem;
+    color: #b91c1c;
+    margin-bottom: 8px;
+    text-align: left;
+}
+
 .start-game-btn:disabled {
     background: var(--bg-primary) !important;
     color: var(--text-muted) !important;
@@ -469,7 +539,7 @@ body {
 
 .arena-main {
     display: grid;
-    grid-template-columns: 1fr 320px;
+    grid-template-columns: 1fr 340px;
     gap: 24px;
 }
 
@@ -479,7 +549,7 @@ body {
 
 .board-grid {
     display: grid;
-    grid-auto-rows: 1fr; /* 세로 칸 비율을 가로와 동일하게 1:1 강제 고정 */
+    grid-auto-rows: 1fr;
     gap: 4px;
     width: 100%;
     max-width: 540px;
@@ -502,13 +572,25 @@ body {
     cursor: pointer;
     word-break: break-all; 
     line-height: 1.2;
-    aspect-ratio: 1 / 1; /* 각각의 셀을 정사각형으로 유지 */
+    aspect-ratio: 1 / 1;
     width: 100%;
     height: 100%;
+    transition: transform 0.1s;
 }
 
 .bingo-cell:hover {
     background: var(--bg-primary);
+}
+
+.bingo-cell.cell-invalid {
+    animation: cellShake 0.3s ease-in-out;
+    border: 3px solid #b91c1c !important;
+}
+
+@keyframes cellShake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-4px); }
+    40%, 80% { transform: translateX(4px); }
 }
 
 .bingo-cell.editable {
@@ -602,14 +684,59 @@ body {
     transform: translate(2px, 2px);
 }
 
+/* 사이드바 분리 스타일 */
 .sidebar-panel {
     background: var(--bg-surface);
     border: 2px solid var(--border-block);
     box-shadow: var(--shadow-block);
     display: flex;
     flex-direction: column;
-    height: 100%; 
-	min-height: 0;
+    height: 620px;
+    overflow: hidden;
+    padding: 12px;
+    gap: 12px;
+}
+
+/* 상단 고정 참가자 영역 */
+.sidebar-players-fixed {
+    display: flex;
+    flex-direction: column;
+    max-height: 200px;
+    border: 2px solid var(--border-block);
+    background: var(--bg-primary);
+    padding: 8px;
+}
+
+.sidebar-section-title {
+    font-size: 0.85rem;
+    font-weight: bold;
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px dashed var(--border-block);
+    padding-bottom: 4px;
+}
+
+.player-count-badge {
+    color: var(--accent);
+}
+
+.player-list-scroll {
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 150px;
+}
+
+/* 하단 탭 전환 영역 (대화 / 시스템 알림) */
+.sidebar-tabbed-area {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    border: 2px solid var(--border-block);
 }
 
 .sidebar-tabs {
@@ -619,13 +746,13 @@ body {
 
 .sidebar-tab-btn {
     flex: 1;
-    padding: 10px 4px;
+    padding: 8px 4px;
     border: none;
     border-right: 2px solid var(--border-block);
     background: var(--bg-primary);
     color: var(--text-muted); 
     cursor: pointer;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     white-space: nowrap; 
 }
 
@@ -636,10 +763,11 @@ body {
 .sidebar-tab-btn.active {
     background: var(--bg-surface);
     color: var(--text-primary); 
+    font-weight: bold;
 }
 
 .sidebar-content {
-    padding: 16px;
+    padding: 8px;
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -649,49 +777,73 @@ body {
 
 .player-card {
     background: var(--bg-surface);
-    border: 2px solid var(--border-block);
-    padding: 8px;
-    margin-bottom: 10px;
-    box-shadow: 2px 2px 0px var(--border-block);
+    border: 1px solid var(--border-block);
+    padding: 6px;
+    box-shadow: 1px 1px 0px var(--border-block);
     display: flex;
     align-items: center;
-    flex-wrap: wrap; 
-    gap: 8px;
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.player-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .player-avatar {
-    border: 2px solid var(--border-block);
+    width: 22px;
+    height: 22px;
+    border: 1px solid var(--border-block);
     background: var(--bg-primary);
-    border-radius: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: bold;
+}
+
+.player-name {
+    font-size: 0.8rem;
+}
+
+.spectate-btn {
+    padding: 2px 4px;
+    font-size: 0.7rem;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-block);
+    cursor: pointer;
 }
 
 .host-tag, .ready-tag, .escaped-tag, .loser-tag {
+    font-size: 0.7rem;
     white-space: nowrap; 
 }
 
-#panel-chat {
+#panel-chat, #panel-calls {
     display: flex;
     flex-direction: column;
     flex: 1;
     height: 100%;
     min-height: 0;
+    overflow: hidden;
 }
 
-.chat-messages {
-    flex: 1 1 auto;
+.chat-messages, .call-list {
+    flex: 1;
     min-height: 0;
-    max-height: 100%;
-    overflow-y: auto;
+    overflow-y: auto !important;
     overflow-x: hidden;
-    border: 2px solid var(--border-block);
+    border: 1px solid var(--border-block);
     background: var(--bg-surface);
-    padding: 12px;
-    margin-bottom: 12px;
+    padding: 8px;
+    margin-bottom: 8px;
     box-shadow: var(--shadow-block-inset);
-    font-size: 0.95rem;
+    font-size: 0.85rem;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 6px;
 }
 
 .chat-container {
@@ -704,7 +856,7 @@ body {
 
 .chat-input-box {
     display: flex;
-    gap: 6px;
+    gap: 4px;
     width: 100%;
     flex-shrink: 0; 
 }
@@ -712,31 +864,27 @@ body {
 .chat-input {
     flex: 1;
     min-width: 0; 
-    border: 2px solid var(--border-block);
-    border-radius: 0;
-    box-shadow: var(--shadow-block-inset);
-    padding: 10px;
+    border: 1px solid var(--border-block);
+    padding: 8px;
     background: var(--bg-surface);
     color: var(--text-primary);
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     outline: none;
 }
 
 .chat-send-btn {
     flex-shrink: 0; 
-    border: 2px solid var(--border-block);
-    border-radius: 0;
+    border: 1px solid var(--border-block);
     background: var(--bg-primary);
     color: var(--text-primary);
-    box-shadow: var(--shadow-block-sm);
-    padding: 0 16px;
+    padding: 0 12px;
+    font-size: 0.85rem;
     font-weight: 700;
     cursor: pointer;
 }
 
 .chat-send-btn:active {
-    transform: translate(2px, 2px);
-    box-shadow: none;
+    transform: translate(1px, 1px);
 }
 
 .modal-overlay {
@@ -791,11 +939,6 @@ body {
     margin: 0 auto;
 }
 
-/* =========================================
-   모바일 기기 최적화 (플로팅 사이드바 UI 개편)
-   ========================================= */
-
-/* 플로팅 액션 버튼 (데스크톱에서는 숨김) */
 .mobile-fab {
     display: none;
     position: fixed;
@@ -816,7 +959,6 @@ body {
     box-shadow: 2px 2px 0px var(--border-block);
 }
 
-/* 사이드바 닫기 버튼 (데스크톱 숨김) */
 .mobile-sidebar-close {
     display: none;
     width: 100%;
@@ -834,11 +976,26 @@ body {
     color: var(--warning);
 }
 
+.sidebar-backdrop {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 1900;
+}
+
+.sidebar-backdrop.active {
+    display: block;
+}
+
 @media screen and (max-width: 768px) {
     .arena-main {
         grid-template-columns: 1fr;
         gap: 16px;
-        padding-bottom: 80px; /* 플로팅 버튼 영역 확보 */
+        padding-bottom: 80px;
     }
 
     .container {
@@ -857,22 +1014,20 @@ body {
         font-size: clamp(0.7rem, 3.5vw, 1.1rem);
     }
 
-    /* 📱 사이드바를 하단 팝업(Bottom Sheet)으로 변신 */
     .sidebar-panel {
         position: fixed;
         bottom: 0;
         left: 0;
         width: 100vw;
-        height: 85vh; /* 화면 높이의 85% */
+        height: 85vh;
         z-index: 2000;
-        transform: translateY(100%); /* 기본 상태: 화면 아래로 숨김 */
+        transform: translateY(100%);
         transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         border: none;
         border-top: 4px solid var(--border-block);
         border-radius: 0;
     }
 
-    /* Javascript로 active 클래스가 추가되면 위로 솟아오름 */
     .sidebar-panel.active {
         transform: translateY(0);
         box-shadow: 0px -4px 0px var(--border-block);
@@ -887,61 +1042,9 @@ body {
     }
 }
 
-/* 📱 사이드바 전체 레이아웃 (최대 높이 제한 및 내부 스크롤 고정) */
-.sidebar-panel {
-    background: var(--bg-surface);
-    border: 2px solid var(--border-block);
-    box-shadow: var(--shadow-block);
-    display: flex;
-    flex-direction: column;
-    height: auto !important;
-    max-height: 600px !important; /* 화면 안에서 너무 길어지지 않도록 최대 높이 제한 */
-    overflow: hidden;
-}
-
-.sidebar-content {
-    padding: 16px;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    max-height: 500px;
-    overflow: hidden;
-}
-
-/* 대화창 및 시스템 알림창 박스 */
-#panel-chat, #panel-calls {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    height: 100%;
-    min-height: 0;
-    max-height: 100%;
-    overflow: hidden;
-}
-
-/* ⭐ 핵심: 대화 내용이 많아지면 박스가 커지는 대신 내부 스크롤이 생기도록 설정 */
-.chat-messages, .call-list {
-    flex: 1 1 auto;
-    min-height: 200px;
-    max-height: 380px !important; /* 대화창이 이 높이를 넘으면 아래로 늘어나지 않고 내부 스크롤 생성 */
-    overflow-y: auto !important;
-    overflow-x: hidden;
-    border: 2px solid var(--border-block);
-    background: var(--bg-surface);
-    padding: 12px;
-    margin-bottom: 12px;
-    box-shadow: var(--shadow-block-inset);
-    font-size: 0.95rem;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-/* 시스템 알림 스타일 전용 */
 .call-item-system {
-    font-size: 0.85rem;
-    padding: 6px 10px;
+    font-size: 0.8rem;
+    padding: 4px 8px;
     background: var(--bg-primary);
     border: 1px dashed var(--border-block);
     color: var(--text-secondary);
