@@ -1050,3 +1050,22 @@ body {
     color: var(--text-secondary);
     word-break: break-word;
 }
+/* style.css - 추가된 모달 요소 반응형 보완 */
+
+.config-size-btn {
+    flex: 1;
+    padding: 10px;
+    background: var(--bg-surface);
+    border: 2px solid var(--border-block);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    cursor: pointer;
+    box-shadow: var(--shadow-block-sm);
+}
+
+.config-size-btn.selected {
+    background: var(--border-block);
+    color: var(--text-on-accent);
+    transform: translate(2px, 2px);
+    box-shadow: none;
+}

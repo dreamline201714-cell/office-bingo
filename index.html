@@ -241,6 +241,45 @@
         </div>
     </div>
 
+    <!-- 방장 전용 주제/설정 변경 자체 게임 모달 -->
+    <div class="modal-overlay" id="config-modal">
+        <div class="modal-box" style="max-width: 520px;">
+            <div class="modal-header">
+                <h3>빙고 주제 및 설정 변경</h3>
+                <button class="modal-close" id="config-modal-close">&times;</button>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="config-topic-input">빙고 주제</label>
+                <input type="text" id="config-topic-input" class="form-input" placeholder="예: 자유 주제, 회식 메뉴">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">격자 크기 선택</label>
+                <div class="size-options" id="config-size-options">
+                    <button type="button" class="config-size-btn" data-size="3">3 x 3</button>
+                    <button type="button" class="config-size-btn" data-size="4">4 x 4</button>
+                    <button type="button" class="config-size-btn" data-size="5">5 x 5</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">프리셋 선택</label>
+                <div class="preset-chip-group" id="config-preset-chip-group"></div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="config-words-input">주제 단어 참고 리스트</label>
+                <textarea id="config-words-input" class="form-textarea" rows="4" placeholder="단어를 입력하거나 상단 프리셋을 선택하세요."></textarea>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="primary-btn" id="btn-config-save" style="margin: 0;">설정 저장 및 적용</button>
+                <button class="secondary-btn" id="btn-config-cancel">취소</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 방장 전용 대기실 리셋 옵션 모달 -->
     <div class="modal-overlay" id="reset-option-modal">
         <div class="modal-box" style="text-align: center; max-width: 400px;">

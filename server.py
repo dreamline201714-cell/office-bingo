@@ -11,9 +11,11 @@ import json
 import mimetypes
 import os
 import random
+import re
 import string
 import sys
 import time
+import urllib.request
 
 # Ensure UTF-8 output
 if hasattr(sys.stdout, 'reconfigure'):
@@ -22,6 +24,9 @@ if hasattr(sys.stdout, 'reconfigure'):
 PORT = int(os.environ.get("PORT", 8000))
 PUBLIC_DIR = os.path.dirname(os.path.abspath(__file__))
 TURN_DURATION_SECONDS = 15
+
+# 구글 드라이브 파일 ID
+GOOGLE_DRIVE_FILE_ID = "1Z_uIyvHlQPKR9GcJ4_07_GHGocutNgkR"
 
 AVATAR_COLORS = [
     "#FF5733", "#33FF57", "#3357FF", "#F39C12", "#8E44AD",
@@ -201,7 +206,6 @@ def advance_turn(room_id):
         return
 
     room = ROOMS[room_id]
-    # Do not advance if game is already over
     if room.get('status') == 'GAME_OVER':
         return
     if not room['turn_order']:
@@ -235,22 +239,17 @@ async def execute_word_call(room_id, word_text, caller_nickname):
     game_mode = room['config'].get('game_mode', 'WINNER')
 
     game_over = False
-    game_result = None  # dict with winner/loser info
+    game_result = None
 
     for ws, p in room['players'].items():
-        # Mark the cell on every player's board
         for idx, val in enumerate(p['board']):
             if val.strip() == word_text.strip():
                 p['marked'].add(idx)
 
-        # Update bingo line score (for UI display only)
         new_score = calculate_bingo_lines(p['board'], p['marked'], size)
         p['score'] = new_score
 
-        # Max possible lines for this board size (rows + cols + 2 diags)
         max_lines = size * 2 + 2
-
-        # Win condition: ALL cells marked OR all possible lines completed
         all_marked = (len(p['marked']) >= total_cells) or (new_score >= max_lines)
 
         if all_marked:
@@ -266,7 +265,7 @@ async def execute_word_call(room_id, word_text, caller_nickname):
                         'winner_nickname': p['nickname'],
                         'winner_color': p['color']
                     }
-            else:  # LOSER mode
+            else:
                 if not p.get('is_escaped', False):
                     p['is_escaped'] = True
                     escaped_count = sum(1 for pl in room['players'].values() if pl.get('is_escaped'))
@@ -274,7 +273,6 @@ async def execute_word_call(room_id, word_text, caller_nickname):
                     sys_msg_esc = f"🟢 '{p['nickname']}'님이 모든 칸을 완성하여 안전하게 탈출했습니다! ({escaped_count}번째 탈출)"
                     room['chat_logs'].append({'system': True, 'text': sys_msg_esc})
 
-    # LOSER mode: check if only 1 player remains un-escaped
     if game_mode == 'LOSER' and not game_over:
         total_players = len(room['players'])
         un_escaped = [pl for pl in room['players'].values() if not pl.get('is_escaped', False)]
@@ -296,11 +294,9 @@ async def execute_word_call(room_id, word_text, caller_nickname):
     room['chat_logs'].append({'system': True, 'text': sys_msg})
 
     if game_over:
-        # Cancel timer
         if room.get('timer_task'):
             room['timer_task'].cancel()
             room['timer_task'] = None
-        # Broadcast GAME_ENDED
         await broadcast_to_room(room_id, {
             'type': 'GAME_ENDED',
             'result': game_result,
@@ -430,6 +426,41 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
         await broadcast_to_room(room_id, {
             'type': 'ROOM_UPDATED',
             'state': serialize_room_state(room_id)
+        })
+
+    elif msg_type == 'UPDATE_CONFIG':
+        if not current_room_id or current_room_id not in ROOMS: return current_room_id
+        room = ROOMS[current_room_id]
+        player = room['players'].get(ws)
+        if not player or not player['is_host']: return current_room_id
+
+        size = int(data.get('size', room['config']['size']))
+        if size not in (3, 4, 5): size = 5
+        topic = str(data.get('topic', room['config']['topic'])).strip() or '자유 주제'
+        word_pool = data.get('word_pool', room['config']['word_pool'])
+
+        room['config']['size'] = size
+        room['config']['topic'] = topic
+        room['config']['word_pool'] = word_pool
+
+        if room.get('timer_task'): room['timer_task'].cancel()
+        room['status'] = 'WAITING'
+        room['called_items'] = []
+
+        for socket_key, p in room['players'].items():
+            p['board'] = generate_player_board(word_pool, size)
+            p['marked'] = set()
+            p['score'] = 0
+            p['is_ready'] = False
+            p['is_escaped'] = False
+            p['is_loser'] = False
+
+        sys_msg = f"⚙️ 방장이 주제를 [{topic}] (격자 {size}x{size}) (으)로 변경하였습니다."
+        room['chat_logs'].append({'system': True, 'text': sys_msg})
+
+        await broadcast_to_room(current_room_id, {
+            'type': 'ROOM_UPDATED',
+            'state': serialize_room_state(current_room_id)
         })
 
     elif msg_type == 'UPDATE_CELL_TEXT':
@@ -611,7 +642,31 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
     return current_room_id
 
 
-# --- Try aiohttp implementation ---
+# 구글 드라이브 Direct API 뷰 경로를 사용하여 리다이렉션 없이 JSON 로드
+def fetch_gdrive_presets():
+    urls = [
+        f"https://drive.google.com/uc?export=view&id={GOOGLE_DRIVE_FILE_ID}",
+        f"https://drive.google.com/uc?export=download&id={GOOGLE_DRIVE_FILE_ID}"
+    ]
+    
+    for url in urls:
+        req = urllib.request.Request(url, headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+        })
+        try:
+            with urllib.request.urlopen(req, timeout=5) as response:
+                content = response.read().decode('utf-8', errors='ignore')
+                try:
+                    data = json.loads(content)
+                    if isinstance(data, list) and len(data) > 0:
+                        return data
+                except json.JSONDecodeError:
+                    pass
+        except Exception as e:
+            print(f"[GDrive Fetch Exception] {url} -> {e}")
+    return None
+
+
 try:
     from aiohttp import web
 
@@ -660,6 +715,12 @@ try:
                         })
         return ws
 
+    async def handle_gdrive_proxy(request):
+        data = await asyncio.to_thread(fetch_gdrive_presets)
+        if data:
+            return web.json_response(data)
+        return web.json_response({"error": "Failed to load from Google Drive"}, status=500)
+
     async def handle_static_files(request):
         path = request.path
         if path in ('/', '/index.html'):
@@ -677,6 +738,7 @@ try:
         print(f" [HTTP/WS] Serving static files & WebSockets on single port!")
         print(f"===============================================================")
         app = web.Application()
+        app.router.add_get('/api/gdrive-presets', handle_gdrive_proxy)
         app.router.add_get('/ws', aiohttp_ws_handler)
         app.router.add_get('/{tail:.*}', handle_static_files)
         web.run_app(app, host='0.0.0.0', port=PORT)
@@ -744,6 +806,18 @@ except ImportError:
                 headers = arg2 or {}
                 connection = None
 
+            clean_path = path.split('?')[0]
+
+            if clean_path == '/api/gdrive-presets':
+                data = await asyncio.to_thread(fetch_gdrive_presets)
+                content = json.dumps(data or {"error": "failed"}, ensure_ascii=False).encode('utf-8')
+                try:
+                    from websockets.http11 import Response as WSResponse
+                    from websockets.datastructures import Headers as WSHeaders
+                    return WSResponse(200, "OK", WSHeaders([("Content-Type", "application/json; charset=utf-8"), ("Access-Control-Allow-Origin", "*")]), content)
+                except Exception:
+                    return (http.HTTPStatus.OK, [("Content-Type", "application/json; charset=utf-8"), ("Access-Control-Allow-Origin", "*")], content)
+
             upgrade_hdr = ""
             conn_hdr = ""
             if hasattr(headers, 'get'):
@@ -758,11 +832,9 @@ except ImportError:
                 except Exception:
                     pass
 
-            # If it's a websocket handshake request, ALWAYS return None so websockets handles connection!
             if "websocket" in upgrade_hdr or "upgrade" in conn_hdr or path.endswith('/ws') or path == '/ws':
                 return None
 
-            clean_path = path.split('?')[0]
             if clean_path in ('/', '/index.html'):
                 file_path = os.path.join(PUBLIC_DIR, 'index.html')
             else:

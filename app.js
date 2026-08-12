@@ -22,6 +22,8 @@
     let spectatingPlayerId = null;
     let editingCellIndex = null;
 
+    let configModalSelectedSize = 5;
+
     let timerInterval = null;
     let timerSecondsLeft = 15;
 
@@ -133,7 +135,6 @@
         }
     }
 
-    // 화면 내 상단 토스트 메시지 렌더러 (alert 대체)
     function showToast(message, type = 'info') {
         const container = document.getElementById('toast-container');
         if (!container) return;
@@ -217,6 +218,13 @@
 
     const drawModal = document.getElementById('draw-modal');
     const drawResultList = document.getElementById('draw-result-list');
+
+    const configModal = document.getElementById('config-modal');
+    const configModalClose = document.getElementById('config-modal-close');
+    const configTopicInput = document.getElementById('config-topic-input');
+    const configWordsInput = document.getElementById('config-words-input');
+    const btnConfigSave = document.getElementById('btn-config-save');
+    const btnConfigCancel = document.getElementById('btn-config-cancel');
 
     const resetOptionModal = document.getElementById('reset-option-modal');
     const btnResetKeep = document.getElementById('btn-reset-keep');
@@ -661,7 +669,6 @@
                     playSound('mark');
                 }
 
-                // 내 턴이 돌아왔을 때 알림 및 모바일 사이드바 자동으로 닫기
                 if (prevTurnPlayer !== myPlayerId && roomState.current_turn_player_id === myPlayerId) {
                     playSound('myTurn');
                     showToast('🎯 내 턴이 시작되었습니다!', 'warning');
@@ -824,7 +831,6 @@
             startClientTurnTimer(roomState.turn_time_remaining || 15);
         }
 
-        // 방장 화면: 미준비자 명단 표시 및 시작 버튼 활성화
         if (myPlayer && myPlayer.is_host) {
             hostControls.style.display = 'block';
             if (status === 'WAITING') {
@@ -879,7 +885,6 @@
         renderChatLogs();
     }
 
-    // 내 보드의 빈 칸 개수 렌더링
     function updateEmptyCellCounter(board) {
         if (!emptyCellCountSpan) return;
         const emptyCount = board.filter(cell => !cell || !cell.trim()).length;
@@ -916,7 +921,7 @@
     function triggerCellShake(cellEl) {
         if (!cellEl) return;
         cellEl.classList.remove('cell-invalid');
-        void cellEl.offsetWidth; // reflow
+        void cellEl.offsetWidth;
         cellEl.classList.add('cell-invalid');
         setTimeout(() => cellEl.classList.remove('cell-invalid'), 300);
     }
@@ -1159,8 +1164,8 @@
     }
 
     function initPresetChips() {
-        const targetGroup = document.getElementById('preset-chip-group');
-        if (!targetGroup) return;
+        const createGroup = document.getElementById('preset-chip-group');
+        const configGroup = document.getElementById('config-preset-chip-group');
 
         const presets = (typeof BINGO_PRESETS !== 'undefined' && Array.isArray(BINGO_PRESETS) && BINGO_PRESETS.length > 0)
             ? BINGO_PRESETS
@@ -1171,29 +1176,77 @@
                 { id: "numbers_1_50", title: "1~50 무작위 숫자", words: Array.from({ length: 50 }, (_, i) => String(i + 1)) }
             ];
 
-        targetGroup.innerHTML = '';
+        if (createGroup) {
+            createGroup.innerHTML = '';
+            presets.forEach((preset, index) => {
+                const chip = document.createElement('div');
+                chip.className = 'preset-chip' + (index === 0 ? ' active' : '');
+                chip.innerText = preset.title;
 
-        presets.forEach((preset, index) => {
-            const chip = document.createElement('div');
-            chip.className = 'preset-chip' + (index === 0 ? ' active' : '');
-            chip.innerText = preset.title;
+                chip.addEventListener('click', () => {
+                    createGroup.querySelectorAll('.preset-chip').forEach(c => c.classList.remove('active'));
+                    chip.classList.add('active');
 
-            chip.addEventListener('click', () => {
-                document.querySelectorAll('.preset-chip').forEach(c => c.classList.remove('active'));
-                chip.classList.add('active');
+                    if (preset.id === 'custom') {
+                        if (createTopicInput) createTopicInput.value = '자유 주제';
+                        if (createWordsInput) createWordsInput.value = '';
+                    } else {
+                        if (createTopicInput) createTopicInput.value = preset.title.replace(/^[^\s]+\s+/, '');
+                        if (createWordsInput) createWordsInput.value = (preset.words || []).join('\n');
+                    }
+                    playSound('click');
+                });
 
-                if (preset.id === 'custom') {
-                    if (createTopicInput) createTopicInput.value = '자유 주제';
-                    if (createWordsInput) createWordsInput.value = '';
-                } else {
-                    if (createTopicInput) createTopicInput.value = preset.title.replace(/^[^\s]+\s+/, '');
-                    if (createWordsInput) createWordsInput.value = (preset.words || []).join('\n');
-                }
-                playSound('click');
+                createGroup.appendChild(chip);
             });
+        }
 
-            targetGroup.appendChild(chip);
+        if (configGroup) {
+            configGroup.innerHTML = '';
+            presets.forEach((preset, index) => {
+                const chip = document.createElement('div');
+                chip.className = 'preset-chip' + (index === 0 ? ' active' : '');
+                chip.innerText = preset.title;
+
+                chip.addEventListener('click', () => {
+                    configGroup.querySelectorAll('.preset-chip').forEach(c => c.classList.remove('active'));
+                    chip.classList.add('active');
+
+                    if (preset.id === 'custom') {
+                        if (configTopicInput) configTopicInput.value = '자유 주제';
+                        if (configWordsInput) configWordsInput.value = '';
+                    } else {
+                        if (configTopicInput) configTopicInput.value = preset.title.replace(/^[^\s]+\s+/, '');
+                        if (configWordsInput) configWordsInput.value = (preset.words || []).join('\n');
+                    }
+                    playSound('click');
+                });
+
+                configGroup.appendChild(chip);
+            });
+        }
+    }
+
+    function openConfigModal() {
+        if (!roomState || !roomState.config) return;
+        configTopicInput.value = roomState.config.topic || '자유 주제';
+        configWordsInput.value = (roomState.config.word_pool || []).join('\n');
+        configModalSelectedSize = roomState.config.size || 5;
+
+        document.querySelectorAll('.config-size-btn').forEach(btn => {
+            const btnSize = parseInt(btn.getAttribute('data-size'));
+            if (btnSize === configModalSelectedSize) {
+                btn.classList.add('selected');
+            } else {
+                btn.classList.remove('selected');
+            }
         });
+
+        configModal.classList.add('active');
+    }
+
+    function closeConfigModal() {
+        configModal.classList.remove('active');
     }
 
     function openSpectateModal(playerId) {
@@ -1240,6 +1293,15 @@
     }
 
     document.addEventListener('click', (e) => {
+        const configSizeBtn = e.target.closest('.config-size-btn');
+        if (configSizeBtn) {
+            document.querySelectorAll('.config-size-btn').forEach(b => b.classList.remove('selected'));
+            configSizeBtn.classList.add('selected');
+            configModalSelectedSize = parseInt(configSizeBtn.getAttribute('data-size')) || 5;
+            playSound('click');
+            return;
+        }
+
         const modeBtn = e.target.closest('.mode-btn');
         if (modeBtn) {
             document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('selected'));
@@ -1402,47 +1464,29 @@
     });
 
     btnHostConfig.addEventListener('click', () => {
-        const currentTopic = roomState.config.topic;
-        const currentSize = roomState.config.size;
+        openConfigModal();
+    });
 
-        const newTopic = prompt('새 주제를 입력하세요:', currentTopic);
-        if (newTopic === null) return;
-
-        const newSizeStr = prompt('새 빙고 격자 크기를 입력하세요 (3, 4, 5 중 선택):', currentSize);
-        if (newSizeStr === null) return;
-
-        const newSize = parseInt(newSizeStr);
-        if (![3, 4, 5].includes(newSize)) {
-            showToast('격자 크기는 3, 4, 5 중에서만 선택 가능합니다.', 'warning');
-            return;
-        }
-
-        const updatedTopic = newTopic.trim() || currentTopic;
-
-        roomState.config.topic = updatedTopic;
-        roomState.config.size = newSize;
-
-        roomState.players.forEach(p => {
-            p.board = generateBoard(roomState.config.word_pool, newSize);
-            p.marked = [];
-            p.score = 0;
-            p.is_ready = false;
-        });
-
-        roomState.called_items = [];
-        roomState.status = 'WAITING';
-
-        updateArenaUI();
+    btnConfigSave.addEventListener('click', () => {
+        const newTopic = configTopicInput.value.trim() || '자유 주제';
+        const newWords = parseWordList(configWordsInput.value);
+        const newSize = configModalSelectedSize || 5;
 
         sendMessage({
             type: 'UPDATE_CONFIG',
             room_id: currentRoomId,
-            topic: updatedTopic,
+            topic: newTopic,
             size: newSize,
-            word_pool: roomState.config.word_pool,
+            word_pool: newWords,
             player_id: myPlayerId
         });
+
+        closeConfigModal();
+        showToast('주제 및 설정이 변경되었습니다.');
     });
+
+    btnConfigCancel.addEventListener('click', closeConfigModal);
+    configModalClose.addEventListener('click', closeConfigModal);
 
     btnCopyLink.addEventListener('click', () => {
         const shareUrl = `${window.location.origin}${window.location.pathname}?room=${currentRoomId}`;
