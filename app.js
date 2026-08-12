@@ -517,6 +517,30 @@
         } else if (type === 'UPDATE_BOARD' && player) {
             player.board = data.board;
             player.is_ready = false;
+        } else if (type === 'UPDATE_CONFIG' && isHost) {
+            const newSize = parseInt(data.size) || roomState.config.size;
+            const newTopic = data.topic || roomState.config.topic;
+            const newWordPool = data.word_pool || roomState.config.word_pool;
+
+            roomState.config.size = newSize;
+            roomState.config.topic = newTopic;
+            roomState.config.word_pool = newWordPool;
+
+            // 크기가 바뀌거나 설정이 변경되면 전체 보드 재생성 및 대기방으로 전환
+            roomState.players.forEach(p => {
+                p.board = generateBoard(newWordPool, newSize);
+                p.marked = [];
+                p.score = 0;
+                p.is_ready = false;
+            });
+
+            roomState.called_items = [];
+            roomState.status = 'WAITING';
+
+            // ⭐ 화면 즉시 다시 그리기 명령어 추가
+            updateArenaUI();
+
+            broadcastP2PState();
         } else if (type === 'TOGGLE_READY' && player) {
             player.is_ready = !player.is_ready;
         } else if (type === 'START_GAME' && isHost) {
@@ -584,10 +608,17 @@
 
     function generateBoard(wordPool, size) {
         const total = size * size;
-        let words = [...wordPool];
+        let words = parseWordList(Array.isArray(wordPool) ? wordPool.join('\n') : (wordPool || ''));
+
+        // 단어가 총 칸 수보다 모자라면 자동으로 '단어 1', '단어 2' 채움
         if (words.length < total) {
-            for (let i = 1; i <= total - words.length; i++) words.push(`단어 ${i}`);
+            const need = total - words.length;
+            for (let i = 1; i <= need; i++) {
+                words.push(`단어 ${words.length + 1}`);
+            }
         }
+
+        // 필요한 개수만큼 자르고 무작위 섞기
         return words.sort(() => 0.5 - Math.random()).slice(0, total);
     }
 
@@ -621,6 +652,7 @@
                 break;
 
             case 'ROOM_UPDATED':
+            case 'CONFIG_UPDATED': // ⭐ 방 설정 변경 메시지 수신 시 리렌더링
                 roomState = msg.state;
                 updateArenaUI();
                 break;
@@ -920,6 +952,8 @@
 
     function renderBingoBoard(board, markedIndices, size, status, isReady, isMyTurn) {
         bingoBoardGrid.setAttribute('data-size', size);
+        // ⭐ 참가자 화면에서도 3x3, 4x4, 5x5 칸 수가 맞춰지도록 인라인 스타일 강제 지정
+        bingoBoardGrid.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
         bingoBoardGrid.innerHTML = '';
         const markedSet = new Set(markedIndices);
 
@@ -1114,39 +1148,41 @@
     }
 
     function renderCalledItems() {
-        panelCalls.innerHTML = '';
-        if (!roomState.called_items || roomState.called_items.length === 0) {
-            panelCalls.innerHTML = '<p style="font-size:0.85rem; color:var(--text-muted);">아직 불린 단어가 없습니다.</p>';
-            return;
-        }
+      panelCalls.innerHTML = '';
 
-        roomState.called_items.forEach(item => {
-            const chip = document.createElement('div');
-            chip.className = 'call-item';
-            chip.innerText = item;
-            panelCalls.appendChild(chip);
-        });
-    }
+      // ⭐ 시스템 메시지만 필터링하여 시스템 알림 탭에 표시
+      const systemLogs = roomState.chat_logs.filter(chat => chat.system);
+
+      if (!systemLogs || systemLogs.length === 0) {
+          panelCalls.innerHTML = '<p style="font-size:0.85rem; color:var(--text-muted); text-align:center; margin-top:20px;">아직 알림 기록이 없습니다.</p>';
+          return;
+      }
+
+      systemLogs.slice().reverse().forEach(chat => {
+          const item = document.createElement('div');
+          item.className = 'call-item-system';
+          item.innerText = chat.text;
+          panelCalls.appendChild(item);
+      });
+  }
 
     function renderChatLogs() {
-        chatMessagesBox.innerHTML = '';
+      chatMessagesBox.innerHTML = '';
 
-        roomState.chat_logs.forEach(chat => {
-            const msgEl = document.createElement('div');
+      roomState.chat_logs.forEach(chat => {
+          // ⭐ 시스템 알림은 대화창에 표시하지 않음 (시스템 알림 탭으로 분리)
+          if (chat.system) return;
 
-            if (chat.system) {
-                msgEl.className = 'chat-msg system';
-                msgEl.innerText = chat.text;
-            } else {
-                msgEl.className = 'chat-msg';
-                msgEl.innerHTML = `<span class="sender" style="color:${chat.color}">${escapeHtml(chat.nickname)}:</span> <span>${escapeHtml(chat.text)}</span>`;
-            }
+          const msgEl = document.createElement('div');
+          msgEl.className = 'chat-msg';
+          msgEl.innerHTML = `<span class="sender" style="color:${chat.color}">${escapeHtml(chat.nickname)}:</span> <span>${escapeHtml(chat.text)}</span>`;
 
-            chatMessagesBox.appendChild(msgEl);
-        });
+          chatMessagesBox.appendChild(msgEl);
+      });
 
-        chatMessagesBox.scrollTop = chatMessagesBox.scrollHeight;
-    }
+      chatMessagesBox.scrollTop = chatMessagesBox.scrollHeight;
+  }
+
 
     function triggerConfetti(ratio = 0.5) {
         if (typeof confetti === 'function') {
@@ -1478,16 +1514,58 @@
     });
 
     btnHostConfig.addEventListener('click', () => {
-        const newTopic = prompt('새 주제를 입력하세요:', roomState.config.topic);
-        if (newTopic !== null) {
-            sendMessage({
-                type: 'UPDATE_CONFIG',
-                topic: newTopic.trim() || roomState.config.topic,
-                size: roomState.config.size,
-                word_pool: roomState.config.word_pool,
-                player_id: myPlayerId
-            });
+        const currentTopic = roomState.config.topic;
+        const currentSize = roomState.config.size;
+
+        const newTopic = prompt('새 주제를 입력하세요:', currentTopic);
+        if (newTopic === null) return;
+
+        const newSizeStr = prompt('새 빙고 격자 크기를 입력하세요 (3, 4, 5 중 선택):', currentSize);
+        if (newSizeStr === null) return;
+
+        const newSize = parseInt(newSizeStr);
+        if (![3, 4, 5].includes(newSize)) {
+            alert('격자 크기는 3, 4, 5 중에서만 선택 가능합니다.');
+            return;
         }
+
+        const updatedTopic = newTopic.trim() || currentTopic;
+
+        // 1. 방장 로컬 데이터 즉시 업데이트
+        roomState.config.topic = updatedTopic;
+        roomState.config.size = newSize;
+
+        // 2. 새로운 칸 수와 주제에 맞춰 방장의 빙고 보드 즉시 재생성
+        roomState.players.forEach(p => {
+            p.board = generateBoard(roomState.config.word_pool, newSize);
+            p.marked = [];
+            p.score = 0;
+            p.is_ready = false;
+        });
+
+        roomState.called_items = [];
+        roomState.status = 'WAITING';
+
+        // 3. 방장 화면 즉시 리렌더링 (즉시 반영 보장)
+        updateArenaUI();
+
+        // 4. 서버 및 참가자들에게 변경사항 전송
+        sendMessage({
+            type: 'UPDATE_CONFIG',
+            room_id: currentRoomId,
+            topic: updatedTopic,
+            size: newSize,
+            word_pool: roomState.config.word_pool,
+            player_id: myPlayerId
+        });
+        
+        // 추가 백업 메시지 전송 (서버 호환성 확보)
+        sendMessage({
+            type: 'UPDATE_BOARD',
+            room_id: currentRoomId,
+            board: roomState.players.find(p => p.player_id === myPlayerId)?.board || [],
+            player_id: myPlayerId
+        });
     });
 
     btnCopyLink.addEventListener('click', () => {
