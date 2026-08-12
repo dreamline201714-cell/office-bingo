@@ -1,4 +1,4 @@
-/* style.css - 90s Retro Mac OS (Pixel Mono) Design System */
+/* style.css - 90s Retro Mac OS (Pixel Mono) Ultimate Final Version */
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap');
 
 /* 90년대 레트로 픽셀 폰트 (둥근모꼴) 로드 */
@@ -10,8 +10,8 @@
 }
 
 :root {
-    /* 90년대 클래식 흑백 & 회색조 팔레트 */
-    --bg-primary: #DFDFDF;
+    /* 라이트 모드 */
+    --bg-primary: #FFFFFF;
     --bg-surface: #FFFFFF;
     --border-block: #000000;
     
@@ -36,7 +36,7 @@
     --shadow-block-inset: inset 2px 2px 0px rgba(0,0,0,0.2);
 }
 
-/* 다크 모드 (터미널/MS-DOS 감성) */
+/* 다크 모드 */
 [data-theme="dark"] {
     --bg-primary: #000000;
     --bg-surface: #111111;
@@ -44,7 +44,7 @@
     
     --text-primary: #FFFFFF;
     --text-secondary: #CCCCCC;
-    --text-muted: #AAAAAA; /* 가독성을 위해 살짝 밝게 수정 */
+    --text-muted: #AAAAAA; 
     --text-on-accent: #000000;
 
     --primary: #FFFFFF;
@@ -67,12 +67,6 @@
 
 body {
     background-color: var(--bg-surface);
-    background-image: 
-        linear-gradient(45deg, var(--bg-primary) 25%, transparent 25%, transparent 75%, var(--bg-primary) 75%, var(--bg-primary)),
-        linear-gradient(45deg, var(--bg-primary) 25%, transparent 25%, transparent 75%, var(--bg-primary) 75%, var(--bg-primary));
-    background-size: 4px 4px;
-    background-position: 0 0, 2px 2px;
-    
     color: var(--text-primary);
     min-height: 100vh;
     display: flex;
@@ -300,13 +294,13 @@ body {
     box-shadow: none;
 }
 
-/* Buttons */
+/* 방 생성 등 기본 Primary 버튼 */
 .primary-btn {
     width: 100%;
     padding: 16px;
-    background: var(--primary);
+    background: var(--border-block);
     border: 2px solid var(--border-block);
-    color: var(--text-on-accent);
+    color: var(--bg-surface);
     font-size: 1.2rem;
     cursor: pointer;
     box-shadow: var(--shadow-block);
@@ -335,13 +329,54 @@ body {
     box-shadow: none;
 }
 
-/* 비활성화된 게임 시작 버튼 가독성 패치 */
-.start-game-btn:disabled {
-    background: var(--bg-primary);
-    color: var(--text-muted);
-    border-color: var(--text-muted);
-    opacity: 1; /* 투명도 제거하여 텍스트 선명하게 */
+/* ✅ 하단 보조 버튼들 (준비완료, 리셋 등) */
+#btn-toggle-ready, #btn-host-reset {
+    background: var(--bg-primary) !important;
+    color: var(--text-primary) !important;
+    border: 2px solid var(--border-block) !important;
+    box-shadow: var(--shadow-block) !important;
+    border-radius: 0 !important;
 }
+
+#btn-toggle-ready:active, #btn-host-reset:active {
+    transform: translate(2px, 2px) !important;
+    box-shadow: none !important;
+}
+
+/* ✅ 비활성화된 게임 시작 버튼 (참가자 대기중) */
+.start-game-btn:disabled {
+    background: var(--bg-primary) !important;
+    color: var(--text-muted) !important;
+    border: 2px solid var(--text-muted) !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    cursor: not-allowed;
+    opacity: 1; 
+}
+
+/* ✅ 활성화된 게임 시작 버튼 (레트로 반전 액션 추가) */
+.start-game-btn:not(:disabled) {
+    background: var(--border-block) !important;
+    color: var(--bg-surface) !important;
+    border: 2px solid var(--border-block) !important;
+    box-shadow: var(--shadow-block) !important;
+    border-radius: 0 !important;
+    cursor: pointer;
+    transition: all 0.1s ease;
+}
+
+.start-game-btn:not(:disabled):hover {
+    background: var(--bg-primary) !important;
+    color: var(--text-primary) !important;
+    transform: translate(-2px, -2px) !important;
+    box-shadow: 6px 6px 0px var(--border-block) !important;
+}
+
+.start-game-btn:not(:disabled):active {
+    transform: translate(2px, 2px) !important;
+    box-shadow: none !important;
+}
+
 
 /* Arena Layout */
 .arena-header {
@@ -366,15 +401,23 @@ body {
     margin-top: 8px;
 }
 
-/* 상단 태그 가독성 패치 (항상 배경색과 반전되도록 고정) */
 .topic-tag {
     padding: 4px 8px;
-    background: var(--text-primary); 
-    color: var(--bg-surface); 
+    background: var(--border-block) !important; 
+    color: var(--bg-surface) !important; 
     font-size: 0.8rem;
 }
 
-.mode-tag, .room-state-badge {
+.mode-tag {
+    padding: 4px 8px;
+    font-size: 0.8rem;
+    border: 2px solid var(--border-block) !important;
+    margin-left: 6px;
+    background: var(--bg-primary) !important;
+    color: var(--text-primary) !important; 
+}
+
+.room-state-badge {
     padding: 4px 8px;
     font-size: 0.8rem;
     border: 2px solid var(--text-primary);
@@ -396,18 +439,34 @@ body {
     margin-bottom: 24px;
     box-shadow: var(--shadow-block);
     color: var(--text-primary);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 .turn-banner-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.turn-banner-header > span {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    line-height: 1.4;
 }
 
 .turn-player-badge {
     background: var(--bg-primary);
     border: 2px solid var(--border-block);
-    padding: 4px 10px;
+    padding: 6px 10px;
+    display: inline-block;
+    word-break: keep-all; 
+    box-shadow: var(--shadow-block-sm);
 }
 
 .turn-timer-track {
@@ -415,7 +474,6 @@ body {
     height: 14px;
     background: var(--bg-surface);
     border: 2px solid var(--border-block);
-    margin-top: 12px;
     box-shadow: var(--shadow-block-inset);
 }
 
@@ -448,18 +506,17 @@ body {
     box-shadow: var(--shadow-block);
 }
 
-/* 빙고칸 가독성 패치 */
 .bingo-cell {
     background: var(--bg-surface);
     display: flex;
     align-items: center;
     justify-content: center;
     text-align: center;
-    padding: 2px; /* 패딩 축소 */
-    font-size: clamp(0.7rem, 2.8vw, 1.1rem); /* 글씨 크기 유연하게 조정 */
+    padding: 2px; 
+    font-size: clamp(0.7rem, 2.8vw, 1.1rem); 
     color: var(--text-primary);
     cursor: pointer;
-    word-break: break-all; /* 긴 단어 강제 줄바꿈 허용 */
+    word-break: break-all; 
     line-height: 1.2;
 }
 
@@ -478,6 +535,90 @@ body {
     background-image: repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255,255,255,0.2) 2px, rgba(255,255,255,0.2) 4px);
 }
 
+
+/* ✅ 하단 완성 줄 수 및 안내 텍스트 영역 (겹침 방지) */
+.board-footer {
+    margin-top: 24px;
+    width: 100%;
+    max-width: 540px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+#footer-playing-controls {
+    background: var(--bg-surface);
+    border: 2px solid var(--border-block);
+    padding: 16px;
+    box-shadow: var(--shadow-block);
+    display: flex;
+    flex-direction: column; /* 가로 배열을 세로로 변경하여 완전 겹침 방지 */
+    align-items: flex-start;
+    gap: 8px;
+    width: 100%;
+}
+
+.bingo-counter {
+    font-size: 1.1rem;
+    font-weight: bold;
+    background: var(--bg-primary);
+    padding: 6px 12px;
+    border: 2px solid var(--border-block);
+}
+
+/* ✅ 주제 참고 단어 목록 (스크롤 처리) */
+.topic-words-panel {
+    background: var(--bg-surface);
+    border: 2px solid var(--border-block);
+    padding: 16px;
+    margin-top: 16px;
+    box-shadow: var(--shadow-block);
+    width: 100%;
+    max-width: 540px;
+}
+
+.topic-words-panel h4 {
+    font-size: 0.9rem;
+    margin-bottom: 12px;
+    color: var(--text-primary);
+}
+
+.topic-words-chips {
+    display: flex;
+    flex-wrap: wrap; 
+    gap: 8px;
+    max-height: 120px; 
+    overflow-y: auto; 
+    padding-right: 4px; 
+}
+
+.topic-word-chip {
+    padding: 4px 8px;
+    background: var(--bg-primary);
+    border: 2px solid var(--border-block);
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    box-shadow: var(--shadow-block-sm);
+    white-space: nowrap; 
+}
+
+.topic-word-chip:hover {
+    background: var(--border-block);
+    color: var(--text-on-accent);
+    transform: translate(2px, 2px);
+    box-shadow: none;
+}
+
+.topic-word-chip.used {
+    opacity: 0.3;
+    text-decoration: line-through;
+    pointer-events: none;
+    box-shadow: none;
+    transform: translate(2px, 2px);
+}
+
+
 /* Sidebar */
 .sidebar-panel {
     background: var(--bg-surface);
@@ -485,6 +626,7 @@ body {
     box-shadow: var(--shadow-block);
     display: flex;
     flex-direction: column;
+    height: 100%; 
 }
 
 .sidebar-tabs {
@@ -492,7 +634,6 @@ body {
     border-bottom: 2px solid var(--border-block);
 }
 
-/* 사이드바 탭 글자 줄바꿈 방지 */
 .sidebar-tab-btn {
     flex: 1;
     padding: 10px 4px;
@@ -515,10 +656,11 @@ body {
 .sidebar-content {
     padding: 16px;
     flex: 1;
-    min-height: 400px;
+    display: flex;
+    flex-direction: column;
+    min-height: 420px;
 }
 
-/* 플레이어 목록 줄바꿈 방지 및 정렬 패치 */
 .player-card {
     background: var(--bg-surface);
     border: 2px solid var(--border-block);
@@ -527,7 +669,7 @@ body {
     box-shadow: 2px 2px 0px var(--border-block);
     display: flex;
     align-items: center;
-    flex-wrap: wrap; /* 요소가 넘치면 아래로 떨어지게 */
+    flex-wrap: wrap; 
     gap: 8px;
 }
 
@@ -538,34 +680,84 @@ body {
 }
 
 .host-tag, .ready-tag, .escaped-tag, .loser-tag {
-    white-space: nowrap; /* 태그 내부 줄바꿈 방지 */
+    white-space: nowrap; 
 }
 
-.player-score {
+/* ✅ 대화창 버튼 이탈 및 레이아웃 완벽 고정 */
+#panel-chat {
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
+    height: 100%;
+}
+
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    border: 2px solid var(--border-block);
+    background: var(--bg-surface);
+    padding: 12px;
+    margin-bottom: 12px;
+    box-shadow: var(--shadow-block-inset);
+    font-size: 0.95rem;
+    display: flex;
+    flex-direction: column;
     gap: 4px;
 }
 
-/* Chat */
+.chat-input-box {
+    display: flex;
+    gap: 6px;
+    width: 100%; /* 부모 너비를 벗어나지 않도록 제한 */
+}
+
 .chat-input {
+    flex: 1;
+    min-width: 0; /* 글자가 입력창 너비 이상으로 길어질 때 창이 튀어나가는 버그 방지 */
     border: 2px solid var(--border-block);
     border-radius: 0;
     box-shadow: var(--shadow-block-inset);
-}
-.chat-send-btn {
-    border: 2px solid var(--border-block);
-    border-radius: 0;
+    padding: 10px;
     background: var(--bg-surface);
     color: var(--text-primary);
+    font-size: 0.9rem;
+    outline: none;
+}
+
+.chat-send-btn {
+    flex-shrink: 0; /* 전송 버튼이 절대 찌그러지거나 바깥으로 밀려나지 않음 */
+    border: 2px solid var(--border-block);
+    border-radius: 0;
+    background: var(--bg-primary);
+    color: var(--text-primary);
     box-shadow: var(--shadow-block-sm);
+    padding: 0 16px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.chat-send-btn:active {
+    transform: translate(2px, 2px);
+    box-shadow: none;
 }
 
 /* Modal */
 .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
     background: rgba(0, 0, 0, 0.4);
     background-image: radial-gradient(rgba(0,0,0,0.5) 1px, transparent 1px);
     background-size: 4px 4px;
+    display: none !important;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-overlay.active {
+    display: flex !important;
 }
 
 .modal-box {
@@ -574,9 +766,29 @@ body {
     box-shadow: 12px 12px 0px rgba(0,0,0,1);
     padding: 32px;
     border-radius: 0; 
+    width: 90%;
+    max-width: 480px;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.modal-close {
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-size: 1.4rem;
+    cursor: pointer;
+    font-family: 'DungGeunMo', sans-serif;
 }
 
 #qrcode {
     border: 4px solid var(--border-block);
     background: #FFF;
+    padding: 12px;
+    margin: 0 auto;
 }
