@@ -1,7 +1,6 @@
-/* style.css - 90s Retro Mac OS (Pixel Mono) Ultimate Final Version */
+/* style.css - 90s Retro Mac OS (Pixel Mono) Responsive Final */
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap');
 
-/* 90년대 레트로 픽셀 폰트 (둥근모꼴) 로드 */
 @font-face {
     font-family: 'DungGeunMo';
     src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/DungGeunMo.woff') format('woff');
@@ -10,7 +9,6 @@
 }
 
 :root {
-    /* 라이트 모드 */
     --bg-primary: #FFFFFF;
     --bg-surface: #FFFFFF;
     --border-block: #000000;
@@ -36,7 +34,6 @@
     --shadow-block-inset: inset 2px 2px 0px rgba(0,0,0,0.2);
 }
 
-/* 다크 모드 */
 [data-theme="dark"] {
     --bg-primary: #000000;
     --bg-surface: #111111;
@@ -85,7 +82,6 @@ body {
     z-index: 9999;
 }
 
-/* Navigation */
 .navbar {
     display: flex;
     justify-content: space-between;
@@ -165,7 +161,6 @@ body {
     box-shadow: none;
 }
 
-/* Layout */
 .container {
     max-width: 1000px;
     width: 100%;
@@ -182,7 +177,6 @@ body {
     margin-bottom: 24px;
 }
 
-/* Lobby */
 .lobby-grid {
     display: grid;
     grid-template-columns: 1fr;
@@ -218,7 +212,6 @@ body {
     background-image: repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(0,0,0,0.05) 2px, rgba(0,0,0,0.05) 4px);
 }
 
-/* Forms */
 .form-group {
     margin-bottom: 20px;
 }
@@ -245,7 +238,6 @@ body {
     background: var(--bg-primary);
 }
 
-/* Options */
 .size-options {
     display: flex;
     gap: 8px;
@@ -269,7 +261,6 @@ body {
     box-shadow: none;
 }
 
-/* Preset Chips */
 .preset-chip-group {
     display: flex;
     flex-wrap: wrap;
@@ -294,7 +285,6 @@ body {
     box-shadow: none;
 }
 
-/* 방 생성 등 기본 Primary 버튼 */
 .primary-btn {
     width: 100%;
     padding: 16px;
@@ -329,7 +319,6 @@ body {
     box-shadow: none;
 }
 
-/* ✅ 하단 보조 버튼들 (준비완료, 리셋 등) */
 #btn-toggle-ready, #btn-host-reset {
     background: var(--bg-primary) !important;
     color: var(--text-primary) !important;
@@ -343,7 +332,6 @@ body {
     box-shadow: none !important;
 }
 
-/* ✅ 비활성화된 게임 시작 버튼 (참가자 대기중) */
 .start-game-btn:disabled {
     background: var(--bg-primary) !important;
     color: var(--text-muted) !important;
@@ -354,7 +342,6 @@ body {
     opacity: 1; 
 }
 
-/* ✅ 활성화된 게임 시작 버튼 (레트로 반전 깜빡임 액션 추가) */
 .start-game-btn:not(:disabled) {
     background: var(--border-block) !important;
     color: var(--bg-surface) !important;
@@ -362,7 +349,7 @@ body {
     box-shadow: var(--shadow-block) !important;
     border-radius: 0 !important;
     cursor: pointer;
-    animation: retroStartBlink 1s step-end infinite !important; /* 애니메이션 적용 */
+    animation: retroStartBlink 1s step-end infinite !important;
 }
 
 @keyframes retroStartBlink {
@@ -376,8 +363,6 @@ body {
     }
 }
 
-
-/* Arena Layout */
 .arena-header {
     margin-bottom: 24px;
 }
@@ -430,7 +415,6 @@ body {
     color: var(--bg-surface);
 }
 
-/* Turn Banner */
 .turn-banner {
     background: var(--bg-surface);
     border: 2px solid var(--border-block);
@@ -483,7 +467,6 @@ body {
     background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.2) 10px, rgba(255,255,255,0.2) 20px);
 }
 
-/* Bingo Board Main */
 .arena-main {
     display: grid;
     grid-template-columns: 1fr 320px;
@@ -535,7 +518,6 @@ body {
     background-image: repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(255,255,255,0.2) 2px, rgba(255,255,255,0.2) 4px);
 }
 
-/* 하단 완성 줄 수 및 안내 텍스트 영역 */
 .board-footer {
     margin-top: 24px;
     width: 100%;
@@ -565,7 +547,6 @@ body {
     border: 2px solid var(--border-block);
 }
 
-/* 주제 참고 단어 목록 */
 .topic-words-panel {
     background: var(--bg-surface);
     border: 2px solid var(--border-block);
@@ -617,8 +598,6 @@ body {
     transform: translate(2px, 2px);
 }
 
-
-/* Sidebar */
 .sidebar-panel {
     background: var(--bg-surface);
     border: 2px solid var(--border-block);
@@ -633,14 +612,13 @@ body {
     border-bottom: 2px solid var(--border-block);
 }
 
-/* ✅ 사이드바 탭 글자색 명시적 지정 (다크모드 묻힘 방지) */
 .sidebar-tab-btn {
     flex: 1;
     padding: 10px 4px;
     border: none;
     border-right: 2px solid var(--border-block);
     background: var(--bg-primary);
-    color: var(--text-muted); /* 비활성화 탭 글자색 강제지정 */
+    color: var(--text-muted); 
     cursor: pointer;
     font-size: 0.9rem;
     white-space: nowrap; 
@@ -652,7 +630,7 @@ body {
 
 .sidebar-tab-btn.active {
     background: var(--bg-surface);
-    color: var(--text-primary); /* 활성화 탭 글자색 강제지정 */
+    color: var(--text-primary); 
 }
 
 .sidebar-content {
@@ -685,7 +663,6 @@ body {
     white-space: nowrap; 
 }
 
-/* 대화창 레이아웃 */
 #panel-chat {
     display: flex;
     flex-direction: column;
@@ -742,7 +719,6 @@ body {
     box-shadow: none;
 }
 
-/* Modal */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -793,4 +769,36 @@ body {
     background: #FFF;
     padding: 12px;
     margin: 0 auto;
+}
+
+/* 모바일 기기 최적화 (가로 폭 768px 이하 처리) */
+@media screen and (max-width: 768px) {
+    .arena-main {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .container {
+        padding: 12px 8px;
+    }
+
+    .glass-card, .topic-banner, .turn-banner {
+        padding: 16px;
+    }
+
+    .topic-info h2 {
+        font-size: 1.5rem;
+    }
+
+    .sidebar-panel {
+        height: auto; 
+    }
+
+    .sidebar-content {
+        min-height: 350px;
+    }
+
+    .bingo-cell {
+        font-size: clamp(0.7rem, 3.5vw, 1.1rem);
+    }
 }
