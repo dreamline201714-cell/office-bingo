@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>26년 재무상태표.xlsx - Excel</title>
+    
+    <link rel="stylesheet" href="common.css?v=20260814_v8">
+    <link rel="stylesheet" href="style_seotda.css?v=20260814_v8">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+    <canvas id="confetti-canvas"></canvas>
+    <div id="toast-container" class="toast-container"></div>
+
+    <button class="mobile-fab" id="mobile-fab-btn">
+        💬 대화 / 목록 (<span id="mobile-player-count">0</span>명)
+    </button>
+
+    <header class="navbar">
+        <a href="index.html" class="brand" id="nav-logo">
+            <div class="brand-icon" id="brand-icon-el">🃏</div>
+            <span id="brand-title-el">Office Seotda <small style="font-size:0.65rem; color:var(--border-accent); vertical-align:super;">LIVE</small></span>
+        </a>
+        <div class="nav-controls">
+            <div id="stealth-opacity-box" style="display:none; align-items:center; gap:4px; background:rgba(255,255,255,0.2); padding:2px 6px; border-radius:4px;">
+                <span style="font-size:10px; color:#fff;">투명도</span>
+                <input type="range" id="stealth-opacity-range" min="30" max="100" value="100" style="width:50px; cursor:pointer;">
+            </div>
+
+            <button class="icon-btn" id="btn-stealth-toggle" style="width:auto; padding:0 6px; font-weight:bold; gap:2px;" title="스텔스 모드">
+                📊 <span style="font-size:0.75rem;">스텔스</span>
+            </button>
+
+            <div class="status-badge">
+                <span class="status-dot" id="status-dot"></span>
+                <span id="status-text">연결 대기 중</span>
+            </div>
+            <button class="icon-btn" id="btn-help" title="게임 규칙">❓</button>
+            <button class="icon-btn" id="sound-toggle-btn" title="사운드 설정">🔊</button>
+            <button class="icon-btn" id="theme-toggle-btn" title="테마 변경">🌙</button>
+        </div>
+    </header>
+
+    <div class="excel-formula-bar excel-only-bar">
+        <div class="excel-cell-name">C3</div>
+        <div class="excel-fx">fx</div>
+        <input type="text" class="excel-formula-input" value='=SUM(B2:B10) + SEOTDA_HAND("26년 재무상태표", "자산총계")' readonly>
+    </div>
+
+    <main class="container">
+        <!-- 1. 로비 섹션 -->
+        <section id="lobby-section" class="lobby-grid">
+            <div class="glass-card">
+                <div style="text-align: center; margin-bottom: 16px;">
+                    <h1 style="font-size: 1.4rem; font-weight: 700; margin-bottom: 4px;">사내 실시간 섯다</h1>
+                    <p style="color: var(--text-secondary); font-size: 0.85rem;">칩을 걸고 심리전을 펼쳐 판돈을 싹쓸이해보세요!</p>
+                </div>
+
+                <div class="tab-selector">
+                    <button class="tab-btn active" id="tab-btn-create">방 만들기</button>
+                    <button class="tab-btn" id="tab-btn-join">방 참여하기</button>
+                </div>
+
+                <form id="create-room-form">
+                    <div class="form-group">
+                        <label class="form-label" for="create-nickname">내 닉네임</label>
+                        <input type="text" id="create-nickname" class="form-input" placeholder="예: 타짜김사원" maxlength="12" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="create-title">게임 방 제목 설정</label>
+                        <input type="text" id="create-title" class="form-input" value="사내 실시간 섯다" placeholder="예: [마케팅팀] 점심 내기 한판!" maxlength="20" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="create-start-chips">참가자 시작 자금 선택</label>
+                        <select id="create-start-chips" class="form-input">
+                            <option value="10000" selected>10,000 칩 (기본)</option>
+                            <option value="30000">30,000 칩</option>
+                            <option value="50000">50,000 칩</option>
+                            <option value="100000">100,000 칩 (고액판)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="create-base-ante">기본 판돈 (학교값/앤티) 선택</label>
+                        <select id="create-base-ante" class="form-input">
+                            <option value="100" selected>100 칩 (기본)</option>
+                            <option value="300">300 칩</option>
+                            <option value="500">500 칩</option>
+                            <option value="1000">1,000 칩</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="primary-btn" id="btn-create-submit">
+                        <span>게임 방 생성하기</span>
+                    </button>
+                </form>
+
+                <form id="join-room-form" style="display: none;">
+                    <div class="form-group">
+                        <label class="form-label" for="join-nickname">내 닉네임</label>
+                        <input type="text" id="join-nickname" class="form-input" placeholder="예: 고니이대리" maxlength="12" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="join-room-code">방 코드 (6자리)</label>
+                        <input type="text" id="join-room-code" class="form-input" placeholder="예: TAZZA1" style="text-transform: uppercase; letter-spacing: 2px;" maxlength="8" required>
+                    </div>
+
+                    <button type="submit" class="primary-btn" id="btn-join-submit">
+                        <span>게임 방 입장하기</span>
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- 2. 섯다 아레나 섹션 -->
+        <section id="arena-section" style="display: none;">
+            <div class="arena-header">
+                <div class="topic-banner">
+                    <div class="topic-info">
+                        <span class="topic-tag">SEOTDA</span>
+                        <span class="room-state-badge waiting" id="room-state-badge">대기 중</span>
+                        <h2 id="display-topic-title">사내 실시간 섯다</h2>
+                        <span style="font-size: 0.78rem; color: var(--text-secondary);" id="display-chips-info">시작 자금: 10,000칩 | 기본 판돈: 100칩</span>
+                    </div>
+
+                    <div class="room-share-box">
+                        <div class="room-code-badge" id="display-room-code">------</div>
+                        <button class="secondary-btn" id="btn-copy-link">링크 복사</button>
+                        <button class="secondary-btn" id="btn-show-qr">QR 코드</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 독립 방장 박스 -->
+            <div id="host-controls" class="host-controls-box" style="display: none;">
+                <button class="start-game-btn" id="btn-host-start">게임 시작하기!</button>
+            </div>
+
+            <!-- 선(딜러) 박스 -->
+            <div id="dealer-controls" class="host-controls-box" style="display: none;">
+                <span style="font-size:0.8rem; font-weight:600; color:var(--border-accent); margin-right:6px;">👑 이번 판 선</span>
+                <button class="start-game-btn" id="btn-dealer-start">다음 판 패 섞고 나누기</button>
+            </div>
+
+            <div class="turn-banner" id="turn-banner" style="display: none;">
+                <div class="turn-banner-header">
+                    <div class="turn-banner-left">
+                        <span>현재 배팅 턴:</span>
+                        <span class="turn-player-badge" id="turn-player-badge">홍길동님</span>
+                    </div>
+                    <div class="turn-banner-right">
+                        <span class="turn-timer-text"><span id="turn-timer-num">15</span>초</span>
+                        <div class="turn-timer-track">
+                            <div class="turn-timer-fill" id="turn-timer-fill"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="arena-main">
+                <div class="board-container">
+                    <div class="seotda-table-board" id="seotda-table-board">
+                        <div class="pot-center-box" id="pot-center-box">
+                            <div class="pot-title">TOTAL POT</div>
+                            <div class="pot-amount" id="total-pot-amount">0 칩</div>
+                        </div>
+
+                        <div class="other-players-grid" id="other-players-grid"></div>
+                    </div>
+
+                    <div id="footer-waiting-controls" style="display: flex; justify-content: flex-start; margin-top: 10px;">
+                        <button class="primary-btn" id="btn-toggle-ready" style="width: auto; padding: 6px 14px; margin: 0; font-size:0.85rem;">준비 완료</button>
+                    </div>
+
+                    <div class="quick-speech-bar">
+                        <span style="font-size:0.78rem; font-weight:600; color:var(--text-secondary);">💬 퀵 도발:</span>
+                        <button class="quick-btn" data-msg="이거 삼팔광땡 각인데? 👑">😈 삼팔광땡</button>
+                        <button class="quick-btn" data-msg="죽으려면 지금 죽어~ 💸">💸 지금 죽어</button>
+                        <button class="quick-btn" data-msg="쫄리면 죽으시든가! 😜">😜 쫄리시나</button>
+                        <button class="quick-btn" data-msg="죽어도 고! 올인 간다! 🎲">🎲 올인 간다</button>
+                        <button class="quick-btn" data-msg="아... 끗인데 잘못 왔네 😭">😭 끗이네</button>
+                    </div>
+
+                    <div class="my-seotda-hand-panel">
+                        <div class="my-hand-header">
+                            <span>내 화투패</span>
+                            <span class="my-jokbo-badge" id="my-jokbo-badge">패 대기 중...</span>
+                        </div>
+                        
+                        <div class="my-cards-container" id="my-cards-container">
+                            <div class="hwatu-card card-back"></div>
+                            <div class="hwatu-card card-back"></div>
+                        </div>
+
+                        <div class="betting-action-group" id="betting-action-group">
+                            <button class="bet-btn bet-bing" data-action="BING">삥 (기본)</button>
+                            <button class="bet-btn bet-tadang" data-action="TADANG">따당 (2배)</button>
+                            <button class="bet-btn bet-half" data-action="HALF">하프 (50%)</button>
+                            <button class="bet-btn bet-call" data-action="CALL">콜 (CALL)</button>
+                            <button class="bet-btn bet-die" data-action="DIE">다이 (기권)</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sidebar-panel glass-card" id="mobile-sidebar">
+                    <button class="mobile-sidebar-close" id="mobile-sidebar-close">▼ 창 닫기</button>
+                    
+                    <div class="sidebar-players-fixed">
+                        <div class="sidebar-section-title">
+                            <span>참가자 목록</span>
+                            <span class="player-count-badge">(<span id="player-count">0</span>명)</span>
+                        </div>
+                        <div id="panel-players" class="player-list-scroll"></div>
+                    </div>
+
+                    <div class="sidebar-tabbed-area">
+                        <div class="sidebar-tabs">
+                            <button class="sidebar-tab-btn active" style="width:100%;">실시간 대화</button>
+                        </div>
+
+                        <div class="sidebar-content">
+                            <div id="panel-chat" class="chat-container">
+                                <div class="chat-messages" id="chat-messages"></div>
+                                <form id="chat-form" class="chat-input-box">
+                                    <input type="text" id="chat-input" class="chat-input" placeholder="메세지를 입력하세요..." autocomplete="off">
+                                    <button type="submit" class="chat-send-btn">전송</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 제비뽑기 모달 -->
+    <div class="modal-overlay" id="draw-modal">
+        <div class="modal-box" style="text-align: center;">
+            <div style="font-size: 2.5rem; margin-bottom: 8px;">🎲</div>
+            <h3 style="font-size: 1.2rem; margin-bottom: 8px;">선 순서 제비뽑기 진행 중</h3>
+            <div class="draw-result-list" id="draw-result-list"></div>
+        </div>
+    </div>
+
+    <!-- 도움말 모달 -->
+    <div class="modal-overlay" id="help-modal">
+        <div class="modal-box help-modal-box">
+            <div class="modal-header">
+                <h3>🃏 레트로 섯다 규칙 &amp; 족보 안내</h3>
+                <button class="modal-close" id="help-modal-close">&times;</button>
+            </div>
+            
+            <div class="modal-body-scroll help-modal-body">
+                <div class="help-section">
+                    <div class="help-section-title">📋 게임 진행 순서</div>
+                    <div class="help-step-list">
+                        <div class="help-step">
+                            <div class="help-step-num">1</div>
+                            <div class="help-step-text">
+                                <strong>기본 판돈(학교값) 차감</strong><br>
+                                게임 시작 시 참가자 전원에게서 기본 판돈이 차감되어 판돈(Pot)에 모입니다.
+                            </div>
+                        </div>
+                        <div class="help-step">
+                            <div class="help-step-num">2</div>
+                            <div class="help-step-text">
+                                <strong>화투패 2장 비밀 지급</strong><br>
+                                각 참가자에게 2장의 패가 지급되며 나만 볼 수 있는 족보가 자동 계산됩니다.
+                            </div>
+                        </div>
+                        <div class="help-step">
+                            <div class="help-step-num">3</div>
+                            <div class="help-step-text">
+                                <strong>배팅 및 퀵 블러핑</strong><br>
+                                내 턴에 삥·따당·하프·콜·다이를 선택해 칩을 투척하며 퀵 도발 메시지로 심리전을 폅니다.
+                            </div>
+                        </div>
+                        <div class="help-step">
+                            <div class="help-step-num">4</div>
+                            <div class="help-step-text">
+                                <strong>패 공개 ➔ 판돈 싹쓸이!</strong><br>
+                                끝까지 남은 참가자 중 가장 높은 족보를 가진 우승자가 모든 판돈을 싹쓸이합니다!
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="help-section">
+                    <div class="help-section-title">🏆 족보 순위 (상위 ➔ 하위)</div>
+                    <div class="help-mode-grid" style="grid-template-columns: 1fr;">
+                        <div class="help-mode-card" style="text-align:left; border-color:var(--border-block);">
+                            <div style="font-weight:bold; color:#e53935; margin-bottom:4px;">1. 광땡 (최고 족보)</div>
+                            <div style="font-size:0.8rem; line-height:1.5; color:var(--text-secondary);">
+                                • <strong>삼팔광땡 (3·8)</strong>: 절대 우승 무적 족보!<br>
+                                • <strong>일팔광땡 (1·8) / 일삼광땡 (1·3)</strong>: 삼팔광땡 바로 아래 광땡.
+                            </div>
+                        </div>
+
+                        <div class="help-mode-card" style="text-align:left; border-color:var(--border-block);">
+                            <div style="font-weight:bold; color:#fb8c00; margin-bottom:4px;">2. 땡 (10장땡 ~ 1일땡)</div>
+                            <div style="font-size:0.8rem; line-height:1.5; color:var(--text-secondary);">
+                                같은 월의 패 2장이 조합된 경우.<br>
+                                • 장땡(10·10) > 9땡 > 8땡 ... > 1땡(1·1)
+                            </div>
+                        </div>
+
+                        <div class="help-mode-card" style="text-align:left; border-color:var(--border-block);">
+                            <div style="font-weight:bold; color:var(--border-accent); margin-bottom:4px;">3. 특수 알짜패</div>
+                            <div style="font-size:0.8rem; line-height:1.5; color:var(--text-secondary);">
+                                • <strong>알통 (1·2)</strong> > <strong>독사 (1·4)</strong> > <strong>구빙 (4·9)</strong> > <strong>장빙 (6·10)</strong> > <strong>장사 (4·10)</strong> > <strong>세륙 (4·6)</strong>
+                            </div>
+                        </div>
+
+                        <div class="help-mode-card" style="text-align:left; border-color:var(--border-block);">
+                            <div style="font-weight:bold; color:var(--text-secondary); margin-bottom:4px;">4. 끗 (합의 일의 자릿수)</div>
+                            <div style="font-size:0.8rem; line-height:1.5; color:var(--text-secondary);">
+                                • <strong>갑오 (9끗)</strong> > 8끗 > ... > 1끗 > <strong>망통 (0끗)</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="help-section">
+                    <div class="help-section-title">💸 배팅 버튼 용어 안내</div>
+                    <ul class="help-tip-list">
+                        <li><strong>삥</strong>: 기본 판돈만큼 배팅</li>
+                        <li><strong>따당</strong>: 앞 사람이 배팅한 금액의 2배를 배팅</li>
+                        <li><strong>하프</strong>: 현재 중앙에 모인 총 판돈의 50%를 추가 배팅</li>
+                        <li><strong>콜</strong>: 앞 사람이 판 돈만큼만 맞춰내고 계속 진행</li>
+                        <li><strong>다이</strong>: 이번 판을 포기하고 기권</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- QR코드 모달 -->
+    <div class="modal-overlay" id="qr-modal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3>초대 QR 코드</h3>
+                <button class="modal-close" id="qr-modal-close">&times;</button>
+            </div>
+            <div class="modal-body-scroll" style="text-align: center; padding: 10px;">
+                <div id="qrcode" style="display: flex; justify-content: center; margin: 10px auto;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app_seotda.js?v=20260814_v8"></script>
+</body>
+</html>

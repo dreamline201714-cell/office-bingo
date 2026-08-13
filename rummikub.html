@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>26년 재무상태표.xlsx - Excel</title>
+    
+    <link rel="stylesheet" href="common.css?v=20260814_v9">
+    <link rel="stylesheet" href="style_rummikub.css?v=20260814_v9">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+    <div id="toast-container" class="toast-container"></div>
+
+    <button class="mobile-fab" id="mobile-fab-btn">
+        💬 대화 / 목록 (<span id="mobile-player-count">0</span>명)
+    </button>
+
+    <header class="navbar">
+        <a href="index.html" class="brand" id="nav-logo">
+            <div class="brand-icon" id="brand-icon-el">🧩</div>
+            <span id="brand-title-el">Office Rummikub <small style="font-size:0.65rem; color:var(--border-accent); vertical-align:super;">LIVE</small></span>
+        </a>
+        <div class="nav-controls">
+            <div id="stealth-opacity-box" style="display:none; align-items:center; gap:4px; background:rgba(255,255,255,0.2); padding:2px 6px; border-radius:4px;">
+                <span style="font-size:10px; color:#fff;">투명도</span>
+                <input type="range" id="stealth-opacity-range" min="30" max="100" value="100" style="width:50px; cursor:pointer;">
+            </div>
+
+            <button class="icon-btn" id="btn-stealth-toggle" style="width:auto; padding:0 6px; font-weight:bold; gap:2px;" title="스텔스 모드">
+                📊 <span style="font-size:0.75rem;">스텔스</span>
+            </button>
+
+            <div class="status-badge">
+                <span class="status-dot" id="status-dot"></span>
+                <span id="status-text">연결 대기 중</span>
+            </div>
+            <button class="icon-btn" id="btn-help" title="게임 규칙">❓</button>
+            <button class="icon-btn" id="sound-toggle-btn" title="사운드 설정">🔊</button>
+            <button class="icon-btn" id="theme-toggle-btn" title="테마 변경">🌙</button>
+        </div>
+    </header>
+
+    <div class="excel-formula-bar excel-only-bar">
+        <div class="excel-cell-name">C3</div>
+        <div class="excel-fx">fx</div>
+        <input type="text" class="excel-formula-input" value='=SUM(B2:B10) + RUMMIKUB_TILE_SET("26년 재무상태표", "자산총계")' readonly>
+    </div>
+
+    <main class="container">
+        <!-- 1. 로비 섹션 -->
+        <section id="lobby-section" class="lobby-grid">
+            <div class="glass-card">
+                <div style="text-align: center; margin-bottom: 16px;">
+                    <h1 style="font-size: 1.4rem; font-weight: 700; margin-bottom: 4px;">사내 실시간 루미큐브</h1>
+                    <p style="color: var(--text-secondary); font-size: 0.85rem;">타일을 조합하여 가장 먼저 내 거치대를 비워보세요!</p>
+                </div>
+
+                <div class="tab-selector">
+                    <button class="tab-btn active" id="tab-btn-create">방 만들기</button>
+                    <button class="tab-btn" id="tab-btn-join">방 참여하기</button>
+                </div>
+
+                <form id="create-room-form">
+                    <div class="form-group">
+                        <label class="form-label" for="create-nickname">내 닉네임</label>
+                        <input type="text" id="create-nickname" class="form-input" placeholder="예: 루미마스터" maxlength="12" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="create-title">게임 방 제목 설정</label>
+                        <input type="text" id="create-title" class="form-input" value="사내 실시간 루미큐브" placeholder="예: [개발팀] 점심 내기 한판!" maxlength="20" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">턴 제한 시간 선택</label>
+                        <div class="size-options">
+                            <button type="button" class="time-btn" data-time="15">15초</button>
+                            <button type="button" class="time-btn" data-time="30">30초</button>
+                            <button type="button" class="time-btn selected" data-time="60">60초</button>
+                            <button type="button" class="time-btn" data-time="90">90초</button>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="primary-btn" id="btn-create-submit">
+                        <span>게임 방 생성하기</span>
+                    </button>
+                </form>
+
+                <form id="join-room-form" style="display: none;">
+                    <div class="form-group">
+                        <label class="form-label" for="join-nickname">내 닉네임</label>
+                        <input type="text" id="join-nickname" class="form-input" placeholder="예: 이대리" maxlength="12" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="join-room-code">방 코드 (6자리)</label>
+                        <input type="text" id="join-room-code" class="form-input" placeholder="예: RUMMY1" style="text-transform: uppercase; letter-spacing: 2px;" maxlength="8" required>
+                    </div>
+
+                    <button type="submit" class="primary-btn" id="btn-join-submit">
+                        <span>게임 방 입장하기</span>
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- 2. 게임 섹션 -->
+        <section id="arena-section" style="display: none;">
+            <div class="arena-header">
+                <div class="topic-banner">
+                    <div class="topic-info">
+                        <span class="topic-tag">RUMMIKUB</span>
+                        <span class="room-state-badge waiting" id="room-state-badge">대기 중</span>
+                        <h2 id="display-topic-title">사내 실시간 루미큐브</h2>
+                        <span style="font-size: 0.78rem; color: var(--text-secondary);" id="display-grid-info">턴 제한 시간: 60초</span>
+                    </div>
+
+                    <div class="room-share-box">
+                        <div class="room-code-badge" id="display-room-code">------</div>
+                        <button class="secondary-btn" id="btn-copy-link">링크 복사</button>
+                        <button class="secondary-btn" id="btn-show-qr">QR 코드</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ★ 방장 컨트롤 독립 박스 (style 인라인을 제거하여 JS display:flex가 100% 적용되도록 수정) ★ -->
+            <div id="host-controls" class="host-controls-box">
+                <button class="start-game-btn" id="btn-host-start">게임 시작하기!</button>
+                <button class="secondary-btn" id="btn-host-reset">대기실로 리셋</button>
+            </div>
+
+            <div class="turn-banner" id="turn-banner" style="display: none;">
+                <div class="turn-banner-header">
+                    <div class="turn-banner-left">
+                        <span>현재 턴:</span>
+                        <span class="turn-player-badge" id="turn-player-badge">내 턴입니다!</span>
+                    </div>
+                    <div class="turn-banner-right">
+                        <span class="turn-timer-text"><span id="turn-timer-num">60</span>초</span>
+                        <div class="turn-timer-track">
+                            <div class="turn-timer-fill" id="turn-timer-fill"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="arena-main">
+                <div class="board-container">
+                    <div class="rummikub-table-board" id="table-sets-container"></div>
+
+                    <div class="board-footer" id="board-footer">
+                        <div id="footer-waiting-controls" style="display: flex; gap: 6px; flex-wrap: wrap; width: 100%; align-items: center; justify-content: space-between;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <button class="primary-btn" id="btn-toggle-ready" style="width: auto; padding: 6px 14px; margin: 0; font-size:0.85rem;">준비 완료</button>
+                            </div>
+                            <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                                <button class="secondary-btn" id="btn-sort-color">색상 정렬</button>
+                                <button class="secondary-btn" id="btn-sort-number">숫자 정렬</button>
+                                <button class="primary-btn" id="btn-submit-turn" style="margin:0; padding:6px 12px; font-size:0.85rem; width:auto;">턴 완료 / 제출</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="topic-words-panel" style="background: var(--bg-surface); border: 1px solid var(--border-block); border-radius: 8px; padding: 12px;">
+                        <h4 style="font-size:0.82rem; font-weight:600; color:var(--text-secondary); margin-bottom:8px;">내 거치대 (Rack) - 타일을 선택하여 공유 테이블로 내세요</h4>
+                        <div id="my-rack-container" class="my-rack-container"></div>
+                    </div>
+                </div>
+
+                <div class="sidebar-panel glass-card" id="mobile-sidebar">
+                    <button class="mobile-sidebar-close" id="mobile-sidebar-close">▼ 창 닫기</button>
+                    
+                    <div class="sidebar-players-fixed">
+                        <div class="sidebar-section-title">
+                            <span>참가자 목록</span>
+                            <span class="player-count-badge">(<span id="player-count">0</span>명)</span>
+                        </div>
+                        <div id="panel-players" class="player-list-scroll"></div>
+                    </div>
+
+                    <div class="sidebar-tabbed-area">
+                        <div class="sidebar-tabs">
+                            <button class="sidebar-tab-btn active" style="width:100%;">실시간 대화</button>
+                        </div>
+
+                        <div class="sidebar-content">
+                            <div id="panel-chat" class="chat-container">
+                                <div class="chat-messages" id="chat-messages"></div>
+                                <form id="chat-form" class="chat-input-box">
+                                    <input type="text" id="chat-input" class="chat-input" placeholder="메세지를 입력하세요..." autocomplete="off">
+                                    <button type="submit" class="chat-send-btn">전송</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 규칙 안내 모달 -->
+    <div class="modal-overlay" id="help-modal">
+        <div class="modal-box help-modal-box">
+            <div class="modal-header">
+                <h3>🧩 루미큐브 핵심 규칙 &amp; 조작 가이드</h3>
+                <button class="modal-close" id="help-modal-close">&times;</button>
+            </div>
+            
+            <div class="modal-body-scroll help-modal-body">
+                <div class="help-section">
+                    <div class="help-section-title">📋 유효한 세트 규칙 (3장 이상)</div>
+                    <div class="help-step-list">
+                        <div class="help-step">
+                            <div class="help-step-num">1</div>
+                            <div class="help-step-text">
+                                <strong>그룹 (Group)</strong><br>
+                                <strong>같은 숫자</strong>이면서 <strong>서로 다른 색상</strong> 3장 또는 4장의 모음 (예: 빨강7, 파랑7, 검정7)
+                            </div>
+                        </div>
+                        <div class="help-step">
+                            <div class="help-step-num">2</div>
+                            <div class="help-step-text">
+                                <strong>연속 (Run)</strong><br>
+                                <strong>같은 색상</strong>이면서 <strong>연속된 숫자</strong> 3장 이상의 모음 (예: 파랑3, 파랑4, 파랑5)
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="help-section">
+                    <div class="help-section-title">🕹️ 자유로운 조합 (Manipulation)</div>
+                    <div class="help-step-list">
+                        <div class="help-step">
+                            <div class="help-step-num">★</div>
+                            <div class="help-step-text">
+                                <strong>공유 테이블 타일 분해 &amp; 이동</strong><br>
+                                내 턴에는 테이블에 나와있는 모든 타일을 1장 단위로 선택해서 내 패와 자유롭게 떼어내고, 붙이고, 새로 묶을 수 있습니다!
+                            </div>
+                        </div>
+                        <div class="help-step">
+                            <div class="help-step-num">✅</div>
+                            <div class="help-step-text">
+                                <strong>턴 완료 검증</strong><br>
+                                조합을 마친 후 <strong>[턴 완료 / 제출]</strong>을 누르면, 테이블의 모든 묶음이 유효한 세트인지 검증하여 다음 사람에게 넘깁니다.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="help-section">
+                    <div class="help-section-title">💡 기타 편의 기능</div>
+                    <ul class="help-tip-list">
+                        <li><strong>색상/숫자 정렬:</strong> 내 거치대의 정렬 방식을 바꾸면 게임이 끝날 때까지 턴마다 자동으로 정렬이 유지됩니다.</li>
+                        <li><strong>자동 오름차순 배치:</strong> 타일을 묶음에 내놓으면 숫자에 맞게 위치가 자동 정렬됩니다.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 대기실 리셋 모달 -->
+    <div class="modal-overlay" id="reset-option-modal">
+        <div class="modal-box" style="text-align: center; max-width: 400px;">
+            <h3 style="font-size: 1.1rem; margin-bottom: 10px;">대기실 리셋</h3>
+            <p style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 14px;">게임판을 초기화하고 대기실 상태로 돌아가시겠습니까?</p>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                <button class="primary-btn" id="btn-reset-confirm" style="margin:0; font-size: 0.9rem; padding: 8px;">네, 대기실로 리셋합니다</button>
+                <button class="secondary-btn" id="btn-reset-cancel" style="margin-top: 4px;">취소</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 제비뽑기 모달 -->
+    <div class="modal-overlay" id="draw-modal">
+        <div class="modal-box" style="text-align: center;">
+            <div style="font-size: 2.5rem; margin-bottom: 8px;">🎲</div>
+            <h3 style="font-size: 1.2rem; margin-bottom: 8px;">턴 순서 제비뽑기 진행 중</h3>
+            <div class="draw-result-list" id="draw-result-list"></div>
+        </div>
+    </div>
+
+    <!-- QR코드 모달 -->
+    <div class="modal-overlay" id="qr-modal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3>초대 QR 코드</h3>
+                <button class="modal-close" id="qr-modal-close">&times;</button>
+            </div>
+            <div class="modal-body-scroll" style="text-align: center; padding: 10px;">
+                <div id="qrcode" style="display: flex; justify-content: center; margin: 0 auto;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app_rummikub.js?v=20260814_v9"></script>
+</body>
+</html>

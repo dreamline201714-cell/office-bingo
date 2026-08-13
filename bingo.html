@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>26년 재무상태표.xlsx - Excel</title>
+    
+    <link rel="stylesheet" href="common.css?v=20260814_v7">
+    <link rel="stylesheet" href="style_bingo.css?v=20260814_v7">
+    
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+    <canvas id="confetti-canvas"></canvas>
+    <div id="toast-container" class="toast-container"></div>
+
+    <button class="mobile-fab" id="mobile-fab-btn">
+        💬 대화 / 목록 (<span id="mobile-player-count">1</span>명)
+    </button>
+
+    <header class="navbar">
+        <a href="index.html" class="brand" id="nav-logo">
+            <div class="brand-icon" id="brand-icon-el">🎯</div>
+            <span id="brand-title-el">Office Bingo <small style="font-size:0.65rem; color:var(--accent); vertical-align:super;">LIVE</small></span>
+        </a>
+        <div class="nav-controls">
+            <div id="stealth-opacity-box" style="display:none; align-items:center; gap:4px; background:rgba(255,255,255,0.2); padding:2px 6px; border-radius:4px;">
+                <span style="font-size:10px; color:#fff;">투명도</span>
+                <input type="range" id="stealth-opacity-range" min="30" max="100" value="100" style="width:50px; cursor:pointer;">
+            </div>
+
+            <button class="icon-btn" id="btn-stealth-toggle" style="width:auto; padding:0 6px; font-weight:bold; gap:2px;" title="스텔스 모드">
+                📊 <span style="font-size:0.75rem;">스텔스</span>
+            </button>
+
+            <div class="status-badge">
+                <span class="status-dot" id="status-dot"></span>
+                <span id="status-text">연결 대기 중</span>
+            </div>
+            <button class="icon-btn" id="btn-help" title="게임 방법">❓</button>
+            <button class="icon-btn" id="sound-toggle-btn" title="사운드 설정">🔊</button>
+            <button class="icon-btn" id="theme-toggle-btn" title="테마 변경">🌙</button>
+        </div>
+    </header>
+
+    <div class="excel-formula-bar excel-only-bar">
+        <div class="excel-cell-name">C3</div>
+        <div class="excel-fx">fx</div>
+        <input type="text" class="excel-formula-input" value='=SUM(B2:B10) + BINGO_CELL_VALUE("26년 재무상태표", "자산총계")' readonly>
+    </div>
+
+    <main class="container">
+        <!-- 1. 로비 섹션 -->
+        <section id="lobby-section" class="lobby-grid">
+            <div class="glass-card">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <h1 style="font-size: 1.6rem; font-weight: 800; margin-bottom: 6px;">사내 실시간 빙고</h1>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem;">링크 하나로 사내 동료들과 실시간 빙고 게임을 즐겨보세요.</p>
+                </div>
+
+                <div class="tab-selector">
+                    <button class="tab-btn active" id="tab-btn-create">방 만들기</button>
+                    <button class="tab-btn" id="tab-btn-join">방 참여하기</button>
+                </div>
+
+                <form id="create-room-form">
+                    <div class="form-group">
+                        <label class="form-label" for="create-nickname">내 닉네임</label>
+                        <input type="text" id="create-nickname" class="form-input" placeholder="예: 김사원 (마케팅팀)" maxlength="12">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="create-title">게임 방 제목 설정</label>
+                        <input type="text" id="create-title" class="form-input" value="사내 실시간 빙고" placeholder="예: [마케팅팀] 점심 메뉴 빙고 한판!" maxlength="20" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">게임 승패 방식 선택</label>
+                        <div class="size-options">
+                            <button type="button" class="mode-btn selected" data-mode="WINNER">승자 결정전 (1등 승리)</button>
+                            <button type="button" class="mode-btn" data-mode="LOSER">패자 결정전 (벌칙 당첨전)</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">격자 크기 선택</label>
+                        <div class="size-options">
+                            <button type="button" class="size-btn" data-size="3">3 x 3</button>
+                            <button type="button" class="size-btn" data-size="4">4 x 4</button>
+                            <button type="button" class="size-btn selected" data-size="5">5 x 5</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="create-target-lines">승리 목표 빙고 줄 수 선택</label>
+                        <select id="create-target-lines" class="form-input">
+                            <option value="1">1 줄 완성 승리</option>
+                            <option value="2">2 줄 완성 승리</option>
+                            <option value="3">3 줄 완성 승리</option>
+                            <option value="4">4 줄 완성 승리</option>
+                            <option value="5" selected>5 줄 완성 승리 (기본)</option>
+                            <option value="6">6 줄 완성 승리</option>
+                            <option value="7">7 줄 완성 승리</option>
+                            <option value="8">8 줄 완성 승리</option>
+                            <option value="9">9 줄 완성 승리</option>
+                            <option value="10">10 줄 완성 승리</option>
+                            <option value="11">11 줄 완성 승리</option>
+                            <option value="12">12 줄 올빙고 완승</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="create-topic">빙고 주제</label>
+                        <input type="text" id="create-topic" class="form-input" value="자유 주제" placeholder="예: 회식 메뉴 추천, 우리 팀원 특징">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">주제 및 단어 프리셋 선택</label>
+                        <div class="preset-chip-group" id="preset-chip-group"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="create-words">주제 단어 참고 리스트 (쉼표 또는 줄바꿈으로 구분)</label>
+                        <textarea id="create-words" class="form-textarea" rows="3" placeholder="자유 주제를 선택하여 직접 입력하거나 상단 프리셋을 선택하세요."></textarea>
+                    </div>
+
+                    <button type="submit" class="primary-btn" id="btn-create-submit">
+                        <span>게임 방 생성하기</span>
+                    </button>
+                </form>
+
+                <form id="join-room-form" style="display: none;">
+                    <div class="form-group">
+                        <label class="form-label" for="join-nickname">내 닉네임</label>
+                        <input type="text" id="join-nickname" class="form-input" placeholder="예: 이대리 (개발팀)" maxlength="12">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="join-room-code">방 코드 (6자리)</label>
+                        <input type="text" id="join-room-code" class="form-input" placeholder="예: WORK12" style="text-transform: uppercase; letter-spacing: 2px;" maxlength="8">
+                    </div>
+
+                    <button type="submit" class="primary-btn" id="btn-join-submit">
+                        <span>게임 방 입장하기</span>
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- 2. 게임 진행 섹션 -->
+        <section id="arena-section" style="display: none;">
+            <div class="arena-header">
+                <div class="topic-banner">
+                    <div class="topic-info">
+                        <span class="topic-tag">CURRENT TOPIC</span>
+                        <span class="mode-tag" id="display-game-mode">승자 결정전</span>
+                        <span class="room-state-badge waiting" id="room-state-badge">대기 중</span>
+                        <h2 id="display-topic-title">주제 이름</h2>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary);" id="display-grid-info">5x5 빙고 | 완성 목표: 5줄</span>
+                    </div>
+
+                    <div class="room-share-box">
+                        <div class="room-code-badge" id="display-room-code">ROOM123</div>
+                        <button class="secondary-btn" id="btn-copy-link">링크 복사</button>
+                        <button class="secondary-btn" id="btn-show-qr">QR 코드</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="host-controls" class="host-controls-box" style="display: none;">
+                <div id="unready-players-info" class="unready-info-text"></div>
+                <div style="text-align: right;">
+                    <button class="start-game-btn" id="btn-host-start">게임 시작하기!</button>
+                    <button class="secondary-btn" id="btn-host-reset" style="border-color: var(--accent); color: var(--accent); margin-left: 6px;">대기실로 리셋</button>
+                    <button class="secondary-btn" id="btn-host-config" style="margin-left: 6px;">주제/설정 변경</button>
+                </div>
+            </div>
+
+            <div class="turn-banner" id="turn-banner" style="display: none;">
+                <div class="turn-banner-header">
+                    <span>현재 턴: <span class="turn-player-badge" id="turn-player-badge">홍길동님</span></span>
+                    <span><span id="turn-timer-num">15</span>초</span>
+                </div>
+                <div class="turn-timer-track">
+                    <div class="turn-timer-fill" id="turn-timer-fill"></div>
+                </div>
+            </div>
+
+            <div class="arena-main">
+                <div class="board-container">
+                    <div class="board-grid" id="bingo-board-grid" data-size="5"></div>
+
+                    <div class="board-footer" id="board-footer">
+                        <div id="footer-waiting-controls" style="display: flex; gap: 6px; flex-wrap: wrap; width: 100%; align-items: center; justify-content: space-between;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <button class="primary-btn" id="btn-toggle-ready" style="width: auto; padding: 8px 14px; margin: 0; font-size:0.9rem;">준비 완료</button>
+                                <span id="empty-cell-count" class="empty-cell-counter">빈 칸: 0개</span>
+                            </div>
+                            <div style="display: flex; gap: 4px;">
+                                <button class="secondary-btn" id="btn-auto-fill">무작위 채우기</button>
+                                <button class="secondary-btn" id="btn-clear-board">비우기</button>
+                            </div>
+                        </div>
+
+                        <div id="footer-playing-controls" style="display: none; width: 100%; justify-content: space-between; align-items: center;">
+                            <div class="bingo-counter">
+                                <span>내 완성 줄 수:</span>
+                                <span class="bingo-badge" id="my-line-count">0 줄</span>
+                            </div>
+                            <span style="font-size: 0.8rem; color: var(--text-secondary);" id="turn-guide-text">내 턴에 단어를 클릭하면 모두의 보드에서 지워집니다.</span>
+                        </div>
+                    </div>
+
+                    <div class="topic-words-panel" id="topic-words-panel">
+                        <h4 style="font-size:0.85rem; margin-bottom:8px;">주제 참고 단어 목록 (클릭 시 빈 칸 자동 채우기)</h4>
+                        <div class="topic-words-chips" id="topic-words-chips"></div>
+                    </div>
+                </div>
+
+                <div class="sidebar-panel glass-card" id="mobile-sidebar">
+                    <button class="mobile-sidebar-close" id="mobile-sidebar-close">▼ 창 닫기</button>
+                    
+                    <div class="sidebar-players-fixed">
+                        <div class="sidebar-section-title">
+                            <span>참가자 목록</span>
+                            <span class="player-count-badge">(<span id="player-count">1</span>명)</span>
+                        </div>
+                        <div id="panel-players" class="player-list-scroll"></div>
+                    </div>
+
+                    <div class="sidebar-tabbed-area">
+                        <div class="sidebar-tabs">
+                            <button class="sidebar-tab-btn active" style="width:100%;">실시간 대화</button>
+                        </div>
+
+                        <div class="sidebar-content">
+                            <div id="panel-chat" class="chat-container">
+                                <div class="chat-messages" id="chat-messages"></div>
+                                <form id="chat-form" class="chat-input-box">
+                                    <input type="text" id="chat-input" class="chat-input" placeholder="메세지를 입력하세요..." autocomplete="off">
+                                    <button type="submit" class="chat-send-btn">전송</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div class="modal-overlay" id="help-modal">
+        <div class="modal-box help-modal-box">
+            <div class="modal-header">
+                <h3>🎮 게임 방법 &amp; 규칙</h3>
+                <button class="modal-close" id="help-modal-close">&times;</button>
+            </div>
+            
+            <div class="modal-body-scroll help-modal-body">
+                <div class="help-section">
+                    <div class="help-section-title">📋 게임 진행 순서</div>
+                    <div class="help-step-list">
+                        <div class="help-step">
+                            <div class="help-step-num">1</div>
+                            <div class="help-step-text">
+                                <strong>방 만들기 / 참여하기</strong><br>
+                                방장은 게임 설정 후 방을 만들고 6자리 코드를 공유합니다. 참가자는 코드·링크·QR로 입장합니다.
+                            </div>
+                        </div>
+                        <div class="help-step">
+                            <div class="help-step-num">2</div>
+                            <div class="help-step-text">
+                                <strong>나만의 빙고판 채우기</strong><br>
+                                칸을 클릭해 직접 단어를 입력하거나, 하단 추천 단어를 클릭해 자동으로 채웁니다.<br>
+                                <span class="help-tip">💡 모든 칸을 채워야 준비 완료 버튼을 누를 수 있습니다.</span>
+                            </div>
+                        </div>
+                        <div class="help-step">
+                            <div class="help-step-num">3</div>
+                            <div class="help-step-text">
+                                <strong>준비 완료 ➔ 게임 시작</strong><br>
+                                모든 참가자가 준비 완료하면 방장이 게임을 시작합니다. 자동으로 랜덤 턴 순서가 결정됩니다.
+                            </div>
+                        </div>
+                        <div class="help-step">
+                            <div class="help-step-num">4</div>
+                            <div class="help-step-text">
+                                <strong>내 턴에 단어 하나 클릭</strong><br>
+                                상단 배너에 내 이름이 뜨면 내 빙고판에서 단어를 클릭합니다. 선택한 단어는 <strong>모든 참가자의 보드에서 동시에 지워집니다.</strong><br>
+                                <span class="help-tip">⏱️ 15초 안에 선택하지 않으면 자동으로 랜덤 단어가 선택됩니다.</span>
+                            </div>
+                        </div>
+                        <div class="help-step">
+                            <div class="help-step-num">5</div>
+                            <div class="help-step-text">
+                                <strong>목표 빙고 줄 수 완성!</strong><br>
+                                빙고판의 가로·세로·대각선 줄을 완성하여 설정된 목표 줄 수(1~12줄)를 달성하면 판정합니다.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="help-section">
+                    <div class="help-section-title">🎯 게임 모드</div>
+                    <div class="help-mode-grid">
+                        <div class="help-mode-card winner">
+                            <div class="help-mode-icon">🏆</div>
+                            <div class="help-mode-name">승자 결정전</div>
+                            <div class="help-mode-desc">가장 먼저 목표 줄 수를 달성한 1인이 우승하는 모드입니다.</div>
+                        </div>
+                        <div class="help-mode-card loser">
+                            <div class="help-mode-icon">💣</div>
+                            <div class="help-mode-name">패자 결정전</div>
+                            <div class="help-mode-desc">끝까지 목표를 달성하지 못하고 남아있는 마지막 1인이 벌칙 당첨되는 모드입니다.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="help-section">
+                    <div class="help-section-title">📐 보드 크기</div>
+                    <div class="help-size-row">
+                        <div class="help-size-item">⚡ <strong>3x3</strong> (9칸) - 스피드전</div>
+                        <div class="help-size-item">🌸 <strong>4x4</strong> (16칸) - 클래식</div>
+                        <div class="help-size-item">🔥 <strong>5x5</strong> (25칸) - 정통전</div>
+                    </div>
+                </div>
+
+                <div class="help-section">
+                    <div class="help-section-title">💡 기타 팁</div>
+                    <ul class="help-tip-list">
+                        <li>참가자 목록에서 상대방 이름을 클릭하면 그 사람의 보드를 실시간으로 관전할 수 있습니다.</li>
+                        <li>대화 탭에서 모든 참가자들과 실시간 채팅이 가능합니다.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 대기실 리셋 옵션 모달 -->
+    <div class="modal-overlay" id="reset-option-modal">
+        <div class="modal-box" style="text-align: center; max-width: 400px;">
+            <h3 style="font-size: 1.2rem; margin-bottom: 10px;">대기실 리셋 방식 선택</h3>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                <button class="primary-btn" id="btn-reset-keep" style="margin:0; font-size: 0.95rem; padding: 10px;">보드 유지 (체크만 초기화)</button>
+                <button class="secondary-btn" id="btn-reset-shuffle" style="font-size: 0.95rem; padding: 10px;">보드 단어 새로 섞기</button>
+                <button class="secondary-btn" id="btn-reset-cancel" style="margin-top: 4px;">취소</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 주제/설정 변경 모달 -->
+    <div class="modal-overlay" id="config-modal">
+        <div class="modal-box" style="max-width: 520px;">
+            <div class="modal-header">
+                <h3>빙고 주제 및 설정 변경</h3>
+                <button class="modal-close" id="config-modal-close">&times;</button>
+            </div>
+            <div class="modal-body-scroll">
+                <div class="form-group">
+                    <label class="form-label" for="config-topic-input">빙고 주제</label>
+                    <input type="text" id="config-topic-input" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">격자 크기 선택</label>
+                    <div class="size-options" id="config-size-options">
+                        <button type="button" class="config-size-btn" data-size="3">3 x 3</button>
+                        <button type="button" class="config-size-btn" data-size="4">4 x 4</button>
+                        <button type="button" class="config-size-btn selected" data-size="5">5 x 5</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="config-target-lines">승리 목표 빙고 줄 수 변경</label>
+                    <select id="config-target-lines" class="form-input"></select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">프리셋 선택</label>
+                    <div class="preset-chip-group" id="config-preset-chip-group"></div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="config-words-input">주제 단어 참고 리스트</label>
+                    <textarea id="config-words-input" class="form-textarea" rows="4"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; gap: 6px; margin-top: 12px;">
+                <button class="primary-btn" id="btn-config-save" style="margin: 0; flex: 1;">설정 저장 및 적용</button>
+                <button class="secondary-btn" id="btn-config-cancel" style="width: auto;">취소</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 승리자/패배자 결과 모달 -->
+    <div class="modal-overlay" id="game-over-modal">
+        <div class="modal-box" style="text-align: center; max-width: 440px;">
+            <div id="game-over-icon" style="font-size: 3.5rem; margin-bottom: 8px;">🏆</div>
+            <h2 id="game-over-title" style="font-size: 1.5rem; font-weight: 800; margin-bottom: 6px;">게임 종료!</h2>
+            <p id="game-over-message" style="font-size: 1rem; color: var(--text-primary); margin-bottom: 16px; line-height: 1.5;"></p>
+            
+            <div style="background: var(--bg-primary); border: 2px solid var(--border-block); padding: 10px; margin-bottom: 16px; font-size: 0.85rem; color: var(--text-secondary);">
+                ⏱️ <span id="game-over-timer-num">15</span>초 후 자동으로 대기실로 돌아갑니다.
+            </div>
+
+            <button class="primary-btn" id="game-over-close-btn" style="margin: 0; width: 100%;">
+                <span>대기실로 돌아가기</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- 제비뽑기 모달 -->
+    <div class="modal-overlay" id="draw-modal">
+        <div class="modal-box" style="text-align: center;">
+            <div class="draw-spinner" id="draw-spinner" style="font-size: 3rem; margin-bottom: 12px;">🎲</div>
+            <h3 style="font-size: 1.3rem; margin-bottom: 8px;">턴 순서 제비뽑기 진행 중</h3>
+            <div class="draw-result-list" id="draw-result-list"></div>
+        </div>
+    </div>
+
+    <!-- 관전 모달 -->
+    <div class="modal-overlay" id="spectate-modal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3 id="spectate-modal-title">참가자 보드 실시간 관전</h3>
+                <button class="modal-close" id="spectate-modal-close">&times;</button>
+            </div>
+            <div class="modal-body-scroll">
+                <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;" id="spectate-modal-score">현재 0줄 완성</p>
+                <div class="spectate-grid" id="spectate-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- QR코드 모달 -->
+    <div class="modal-overlay" id="qr-modal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3>초대 QR 코드</h3>
+                <button class="modal-close" id="qr-modal-close">&times;</button>
+            </div>
+            <div class="qr-box" style="text-align: center; padding: 10px;"><div id="qrcode" style="display: flex; justify-content: center; margin: 0 auto;"></div></div>
+        </div>
+    </div>
+
+    <script src="presets.js?v=20260814_v7"></script>
+    <script src="app_bingo.js?v=20260814_v7"></script>
+</body>
+</html>

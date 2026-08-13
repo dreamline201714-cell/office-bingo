@@ -1,0 +1,106 @@
+/* style_seotda.css - High Contrast & Dark Mode Hwatu Card Support */
+
+.seotda-table-board {
+    width: 100%; max-width: 100%; min-height: 230px; margin: 0 auto;
+    background: radial-gradient(circle, #1b4d32 0%, #0e2f1f 100%);
+    border: 1px solid var(--border-block); border-radius: 8px; padding: 14px;
+    position: relative; display: flex; flex-direction: column; justify-content: space-between;
+    box-shadow: inset 0 2px 10px rgba(0,0,0,0.3);
+}
+
+.pot-center-box {
+    background: rgba(0, 0, 0, 0.55); border: 1px solid #ffd700;
+    border-radius: 6px; padding: 6px 14px; text-align: center;
+    color: #ffffff; width: 140px; margin: 0 auto; box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+.pot-title { font-size: 0.68rem; color: #ffd700; font-weight: bold; letter-spacing: 1px; }
+.pot-amount { font-size: 1.05rem; font-weight: 700; color: #ffffff; }
+
+.other-players-grid { display: flex; justify-content: space-around; margin-top: 8px; gap: 8px; flex-wrap: wrap; }
+
+/* 상대방 플레이어 자리 고대비 박스 */
+.player-seat-card {
+    background: rgba(15, 23, 42, 0.85) !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    border-radius: 6px; padding: 8px 12px; text-align: center;
+    min-width: 110px; color: #ffffff !important; 
+    box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+    backdrop-filter: blur(4px);
+}
+
+.seat-player-name {
+    font-weight: 700 !important;
+    font-size: 0.85rem !important;
+    color: #ffffff !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+}
+
+.seat-player-chips {
+    font-size: 0.75rem !important;
+    color: #38bdf8 !important;
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+.seat-player-status {
+    font-size: 0.75rem !important;
+    color: #e2e8f0 !important;
+    margin-top: 4px;
+}
+
+.table-hwatu-container { display: flex; justify-content: center; gap: 4px; margin-top: 6px; }
+.table-hwatu-card {
+    width: 40px; height: 60px; border: 1px solid #000; border-radius: 4px;
+    background: #ffffff; color: #000000; font-weight: bold;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-size: 0.75rem; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+/* ★ 화투 패 뒷면 레트로 붉은 펄 디자인 ★ */
+.hwatu-card.card-back,
+.table-hwatu-card.card-back {
+    background: linear-gradient(135deg, #b71c1c 0%, #880e4f 100%) !important;
+    border: 1px solid #5f092b !important;
+}
+
+/* ★ 다크 모드 시 화투 패 앞면/뒷면 차분한 다크 톤 매칭 ★ */
+html[data-theme="dark"] .hwatu-card.card-front,
+html[data-theme="dark"] .table-hwatu-card.card-front,
+[data-theme="dark"] .hwatu-card.card-front,
+[data-theme="dark"] .table-hwatu-card.card-front {
+    background: #2d3748 !important;
+    color: #f8fafc !important;
+    border: 1px solid #475569 !important;
+}
+
+.quick-speech-bar { display: flex; gap: 4px; margin: 10px 0; overflow-x: auto; padding-bottom: 2px; }
+.quick-btn { padding: 4px 8px; background: var(--bg-card); border: 1px solid var(--border-block); border-radius: 4px; font-size: 0.75rem; cursor: pointer; white-space: nowrap; color: var(--text-secondary); }
+.quick-btn:hover { border-color: var(--border-accent); color: var(--border-accent); }
+
+.my-seotda-hand-panel { background: var(--bg-surface); border: 1px solid var(--border-block); border-radius: 8px; padding: 12px; margin-top: 10px; }
+.my-hand-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-weight: 600; font-size: 0.88rem; }
+.my-jokbo-badge { background: rgba(46, 170, 220, 0.15); color: var(--border-accent); padding: 3px 8px; border: 1px solid var(--border-accent); border-radius: 4px; font-size: 0.8rem; font-weight: 600; }
+
+.my-cards-container { display: flex; justify-content: center; gap: 10px; margin: 8px 0; }
+.hwatu-card {
+    width: 50px; height: 76px; border: 1px solid #000; border-radius: 4px;
+    background-color: #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: #000000; font-weight: 700; cursor: pointer; transition: transform 0.15s;
+}
+.hwatu-card:hover { transform: translateY(-3px); }
+
+.betting-action-group { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px; width: 100%; }
+.bet-btn { 
+    flex: 1; min-width: 48px; padding: 8px 2px; font-weight: 600; font-size: 0.78rem; 
+    border: 1px solid var(--border-block); border-radius: 4px; background: var(--bg-card); 
+    color: var(--text-primary); cursor: pointer; text-align: center; 
+}
+.bet-btn:hover { border-color: var(--border-accent); color: var(--border-accent); }
+
+.flying-chip {
+    position: fixed; width: 18px; height: 18px; border-radius: 50%;
+    background: #ffd700; border: 1px solid #000000;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    z-index: 9999; pointer-events: none; transition: all 0.65s cubic-bezier(0.25, 1, 0.5, 1);
+}

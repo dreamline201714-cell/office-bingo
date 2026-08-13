@@ -1,0 +1,142 @@
+/* style_bingo.css - Office Bingo Fixed Stylesheet */
+
+.bingo-board-grid,
+.board-grid {
+    display: grid;
+    gap: 6px;
+    width: 100%;
+    max-width: 500px;
+    margin: 0 auto;
+    aspect-ratio: 1 / 1;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-block);
+    border-radius: 8px;
+    padding: 8px;
+    box-shadow: var(--shadow-block);
+    box-sizing: border-box;
+}
+
+/* ★ [핵심 고정] 긴 단어로 인해 열 폭이 밀려나는 현상 방지 ★ */
+.bingo-board-grid > *,
+.board-grid > * {
+    min-width: 0;
+    min-height: 0;
+}
+
+/* 빙고 타일 셀 스타일 */
+.bingo-cell {
+    background: var(--bg-card);
+    border: 1px solid var(--border-block);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2px 4px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    cursor: pointer;
+    user-select: none;
+    word-break: break-all; /* 긴 단어 강제 줄바꿈 */
+    line-height: 1.15;
+    transition: background-color 0.15s, border-color 0.15s, transform 0.1s;
+    box-shadow: var(--shadow-block-sm);
+    overflow: hidden; /* 영역 밖으로 튀어나감 방지 */
+}
+
+.bingo-cell:hover {
+    border-color: var(--border-accent);
+    transform: translateY(-2px);
+}
+
+/* 체크(마킹)된 단어 셀 */
+.bingo-cell.marked {
+    background-color: var(--border-accent) !important;
+    color: var(--text-on-accent) !important;
+    border-color: var(--border-accent) !important;
+    font-weight: 700;
+}
+
+/* 하단 주제 참고 단어 칩 패널 */
+.topic-words-panel {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-block);
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 10px;
+}
+
+.topic-words-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    max-height: 160px;
+    overflow-y: auto;
+    padding-right: 2px;
+}
+
+.topic-word-chip {
+    background: var(--bg-card);
+    border: 1px solid var(--border-block);
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 0.78rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.topic-word-chip:hover {
+    border-color: var(--border-accent);
+    color: var(--border-accent);
+}
+
+.topic-word-chip.used {
+    background: var(--bg-surface);
+    color: var(--text-muted);
+    border-color: var(--border-block);
+    text-decoration: line-through;
+    opacity: 0.6;
+    cursor: default;
+}
+
+/* 프리셋 선택 칩 그룹 (로비 및 모달 공용) */
+.preset-chip-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.preset-chip {
+    background: var(--bg-card);
+    border: 1px solid var(--border-block);
+    border-radius: 4px;
+    padding: 5px 10px;
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.preset-chip:hover,
+.preset-chip.active {
+    background: rgba(46, 170, 220, 0.15);
+    border-color: var(--border-accent);
+    color: var(--border-accent);
+    font-weight: 700;
+}
+
+/* 관전 모달 내 그리드 */
+.spectate-grid {
+    display: grid;
+    gap: 6px;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    margin: 10px 0;
+}
+.spectate-grid > * {
+    min-width: 0;
+    min-height: 0;
+}
