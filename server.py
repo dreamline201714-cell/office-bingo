@@ -172,7 +172,8 @@ def serialize_room_state(room_id, requester_ws=None):
         p_info = {
             'player_id': player['id'], 'nickname': player['nickname'],
             'is_host': player['is_host'], 'is_ready': player.get('is_ready', False),
-            'color': player['color'], 'is_current_turn': (player['id'] == current_player_id)
+            'color': player['color'], 'is_current_turn': (player['id'] == current_player_id),
+            'wins': player.get('wins', 0)  # ★ 누적 승수 클라이언트 송신 추가
         }
         if game_type == 'BINGO':
             p_info.update({
@@ -235,6 +236,10 @@ async def check_turn_timeouts():
                 elapsed = int(now - room['turn_start_time'])
                 
                 if elapsed >= limit:
+                    # 안전한 인덱스 참조
+                    if room['current_turn_index'] >= len(room['turn_order']):
+                        room['current_turn_index'] = 0
+                        
                     current_ws = room['turn_order'][room['current_turn_index']]
                     player = room['players'].get(current_ws)
                     
@@ -246,15 +251,36 @@ async def check_turn_timeouts():
                                 room['chat_logs'].append({'system': True, 'text': f"⏱️ [{player['nickname']}]님의 시간이 초과되어 타일 1장을 자동 드로우하고 턴이 넘어가셨습니다."})
                             else:
                                 room['chat_logs'].append({'system': True, 'text': f"⏱️ [{player['nickname']}]님의 시간이 초과되어 턴이 넘어가셨습니다."})
-                        
+                            room['current_turn_index'] = (room['current_turn_index'] + 1) % len(room['turn_order'])
+
                         elif room['game_type'] == 'BINGO':
                             room['chat_logs'].append({'system': True, 'text': f"⏱️ [{player['nickname']}]님의 제한 시간이 초과되어 턴이 넘어가셨습니다."})
+                            room['current_turn_index'] = (room['current_turn_index'] + 1) % len(room['turn_order'])
 
                         elif room['game_type'] == 'SEOTDA':
                             player['is_folded'] = True
                             room['chat_logs'].append({'system': True, 'text': f"⏱️ [{player['nickname']}]님이 배팅 제한시간 초과로 자동 기권(다이)되었습니다."})
+                            
+                            # 섯다 타임아웃 후 생존자 체크 및 종료 판정
+                            active_ws = [p_ws for p_ws, p in room['players'].items() if not p['is_folded']]
+                            if len(active_ws) <= 1:
+                                if len(active_ws) == 1:
+                                    winner_ws = active_ws[0]
+                                    winner = room['players'][winner_ws]
+                                    winner['chips'] += room['pot']
+                                    room['dealer_ws'] = winner_ws
+                                    room['chat_logs'].append({'system': True, 'text': f"🎉 모두 기권하여 [{winner['nickname']}]님이 {room['pot']} 칩을 획득했습니다!"})
+                                room['status'] = 'SHOWDOWN'
+                            else:
+                                next_idx = (room['current_turn_index'] + 1) % len(room['turn_order'])
+                                for _ in range(len(room['turn_order'])):
+                                    candidate_ws = room['turn_order'][next_idx]
+                                    candidate_p = room['players'][candidate_ws]
+                                    if not candidate_p['is_folded'] and candidate_p['chips'] > 0:
+                                        break
+                                    next_idx = (next_idx + 1) % len(room['turn_order'])
+                                room['current_turn_index'] = next_idx
 
-                        room['current_turn_index'] = (room['current_turn_index'] + 1) % len(room['turn_order'])
                         room['turn_start_time'] = time.time()
                         await broadcast_to_room(room_id, {'type': 'ROOM_UPDATED', 'state': None})
 
@@ -280,14 +306,14 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
             ROOMS[room_id] = {
                 'game_type': 'BINGO', 'status': 'WAITING', 'turn_time_limit': TURN_DURATION_SECONDS, 'title': title,
                 'config': {'size': size, 'target_lines': int(data.get('target_lines', size)), 'topic': data.get('topic', '자유 주제').strip() or '자유 주제', 'game_mode': data.get('game_mode', 'WINNER'), 'word_pool': data.get('word_pool', [])},
-                'players': {ws: {'id': current_player_id, 'nickname': nickname, 'is_host': True, 'is_ready': False, 'color': assigned_color, 'board': generate_player_board(data.get('word_pool', []), size), 'marked': set(), 'score': 0}},
+                'players': {ws: {'id': current_player_id, 'nickname': nickname, 'is_host': True, 'is_ready': False, 'color': assigned_color, 'board': generate_player_board(data.get('word_pool', []), size), 'marked': set(), 'score': 0, 'wins': 0}}, # ★ 'wins': 0 추가
                 'turn_order': [], 'current_turn_index': 0, 'chat_logs': []
             }
         elif game_type == 'RUMMIKUB':
             ROOMS[room_id] = {
                 'game_type': 'RUMMIKUB', 'status': 'WAITING', 'turn_time_limit': int(data.get('turn_time_limit', 60)), 'title': title,
                 'deck': [], 'table_sets': [],
-                'players': {ws: {'id': current_player_id, 'nickname': nickname, 'is_host': True, 'is_ready': False, 'rack': [], 'color': assigned_color}},
+                'players': {ws: {'id': current_player_id, 'nickname': nickname, 'is_host': True, 'is_ready': False, 'rack': [], 'color': assigned_color, 'wins': 0}}, # ★ 'wins': 0 추가
                 'turn_order': [], 'current_turn_index': 0, 'chat_logs': []
             }
         elif game_type == 'SEOTDA':
@@ -321,9 +347,9 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
         assigned_color = get_unique_color([p['color'] for p in room['players'].values()])
 
         if game_type == 'BINGO':
-            room['players'][ws] = {'id': current_player_id, 'nickname': nickname, 'is_host': False, 'is_ready': False, 'color': assigned_color, 'board': generate_player_board(room['config']['word_pool'], room['config']['size']), 'marked': set(), 'score': 0}
+            room['players'][ws] = {'id': current_player_id, 'nickname': nickname, 'is_host': False, 'is_ready': False, 'color': assigned_color, 'board': generate_player_board(room['config']['word_pool'], room['config']['size']), 'marked': set(), 'score': 0, 'wins': 0} # ★ 'wins': 0 추가
         elif game_type == 'RUMMIKUB':
-            room['players'][ws] = {'id': current_player_id, 'nickname': nickname, 'is_host': False, 'is_ready': False, 'rack': [], 'color': assigned_color}
+            room['players'][ws] = {'id': current_player_id, 'nickname': nickname, 'is_host': False, 'is_ready': False, 'rack': [], 'color': assigned_color, 'wins': 0} # ★ 'wins': 0 추가
         elif game_type == 'SEOTDA':
             start_chips = room.get('start_chips', 10000)
             room['players'][ws] = {'id': current_player_id, 'nickname': nickname, 'is_host': False, 'is_ready': False, 'color': assigned_color, 'chips': start_chips, 'current_bet': 0, 'is_folded': False, 'hand': []}
@@ -363,7 +389,11 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
         if room and room['game_type'] == 'BINGO' and room['status'] == 'PLAYING':
             current_ws = room['turn_order'][room['current_turn_index']]
             if ws == current_ws:
-                cell_index = data.get('cell_index')
+                try:
+                    cell_index = int(data.get('cell_index'))
+                except (ValueError, TypeError):
+                    return current_room_id
+
                 player = room['players'][ws]
                 board = player.get('board', [])
                 
@@ -386,9 +416,12 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
 
                         # 2. 게임 모드별 승패 및 탈출 판정 (WINNER vs LOSER)
                         if game_mode == 'WINNER':
-                            winners = [p['nickname'] for p in room['players'].values() if p['score'] >= target_lines]
+                            winners = [p for p in room['players'].values() if p['score'] >= target_lines]
                             if winners:
-                                winner_names = ", ".join(winners)
+                                # ★ 우승자 전원 승수 1 증가
+                                for w in winners:
+                                    w['wins'] = w.get('wins', 0) + 1
+                                winner_names = ", ".join([w['nickname'] for w in winners])
                                 room['chat_logs'].append({'system': True, 'text': f"🏆 축하합니다! [{winner_names}]님이 목표 ({target_lines}줄)를 달성하여 우승하셨습니다!"})
                                 room['status'] = 'WAITING'
                             else:
@@ -405,21 +438,21 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
                                     already_escaped_count += 1
                                     p['is_escaped'] = True
                                     p['escape_rank'] = already_escaped_count
+                                    # ★ 가장 먼저 탈출한 1등에게만 승수 1 증가
+                                    if already_escaped_count == 1:
+                                        p['wins'] = p.get('wins', 0) + 1
                                     newly_escaped.append(f"[{p['nickname']}] ({already_escaped_count}등 탈출!)")
 
                             if newly_escaped:
                                 room['chat_logs'].append({'system': True, 'text': f"🏃‍♂️ 탈출 성공: {', '.join(newly_escaped)}"})
 
-                            # 생존자(아직 탈출하지 못한 플레이어) 계산
                             remaining_players = [p for p in room['players'].values() if not p.get('is_escaped', False)]
 
                             if len(remaining_players) <= 1:
-                                # 꼴찌 결정 (1명 남았거나 전원 동시 탈출 시)
                                 loser_name = remaining_players[0]['nickname'] if remaining_players else "전원 탈출"
                                 room['chat_logs'].append({'system': True, 'text': f"💣 [패자 결정] 끝까지 탈출하지 못한 [{loser_name}]님이 최종 벌칙 당첨자로 결정되었습니다!"})
                                 room['status'] = 'WAITING'
                             else:
-                                # 다음 턴 탐색 (탈출한 플레이어 스킵)
                                 next_idx = (room['current_turn_index'] + 1) % len(room['turn_order'])
                                 for _ in range(len(room['turn_order'])):
                                     candidate_ws = room['turn_order'][next_idx]
@@ -499,6 +532,7 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
                 room['table_sets'] = new_table
 
                 if len(new_rack) == 0:
+                    player['wins'] = player.get('wins', 0) + 1 # ★ 타일 다 털어낸 1등 승수 1 증가
                     room['chat_logs'].append({'system': True, 'text': f"🏆 축하합니다! [{player['nickname']}]님이 모든 타일을 털어 최종 우승하셨습니다!"})
                     room['status'] = 'WAITING'
                 else:
@@ -571,29 +605,27 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
                     room['chat_logs'].append({'system': True, 'text': f"🎉 모두 기권하여 [{winner['nickname']}]님이 {room['pot']} 칩을 획득했습니다!"})
                     room['status'] = 'SHOWDOWN'
                 else:
-                    # ★ 쇼다운 판정 보완 ★
-                    # 생존자 중 배팅금이 같은지 / 올인(칩 0개) 상태인지 확인
+                    # Case 2: 배팅금 일치 여부 및 올인 여부 확인
                     highest_bet = max(room['players'][aw]['current_bet'] for aw in active_ws)
                     all_bets_settled = all(
                         (room['players'][aw]['current_bet'] == highest_bet or room['players'][aw]['chips'] == 0)
                         for aw in active_ws
                     )
                     
-                    # 배팅 판돈에 가담할 수 있는 칩 있는 플레이어가 1명 이하이거나 배팅 한 바퀴가 끝난 경우
                     can_bet_players = [aw for aw in active_ws if room['players'][aw]['chips'] > 0]
 
                     if all_bets_settled and (len(can_bet_players) <= 1 or room['betting_turns'] >= len(active_ws)):
-                        active_players = [room['players'][aw] for aw in active_ws]
-                        active_players.sort(key=lambda x: x['jokbo_score'], reverse=True)
-                        winner = active_players[0]
-                        winner_ws = [w for w, p in room['players'].items() if p['id'] == winner['id']][0]
+                        active_players_info = [(aw, room['players'][aw]) for aw in active_ws]
+                        # 족보 점수 기준 정렬
+                        active_players_info.sort(key=lambda x: x[1]['jokbo_score'], reverse=True)
                         
+                        winner_ws, winner = active_players_info[0]
                         winner['chips'] += room['pot']
                         room['dealer_ws'] = winner_ws
                         room['chat_logs'].append({'system': True, 'text': f"🏆 쪼기 결과! [{winner['nickname']}]님이 '{winner['jokbo_name']}'(으)로 {room['pot']} 칩 획득!"})
                         room['status'] = 'SHOWDOWN'
                     else:
-                        # 다음 배팅 턴 플레이어 검색 (올인하지 않고 생존한 플레이어)
+                        # 다음 턴 진행
                         next_idx = (room['current_turn_index'] + 1) % len(room['turn_order'])
                         for _ in range(len(room['turn_order'])):
                             candidate_ws = room['turn_order'][next_idx]
@@ -675,9 +707,16 @@ try:
                 room = ROOMS[current_room_id]
                 if ws in room['players']:
                     room['players'].pop(ws)
-                    if ws in room['turn_order']: room['turn_order'].remove(ws)
-                    if not room['players']: del ROOMS[current_room_id]
-                    else: await broadcast_to_room(current_room_id, {'type': 'ROOM_UPDATED', 'state': None})
+                    if ws in room['turn_order']: 
+                        room['turn_order'].remove(ws)
+                    
+                    # 방에 인원이 없으면 방 삭제, 남아있으면 인덱스 재조정
+                    if not room['players']: 
+                        del ROOMS[current_room_id]
+                    else:
+                        if room['turn_order']:
+                            room['current_turn_index'] = room['current_turn_index'] % len(room['turn_order'])
+                        await broadcast_to_room(current_room_id, {'type': 'ROOM_UPDATED', 'state': None})
         return ws
 
     async def handle_static_files(request):

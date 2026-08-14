@@ -511,10 +511,13 @@
                 ? (p.is_ready ? '<span class="ready-tag ready">준비 완료</span>' : '<span class="ready-tag waiting">작성 중...</span>')
                 : `<span style="font-size:0.75rem; font-weight:bold; color:var(--border-accent);">타일 ${p.tile_count || 0}개 ${isTurnPlayer ? '🎯' : ''}</span>`;
 
+            const winCount = p.wins || 0;
+            const winBadgeHtml = winCount > 0 ? `<span class="win-count-badge">👑 ${winCount}승</span>` : '';
+
             card.innerHTML = `
                 <div class="player-info">
                     <div class="player-avatar" style="background-color: ${avatarColor};">${firstLetter}</div>
-                    <div class="player-name">${escapeHtml(nickname)} ${p.is_host ? '<span class="host-tag">방장</span>' : ''}</div>
+                    <div class="player-name">${escapeHtml(nickname)} ${p.is_host ? '<span class="host-tag">방장</span>' : ''} ${winBadgeHtml}</div>
                 </div>
                 <div>${statusHtml}</div>
             `;

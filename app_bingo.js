@@ -604,12 +604,15 @@
                 }
             }
 
+            const winCount = p.wins || 0;
+            const winBadgeHtml = winCount > 0 ? `<span class="win-count-badge">👑 ${winCount}승</span>` : '';
+
             const card = document.createElement('div');
             card.className = 'player-card' + (p.is_escaped ? ' player-escaped' : '');
             card.innerHTML = `
                 <div class="player-info">
                     <div class="player-avatar" style="background-color: ${p.color};">${p.nickname.charAt(0)}</div>
-                    <div class="player-name">${escapeHtml(p.nickname)} ${p.is_host ? '<span class="host-tag">방장</span>' : ''}</div>
+                    <div class="player-name">${escapeHtml(p.nickname)} ${p.is_host ? '<span class="host-tag">방장</span>' : ''} ${winBadgeHtml}</div>
                 </div>
                 <div style="display:flex; align-items:center; gap:4px;">
                     ${statusHtml}

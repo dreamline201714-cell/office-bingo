@@ -455,3 +455,18 @@ body.excel-stealth-mode .primary-btn, body.excel-stealth-mode .start-game-btn:no
     padding: 8px 10px !important; /* 박스 내부 썰렁함 방지 */
     margin-bottom: 4px !important;
 }
+/* 누적 승수(1등) 뱃지 디자인 */
+.win-count-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 1px 5px;
+    background: rgba(255, 193, 7, 0.15);
+    color: #b78103;
+    border: 1px solid rgba(255, 193, 7, 0.4);
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    margin-left: 4px;
+    vertical-align: middle;
+}
