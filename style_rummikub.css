@@ -1,34 +1,88 @@
-/* style_rummikub.css - Notion Minimal Rummikub Style (Spacious & Clean) */
+/* style_rummikub.css - Notion Minimal Rummikub Style (Clean & Optimized) */
 
-/* ★ 공유 테이블 배경을 아까 좋아하셨던 은은한 노션 패널 색으로 원복 & 여백 확장 ★ */
-.rummikub-table-board {
-    width: 100%; max-width: 520px; min-height: 260px; margin: 0 auto;
-    background: var(--bg-surface) !important; 
+/* 1. 공유 테이블 전체 컨테이너 (고정 높이 및 내부 스크롤 적용) */
+.rummikub-table-board,
+#table-sets-container {
+    width: 100%;
+    max-width: 520px;
+    min-height: 320px;
+    max-height: 460px;
+    margin: 0 auto;
+    padding: 16px !important;
+    background: var(--bg-surface) !important;
     border: 1px solid var(--border-block) !important;
-    border-radius: 8px; padding: 16px !important; 
-    display: flex; flex-wrap: wrap; gap: 12px !important; align-content: flex-start;
+    border-radius: 8px;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-content: flex-start !important;
+    gap: 12px !important;
+    overflow-y: auto !important;
     box-shadow: var(--shadow-block-sm);
+    margin-bottom: 20px;
 }
 
-/* 내 거치대 영역 여백 확장 */
-.my-rack-container {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 8px !important;
-    min-height: 105px; padding: 14px !important; background: var(--bg-card);
-    border: 1px solid var(--border-block); border-radius: 8px; align-content: start;
-    margin-top: 8px;
+/* 공유 테이블 내부 스크롤바 디자인 */
+#table-sets-container::-webkit-scrollbar {
+    width: 6px;
+}
+#table-sets-container::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.18);
+    border-radius: 3px;
 }
 
-/* 📝 타일 디자인 - 시독성 및 가시성 극대화 */
+/* 2. 타일 세트 묶음 상자 (클릭 영역 확장 및 덜컹거림 완전 차단) */
+.tile-group-set {
+    display: inline-flex !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+    gap: 4px !important;
+    padding: 10px 16px !important;
+    margin: 4px !important;
+    height: fit-content !important;
+    background: #ffffff !important;
+    border: 2px dashed #d0d0d0 !important;
+    border-radius: 8px !important;
+    box-shadow: var(--shadow-block-sm);
+    cursor: pointer;
+    transition: border-color 0.15s, background-color 0.15s;
+}
+
+.tile-group-set:hover {
+    border-color: var(--border-accent, #2eaadc) !important;
+    background: #f0f9ff !important;
+}
+
+.tile-group-set .rummi-tile {
+    min-width: 38px;
+    min-height: 50px;
+}
+
+/* 가이드 버튼 태그 (방법 1 적용으로 비활성화) */
+.append-guide-tag {
+    display: none !important;
+}
+
+/* 3. 📝 타일 디자인 - 가시성 극대화 */
 .rummi-tile {
-    width: 100%; aspect-ratio: 1 / 1.35; background: #ffffff;
-    border: 1px solid #dcdccf; border-radius: 5px;
+    width: 100%;
+    aspect-ratio: 1 / 1.35;
+    background: #ffffff;
+    border: 1px solid #dcdccf;
+    border-radius: 5px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
-    display: flex; align-items: center; justify-content: center;
-    font-size: clamp(1.1rem, 3.8vw, 1.35rem) !important; font-weight: 800 !important;
-    cursor: pointer; user-select: none; transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(1.1rem, 3.8vw, 1.35rem) !important;
+    font-weight: 800 !important;
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
 
-.rummi-tile:hover { border-color: #b4b4b0; }
+.rummi-tile:hover {
+    border-color: #b4b4b0;
+}
 
 .rummi-tile.selected {
     border: 2px solid var(--border-accent) !important;
@@ -44,28 +98,43 @@
 .rummi-tile.tile-black { color: #1e293b !important; }
 .rummi-tile.tile-joker { color: #9333ea !important; }
 
-/* 공유 테이블 묶음 상자 */
-.tile-group-set {
-    display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px !important;
-    border: 1px solid var(--border-block); border-radius: 6px; 
-    background: var(--bg-card) !important;
-    box-shadow: var(--shadow-block-sm);
-    cursor: pointer; transition: border-color 0.15s;
-}
-.tile-group-set:hover { border-color: var(--border-accent); }
-
-.tile-group-set .rummi-tile {
-    min-width: 38px; min-height: 50px;
-}
-
-.append-guide-tag {
-    font-size: 0.68rem; color: var(--border-accent); font-weight: bold; background: rgba(46, 170, 220, 0.15);
-    border: 1px solid var(--border-accent); border-radius: 3px; padding: 2px 5px; white-space: nowrap;
+/* 4. 내 거치대 영역 (Rack) */
+.my-rack-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+    gap: 8px !important;
+    min-height: 105px;
+    padding: 14px !important;
+    background: var(--bg-card);
+    border: 1px solid var(--border-block);
+    border-radius: 8px;
+    align-content: start;
 }
 
-/* ★ 버튼 간격 여백 확장 및 제출 버튼 하이라이트 ★ */
+/* 5. 하단 거치대 및 조작 컨트롤 화면 바닥 밀착 고정 (Sticky) */
+.board-container > div:last-child,
+#my-rack-container {
+    position: sticky !important;
+    bottom: 0 !important;
+    z-index: 1000 !important;
+    background: var(--bg-card, #ffffff) !important;
+    box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.15) !important;
+    border-top: 2px solid var(--border-accent, #2eaadc) !important;
+    padding: 12px 16px !important;
+    border-radius: 12px 12px 0 0 !important;
+}
+
+/* 턴 완료 및 조작 버튼 위치 교정 */
 #board-footer {
     margin-top: 14px !important;
+}
+
+.rack-controls-bar,
+#board-action-buttons {
+    display: flex !important;
+    justify-content: flex-end !important;
+    gap: 8px !important;
+    margin-bottom: 8px !important;
 }
 
 #btn-submit-turn {
@@ -80,78 +149,4 @@
 #btn-submit-turn:hover {
     background: #2595c4 !important;
     transform: translateY(-1px);
-}
-/* ==========================================
-   하단 거치대(Rack) 및 조작 컨트롤 바닥 고정 (2번 방식)
-   ========================================== */
-
-/* 1. 하단 거치대 및 버튼 영역을 화면 바닥에 밀착 고정 */
-.board-container > div:last-child,
-#my-rack-container {
-    position: sticky;
-    bottom: 0;
-    z-index: 100;
-    background: var(--bg-card, #ffffff);
-    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1); /* 바닥 고정 느낌을 주는 그림자 */
-    border-top: 1px solid var(--border-block, #e0e0e0);
-    padding: 10px 12px;
-    border-radius: 8px 8px 0 0;
-}
-
-/* 2. 공유 테이블 영역 하단 여백 확보 (거치대에 가려지는 현상 방지) */
-#table-sets-container {
-    margin-bottom: 20px;
-}
-/* ==========================================
-   공유 테이블 덜컹거림 및 레이아웃 변형 방지
-   ========================================== */
-
-/* 1. 공유 테이블 전체 세트 배치 구조를 항시 가로 래핑으로 고정 */
-#table-sets-container {
-    display: flex !important;
-    flex-wrap: wrap !important;
-    align-content: flex-start !important;
-    gap: 10px !important;
-    min-height: 280px; /* 턴이 바뀌어도 최소 높이 유지 */
-    transition: none !important; /* 레이아웃 출렁거림 애니메이션 차단 */
-}
-
-/* 2. 각 타일 세트 묶음 레이아웃 고정 */
-.tile-group-set {
-    display: inline-flex !important;
-    align-items: center !important;
-    flex-wrap: nowrap !important; /* 세트 내부 타일들은 한 줄 유지 */
-    padding: 6px 8px !important;
-    margin: 0 !important;
-    height: fit-content !important;
-}
-
-/* 3. '+ 여기에 붙이기' 가이드 태그가 떠도 세트가 뚱뚱해지지 않도록 컴팩트화 */
-.append-guide-tag {
-    font-size: 0.72rem !important;
-    padding: 2px 6px !important;
-    margin-left: 6px !important;
-    white-space: nowrap !important;
-    box-shadow: 0 0 4px rgba(46, 170, 220, 0.3);
-}
-/* ==========================================
-   방법 1: 가이드 버튼 제거 및 세트 박스 피드백 강조
-   ========================================== */
-
-/* 기존 가이드 버튼 숨김 */
-.append-guide-tag {
-    display: none !important;
-}
-
-/* 세트 박스 기본 스타일 */
-.tile-group-set {
-    cursor: pointer;
-    transition: border-color 0.15s, box-shadow 0.15s;
-}
-
-/* 내 턴에서 타일을 하나 이상 선택했을 때 세트 상자 전체가 클릭 가능함을 강조 */
-body.my-turn-active .tile-group-set:hover,
-.tile-group-set:hover {
-    border-color: var(--border-accent, #2eaadc) !important;
-    box-shadow: 0 2px 8px rgba(46, 170, 220, 0.25) !important;
 }
