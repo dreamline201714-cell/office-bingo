@@ -140,3 +140,53 @@
     min-width: 0;
     min-height: 0;
 }
+/* 탈출 순위 뱃지 스타일 */
+.escape-rank-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 6px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    border-radius: 4px;
+}
+
+.escape-rank-badge.escaped {
+    background: rgba(67, 160, 71, 0.15);
+    color: #2e7d32;
+    border: 1px solid rgba(67, 160, 71, 0.4);
+}
+
+.escape-rank-badge.playing {
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-block);
+}
+
+.player-card.player-escaped {
+    opacity: 0.75;
+    background: var(--bg-surface);
+}
+/* 턴 뱃지 시각적 구분 디자인 */
+.turn-badge.my-turn {
+    background-color: var(--primary, #1E88E5);
+    color: #ffffff;
+    font-weight: bold;
+    border: 1px solid var(--primary, #1E88E5);
+    box-shadow: 0 0 6px rgba(30, 136, 229, 0.4);
+    animation: pulse-turn 1.5s infinite;
+}
+
+.turn-badge.other-turn {
+    background-color: #e0e0e0;
+    color: #616161;
+    font-weight: normal;
+    border: 1px solid #bdbdbd;
+}
+
+/* 내 턴일 때 살짝 반짝이는 애니메이션 효과 (선택사항) */
+@keyframes pulse-turn {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.03); }
+    100% { transform: scale(1); }
+}

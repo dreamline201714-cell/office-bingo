@@ -177,6 +177,7 @@ def serialize_room_state(room_id, requester_ws=None):
         if game_type == 'BINGO':
             p_info.update({
                 'is_escaped': player.get('is_escaped', False),
+                'escape_rank': player.get('escape_rank', 0),
                 'score': player.get('score', 0),
                 'board': player.get('board', []),
                 'marked': list(player.get('marked', []))
@@ -365,31 +366,70 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
                 cell_index = data.get('cell_index')
                 player = room['players'][ws]
                 board = player.get('board', [])
+                
                 if 0 <= cell_index < len(board):
                     target_word = board[cell_index].strip()
                     if target_word:
                         size = room['config']['size']
                         target_lines = room['config'].get('target_lines', size)
-                        winners = []
+                        game_mode = room['config'].get('game_mode', 'WINNER')
 
+                        # 1. 모든 참가자의 보드에서 선택된 단어 마킹 및 줄 수 계산
                         for p_ws, p in room['players'].items():
                             p_board = p.get('board', [])
                             for idx, w in enumerate(p_board):
                                 if w.strip() == target_word:
                                     p['marked'].add(idx)
                             p['score'] = calculate_bingo_lines(p_board, p['marked'], size)
-                            if p['score'] >= target_lines:
-                                winners.append(p['nickname'])
 
                         room['chat_logs'].append({'system': True, 'text': f"🎯 [{player['nickname']}]님이 '{target_word}'을(를) 선택했습니다!"})
 
-                        if winners:
-                            winner_names = ", ".join(winners)
-                            room['chat_logs'].append({'system': True, 'text': f"🏆 축하합니다! [{winner_names}]님이 목표 ({target_lines}줄)를 달성하여 승리했습니다!"})
-                            room['status'] = 'WAITING'
-                        else:
-                            room['current_turn_index'] = (room['current_turn_index'] + 1) % len(room['turn_order'])
-                            room['turn_start_time'] = time.time()
+                        # 2. 게임 모드별 승패 및 탈출 판정 (WINNER vs LOSER)
+                        if game_mode == 'WINNER':
+                            winners = [p['nickname'] for p in room['players'].values() if p['score'] >= target_lines]
+                            if winners:
+                                winner_names = ", ".join(winners)
+                                room['chat_logs'].append({'system': True, 'text': f"🏆 축하합니다! [{winner_names}]님이 목표 ({target_lines}줄)를 달성하여 우승하셨습니다!"})
+                                room['status'] = 'WAITING'
+                            else:
+                                room['current_turn_index'] = (room['current_turn_index'] + 1) % len(room['turn_order'])
+                                room['turn_start_time'] = time.time()
+
+                        elif game_mode == 'LOSER':
+                            # 새로 탈출(목표 달성)한 참가자 체크 및 탈출 순위(rank) 부여
+                            already_escaped_count = sum(1 for p in room['players'].values() if p.get('is_escaped', False))
+                            newly_escaped = []
+
+                            for p in room['players'].values():
+                                if not p.get('is_escaped', False) and p['score'] >= target_lines:
+                                    already_escaped_count += 1
+                                    p['is_escaped'] = True
+                                    p['escape_rank'] = already_escaped_count
+                                    newly_escaped.append(f"[{p['nickname']}] ({already_escaped_count}등 탈출!)")
+
+                            if newly_escaped:
+                                room['chat_logs'].append({'system': True, 'text': f"🏃‍♂️ 탈출 성공: {', '.join(newly_escaped)}"})
+
+                            # 생존자(아직 탈출하지 못한 플레이어) 계산
+                            remaining_players = [p for p in room['players'].values() if not p.get('is_escaped', False)]
+
+                            if len(remaining_players) <= 1:
+                                # 꼴찌 결정 (1명 남았거나 전원 동시 탈출 시)
+                                loser_name = remaining_players[0]['nickname'] if remaining_players else "전원 탈출"
+                                room['chat_logs'].append({'system': True, 'text': f"💣 [패자 결정] 끝까지 탈출하지 못한 [{loser_name}]님이 최종 벌칙 당첨자로 결정되었습니다!"})
+                                room['status'] = 'WAITING'
+                            else:
+                                # 다음 턴 탐색 (탈출한 플레이어 스킵)
+                                next_idx = (room['current_turn_index'] + 1) % len(room['turn_order'])
+                                for _ in range(len(room['turn_order'])):
+                                    candidate_ws = room['turn_order'][next_idx]
+                                    candidate_p = room['players'][candidate_ws]
+                                    if not candidate_p.get('is_escaped', False):
+                                        break
+                                    next_idx = (next_idx + 1) % len(room['turn_order'])
+
+                                room['current_turn_index'] = next_idx
+                                room['turn_start_time'] = time.time()
 
                         await broadcast_to_room(current_room_id, {'type': 'ROOM_UPDATED', 'state': None})
 
@@ -426,9 +466,18 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
             room['dealer_ws'] = ws
             start_seotda_round(room)
 
+        elif room['game_type'] == 'BINGO':
+            for p in room['players'].values():
+                p['marked'] = set()
+                p['score'] = 0
+                p['is_escaped'] = False
+                p['escape_rank'] = 0
+            room['chat_logs'].append({'system': True, 'text': "🎯 새로운 빙고 게임이 시작되었습니다!"})
+
         room['turn_start_time'] = time.time()
         turn_order_list = [{'rank': idx + 1, 'nickname': room['players'][s]['nickname'], 'color': room['players'][s]['color']} for idx, s in enumerate(room['turn_order'])]
         await broadcast_to_room(current_room_id, {'type': 'STARTING_DRAW', 'turn_order_list': turn_order_list, 'state': None})
+
 
     elif msg_type == 'SUBMIT_TURN':
         room = ROOMS.get(current_room_id)

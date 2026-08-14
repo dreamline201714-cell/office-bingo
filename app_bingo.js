@@ -1,5 +1,5 @@
 /**
- * Office Bingo Live Client Application Logic - Instant Config Update Fix
+ * Office Bingo Live Client Application Logic - Persist Escape Rank Badge Fix
  */
 
 (function () {
@@ -39,7 +39,6 @@
                 e.preventDefault();
                 document.body.classList.toggle('excel-stealth-mode');
                 const isStealth = document.body.classList.contains('excel-stealth-mode');
-
                 if (stealthOpacityBox) stealthOpacityBox.style.display = isStealth ? 'flex' : 'none';
 
                 if (isStealth) {
@@ -66,12 +65,8 @@
         const mobileSidebar = document.getElementById('mobile-sidebar');
         const mobileSidebarClose = document.getElementById('mobile-sidebar-close');
 
-        if (mobileFabBtn && mobileSidebar) {
-            mobileFabBtn.onclick = () => mobileSidebar.classList.add('active');
-        }
-        if (mobileSidebarClose && mobileSidebar) {
-            mobileSidebarClose.onclick = () => mobileSidebar.classList.remove('active');
-        }
+        if (mobileFabBtn && mobileSidebar) mobileFabBtn.onclick = () => mobileSidebar.classList.add('active');
+        if (mobileSidebarClose && mobileSidebar) mobileSidebarClose.onclick = () => mobileSidebar.classList.remove('active');
     }
 
     function initNavControls() {
@@ -189,11 +184,7 @@
         };
 
         socket.onmessage = (event) => {
-            try { 
-                handleServerMessage(JSON.parse(event.data)); 
-            } catch (e) {
-                console.error("웹소켓 데이터 파싱 오류:", e);
-            }
+            try { handleServerMessage(JSON.parse(event.data)); } catch (e) { console.error(e); }
         };
 
         socket.onclose = () => {
@@ -209,7 +200,7 @@
         if (socket && socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify(msgDict));
         } else {
-            showToast('서버 연결 중입니다. 잠시 후 다시 시도해주세요.');
+            showToast('서버 연결 중입니다.');
         }
     }
 
@@ -228,7 +219,7 @@
         document.getElementById('draw-modal').classList.add('active');
     }
 
-    function showGameOverModal(winners, isWinnerMode) {
+    function showGameOverModal(roomState) {
         const gameOverModal = document.getElementById('game-over-modal');
         const iconEl = document.getElementById('game-over-icon');
         const titleEl = document.getElementById('game-over-title');
@@ -236,37 +227,44 @@
         const timerNumEl = document.getElementById('game-over-timer-num');
         const closeBtn = document.getElementById('game-over-close-btn');
 
-        if (!gameOverModal) return;
+        if (!gameOverModal || !roomState) return;
 
-        const winnerNames = winners.map(w => w.nickname).join(', ');
-        const isMeWinner = winners.some(w => w.player_id === myPlayerId);
+        const isWinnerMode = (roomState.config.game_mode !== 'LOSER');
+        const targetLines = roomState.config.target_lines || roomState.config.size;
 
         if (isWinnerMode) {
+            const winners = roomState.players.filter(p => (p.score || 0) >= targetLines);
+            const winnerNames = winners.map(w => w.nickname).join(', ');
+            const isMeWinner = winners.some(w => w.player_id === myPlayerId);
+
             if (isMeWinner) {
                 if (iconEl) iconEl.innerText = '🏆';
                 if (titleEl) titleEl.innerText = '최종 우승!';
-                if (msgEl) msgEl.innerText = `축하합니다! 당신이 승리 목표를 달성하여 우승하셨습니다!`;
+                if (msgEl) msgEl.innerText = `축하합니다! 승리 목표를 달성하셨습니다!`;
                 fireConfetti();
             } else {
                 if (iconEl) iconEl.innerText = '👑';
                 if (titleEl) titleEl.innerText = '게임 종료';
-                if (msgEl) msgEl.innerText = `[${winnerNames}] 님이 승리 목표를 달성하여 우승했습니다.`;
+                if (msgEl) msgEl.innerText = `[${winnerNames}] 님이 우승하셨습니다.`;
             }
         } else {
-            if (isMeWinner) {
+            const remaining = roomState.players.filter(p => !p.is_escaped);
+            const loser = remaining.length > 0 ? remaining[0] : null;
+            const isMeLoser = loser && (loser.player_id === myPlayerId);
+
+            if (isMeLoser) {
                 if (iconEl) iconEl.innerText = '💣';
                 if (titleEl) titleEl.innerText = '벌칙 당첨!';
-                if (msgEl) msgEl.innerText = `아쉽게도 마지막까지 탈출하지 못하여 벌칙 당첨자가 되셨습니다!`;
+                if (msgEl) msgEl.innerText = `아쉽게도 끝까지 탈출하지 못하여 최종 벌칙 당첨자가 되셨습니다!`;
             } else {
                 if (iconEl) iconEl.innerText = '🎉';
                 if (titleEl) titleEl.innerText = '탈출 성공!';
-                if (msgEl) msgEl.innerText = `축하합니다! 무사히 탈출하셨습니다. (벌칙 당첨자: ${winnerNames})`;
+                if (msgEl) msgEl.innerText = `축하합니다! 무사히 탈출하셨습니다. (벌칙 당첨자: ${loser ? loser.nickname : '없음'})`;
                 fireConfetti();
             }
         }
 
         gameOverModal.classList.add('active');
-
         clearInterval(gameOverTimerInterval);
         gameOverSecondsLeft = 15;
         if (timerNumEl) timerNumEl.innerText = gameOverSecondsLeft;
@@ -312,11 +310,7 @@
                 roomState = msg.state;
 
                 if (oldStatus === 'PLAYING' && roomState.status === 'WAITING') {
-                    const targetLines = roomState.config.target_lines || roomState.config.size;
-                    const winners = roomState.players.filter(p => (p.score || 0) >= targetLines);
-                    if (winners.length > 0) {
-                        showGameOverModal(winners, roomState.config.game_mode !== 'LOSER');
-                    }
+                    showGameOverModal(roomState);
                 }
 
                 updateArenaUI();
@@ -338,7 +332,6 @@
         const total = size * size;
         const filled = myBoard.filter(w => w && w.trim().length > 0).length;
         const emptyCount = Math.max(0, total - filled);
-        
         const countEl = document.getElementById('empty-cell-count');
         if (countEl) countEl.innerText = `빈 칸: ${emptyCount}개`;
         return emptyCount;
@@ -369,7 +362,6 @@
         }
     }
 
-    // ★ [핵심 정밀 보완] 실시간 방 크기 변경 시 내 보드 크기 자동 동기화 ★
     function updateArenaUI() {
         if (!roomState) return;
         const config = roomState.config;
@@ -390,7 +382,7 @@
         const turnPlayerBadge = document.getElementById('turn-player-badge');
 
         if (displayTopicTitle) displayTopicTitle.innerText = config.topic;
-        if (displayGridInfo) displayGridInfo.innerText = `${config.size}x${config.size} 빙고 | 완성 목표: ${config.target_lines || config.size}줄`;
+        if (displayGridInfo) displayGridInfo.innerText = `${config.size}x${config.size} 빙고 | 완성 목표: ${config.target_lines || config.size}줄 (${config.game_mode === 'LOSER' ? '패자 결정전' : '승자 결정전'})`;
         if (displayRoomCode) displayRoomCode.innerText = roomState.room_id;
 
         if (status === 'WAITING') {
@@ -408,8 +400,15 @@
             const isMyTurn = (myPlayerId === roomState.current_turn_player_id);
 
             if (turnPlayerBadge) {
-                turnPlayerBadge.innerText = isMyTurn ? `내 턴입니다!` : `${turnPlayer?.nickname || '참여자'}님 턴`;
-            }
+               turnPlayerBadge.innerText = isMyTurn ? `내 턴입니다!` : `${turnPlayer?.nickname || '참여자'}님 턴`;
+    
+               // 내 턴일 때와 타인 턴일 때 클래스 구분
+               if (isMyTurn) {
+                  turnPlayerBadge.className = 'turn-badge my-turn';
+               } else {
+                 turnPlayerBadge.className = 'turn-badge other-turn';
+               }
+              }
 
             startTurnTimer(roomState.turn_time_remaining || roomState.turn_time_limit || 15, roomState.turn_time_limit || 15);
 
@@ -420,7 +419,6 @@
         }
 
         if (myPlayer) {
-            // ★ 설정된 크기와 내 보드의 크기가 다르면 바로 새 크기에 맞게 보드 자동 갱신 ★
             const targetTotalCells = config.size * config.size;
             if (!myPlayer.board || myPlayer.board.length !== targetTotalCells) {
                 const newBoard = Array(targetTotalCells).fill('');
@@ -460,7 +458,7 @@
         const bingoBoardGrid = document.getElementById('bingo-board-grid');
         if (!bingoBoardGrid) return;
         bingoBoardGrid.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
-        bingoBoardGrid.setAttribute('data-size', size); // data-size 속성 동적 주입
+        bingoBoardGrid.setAttribute('data-size', size);
         bingoBoardGrid.innerHTML = '';
         const markedSet = new Set(markedIndices || []);
 
@@ -574,6 +572,7 @@
         });
     }
 
+    // ★ [핵심 정밀 수정] 대기실(WAITING) 상태라도 지난 게임 탈출 순위 뱃지 우선 노출 ★
     function renderPlayersRoster(status) {
         const panelPlayers = document.getElementById('panel-players');
         const playerCountSpan = document.getElementById('player-count');
@@ -585,13 +584,28 @@
         if (playerCountSpan) playerCountSpan.innerText = playersList.length;
         if (mobilePlayerCount) mobilePlayerCount.innerText = playersList.length;
 
+        const isLoserMode = roomState?.config?.game_mode === 'LOSER';
+
         playersList.forEach(p => {
-            let statusHtml = (status === 'WAITING') 
-                ? (p.is_ready ? '<span class="ready-tag ready">준비 완료</span>' : '<span class="ready-tag waiting">작성 중...</span>')
-                : `<span style="font-size:0.75rem; font-weight:bold; color:var(--accent);">${p.score || 0}줄 완성</span>`;
+            let statusHtml = '';
+
+            // 탈출 정보가 남아있으면 WAITING 여부와 무관하게 탈출 순위 우선 렌더링
+            if (isLoserMode && p.is_escaped) {
+                statusHtml = `<span class="escape-rank-badge escaped">${p.escape_rank || 1}등 탈출 🏃‍♂️</span>`;
+            } else if (status === 'WAITING') {
+                statusHtml = p.is_ready 
+                    ? '<span class="ready-tag ready">준비 완료</span>' 
+                    : '<span class="ready-tag waiting">작성 중...</span>';
+            } else {
+                if (isLoserMode) {
+                    statusHtml = `<span class="escape-rank-badge playing">${p.score || 0}줄 달성 중</span>`;
+                } else {
+                    statusHtml = `<span style="font-size:0.75rem; font-weight:bold; color:var(--accent);">${p.score || 0}줄 완성</span>`;
+                }
+            }
 
             const card = document.createElement('div');
-            card.className = 'player-card';
+            card.className = 'player-card' + (p.is_escaped ? ' player-escaped' : '');
             card.innerHTML = `
                 <div class="player-info">
                     <div class="player-avatar" style="background-color: ${p.color};">${p.nickname.charAt(0)}</div>
@@ -734,7 +748,6 @@
         const btnConfigSave = document.getElementById('btn-config-save');
         const btnConfigCancel = document.getElementById('btn-config-cancel');
         const spectateModalClose = document.getElementById('spectate-modal-close');
-        const spectateModal = document.getElementById('spectate-modal');
 
         const btnCopyLink = document.getElementById('btn-copy-link');
         const btnShowQr = document.getElementById('btn-show-qr');
@@ -797,7 +810,6 @@
         if (btnResetShuffle) btnResetShuffle.onclick = () => { sendMessage({ type: 'RESET_GAME', room_id: currentRoomId, player_id: myPlayerId, keep_board: false }); if (resetOptionModal) resetOptionModal.classList.remove('active'); };
         if (btnResetCancel) btnResetCancel.onclick = () => { if (resetOptionModal) resetOptionModal.classList.remove('active'); };
 
-        // ★ [핵심 정밀 수정] 설정 저장 시 즉시 새 보드로 동기화 메시지 전송 ★
         if (btnConfigSave) {
             btnConfigSave.onclick = () => {
                 const configTopicInput = document.getElementById('config-topic-input');
@@ -808,12 +820,10 @@
                 const newWords = configWordsInput ? (configWordsInput.value || '').split('\n').map(w => w.trim()).filter(w => w) : [];
                 const newTargetLines = configTargetLinesSelect ? parseInt(configTargetLinesSelect.value) : configModalSelectedSize;
 
-                // 1. 방 설정 업데이트 메시지 전송
                 sendMessage({
                     type: 'UPDATE_CONFIG', room_id: currentRoomId, topic: newTopic, size: configModalSelectedSize || 5, target_lines: newTargetLines, word_pool: newWords, player_id: myPlayerId
                 });
 
-                // 2. 변경된 칸 크기에 맞게 내 보드 크기도 실시간 자동 초기화 메시지 즉시 전송
                 const newTotalCells = (configModalSelectedSize || 5) * (configModalSelectedSize || 5);
                 sendMessage({
                     type: 'UPDATE_BOARD', room_id: currentRoomId, board: Array(newTotalCells).fill('')
