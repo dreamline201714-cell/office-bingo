@@ -409,3 +409,49 @@ body.excel-stealth-mode .icon-btn { background: #ffffff !important; color: #107c
 .excel-formula-input { flex: 1; border: none; outline: none; font-size: 11px; color: #333; background: transparent; }
 body.excel-stealth-mode .glass-card, body.excel-stealth-mode .topic-banner, body.excel-stealth-mode .turn-banner, body.excel-stealth-mode .sidebar-panel { background: #ffffff !important; border: 1px solid #d4d4d4 !important; box-shadow: none !important; border-radius: 0px !important; }
 body.excel-stealth-mode .primary-btn, body.excel-stealth-mode .start-game-btn:not(:disabled) { background: #107c41 !important; border: 1px solid #0b582e !important; border-radius: 2px !important; }
+/* ==========================================
+   도움말 모달 여백 밀도 최적화 (여백 제거)
+   ========================================== */
+
+/* 1. 불필요한 공백 렌더링 제거 및 여백 축소 */
+#help-modal .modal-body-scroll {
+    padding: 12px 6px !important;
+    max-height: 65vh;
+    overflow-y: auto;
+    font-size: 0.88rem;
+    line-height: 1.45 !important; /* 과도한 행간 축소 */
+    color: var(--text-primary, #37352f);
+    word-break: keep-all;
+    white-space: normal !important; /* HTML 공백 여백 현상 완전 차단 */
+}
+
+/* 2. 요소 간 과도한 여백(Gap) 원천 차단 */
+#help-modal .notion-help-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px !important; /* 요소 간 간격을 8px로 대폭 축소 */
+}
+
+/* 3. 소제목 및 텍스트 상하 마진 완전 밀착 */
+#help-modal .modal-body-scroll strong,
+#help-modal .modal-body-scroll h4,
+#help-modal .modal-body-scroll b {
+    display: block;
+    margin-top: 6px !important; /* 위 여백 6px로 축소 */
+    margin-bottom: 2px !important; /* 아래 여백 2px로 축소 */
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text-primary, #111111);
+}
+
+#help-modal .modal-body-scroll p {
+    margin: 0 0 4px 0 !important; /* 본문 아래 여백 4px로 축소 */
+    color: var(--text-secondary, #555555);
+    line-height: 1.4 !important;
+}
+
+/* 4. 노션 콜아웃 박스 내부 패딩 축소 */
+.notion-callout {
+    padding: 8px 10px !important; /* 박스 내부 썰렁함 방지 */
+    margin-bottom: 4px !important;
+}

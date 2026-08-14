@@ -247,97 +247,73 @@
         </div>
     </div>
 
-    <!-- 도움말 모달 -->
-    <div class="modal-overlay" id="help-modal">
-        <div class="modal-box help-modal-box">
-            <div class="modal-header">
-                <h3>🃏 레트로 섯다 규칙 &amp; 족보 안내</h3>
-                <button class="modal-close" id="help-modal-close">&times;</button>
-            </div>
+   <!-- 도움말 모달 (섯다 노션 스타일 구조) -->
+<div id="help-modal" class="modal-overlay">
+    <div class="modal-box notion-help-modal">
+        <div class="modal-header">
+            <h3>🃏 섯다 게임 규칙 & 족보 안내</h3>
+            <button id="help-modal-close" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body-scroll notion-help-body">
             
-            <div class="modal-body-scroll help-modal-body">
-                <div class="help-section">
-                    <div class="help-section-title">📋 게임 진행 순서</div>
-                    <div class="help-step-list">
-                        <div class="help-step">
-                            <div class="help-step-num">1</div>
-                            <div class="help-step-text">
-                                <strong>기본 판돈(학교값) 차감</strong><br>
-                                게임 시작 시 참가자 전원에게서 기본 판돈이 차감되어 판돈(Pot)에 모입니다.
-                            </div>
-                        </div>
-                        <div class="help-step">
-                            <div class="help-step-num">2</div>
-                            <div class="help-step-text">
-                                <strong>화투패 2장 비밀 지급</strong><br>
-                                각 참가자에게 2장의 패가 지급되며 나만 볼 수 있는 족보가 자동 계산됩니다.
-                            </div>
-                        </div>
-                        <div class="help-step">
-                            <div class="help-step-num">3</div>
-                            <div class="help-step-text">
-                                <strong>배팅 및 퀵 블러핑</strong><br>
-                                내 턴에 삥·따당·하프·콜·다이를 선택해 칩을 투척하며 퀵 도발 메시지로 심리전을 폅니다.
-                            </div>
-                        </div>
-                        <div class="help-step">
-                            <div class="help-step-num">4</div>
-                            <div class="help-step-text">
-                                <strong>패 공개 ➔ 판돈 싹쓸이!</strong><br>
-                                끝까지 남은 참가자 중 가장 높은 족보를 가진 우승자가 모든 판돈을 싹쓸이합니다!
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="help-section">
-                    <div class="help-section-title">🏆 족보 순위 (상위 ➔ 하위)</div>
-                    <div class="help-mode-grid" style="grid-template-columns: 1fr;">
-                        <div class="help-mode-card" style="text-align:left; border-color:var(--border-block);">
-                            <div style="font-weight:bold; color:#e53935; margin-bottom:4px;">1. 광땡 (최고 족보)</div>
-                            <div style="font-size:0.8rem; line-height:1.5; color:var(--text-secondary);">
-                                • <strong>삼팔광땡 (3·8)</strong>: 절대 우승 무적 족보!<br>
-                                • <strong>일팔광땡 (1·8) / 일삼광땡 (1·3)</strong>: 삼팔광땡 바로 아래 광땡.
-                            </div>
-                        </div>
-
-                        <div class="help-mode-card" style="text-align:left; border-color:var(--border-block);">
-                            <div style="font-weight:bold; color:#fb8c00; margin-bottom:4px;">2. 땡 (10장땡 ~ 1일땡)</div>
-                            <div style="font-size:0.8rem; line-height:1.5; color:var(--text-secondary);">
-                                같은 월의 패 2장이 조합된 경우.<br>
-                                • 장땡(10·10) > 9땡 > 8땡 ... > 1땡(1·1)
-                            </div>
-                        </div>
-
-                        <div class="help-mode-card" style="text-align:left; border-color:var(--border-block);">
-                            <div style="font-weight:bold; color:var(--border-accent); margin-bottom:4px;">3. 특수 알짜패</div>
-                            <div style="font-size:0.8rem; line-height:1.5; color:var(--text-secondary);">
-                                • <strong>알통 (1·2)</strong> > <strong>독사 (1·4)</strong> > <strong>구빙 (4·9)</strong> > <strong>장빙 (6·10)</strong> > <strong>장사 (4·10)</strong> > <strong>세륙 (4·6)</strong>
-                            </div>
-                        </div>
-
-                        <div class="help-mode-card" style="text-align:left; border-color:var(--border-block);">
-                            <div style="font-weight:bold; color:var(--text-secondary); margin-bottom:4px;">4. 끗 (합의 일의 자릿수)</div>
-                            <div style="font-size:0.8rem; line-height:1.5; color:var(--text-secondary);">
-                                • <strong>갑오 (9끗)</strong> > 8끗 > ... > 1끗 > <strong>망통 (0끗)</strong>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="help-section">
-                    <div class="help-section-title">💸 배팅 버튼 용어 안내</div>
-                    <ul class="help-tip-list">
-                        <li><strong>삥</strong>: 기본 판돈만큼 배팅</li>
-                        <li><strong>따당</strong>: 앞 사람이 배팅한 금액의 2배를 배팅</li>
-                        <li><strong>하프</strong>: 현재 중앙에 모인 총 판돈의 50%를 추가 배팅</li>
-                        <li><strong>콜</strong>: 앞 사람이 판 돈만큼만 맞춰내고 계속 진행</li>
-                        <li><strong>다이</strong>: 이번 판을 포기하고 기권</li>
-                    </ul>
+            <!-- 노션 콜아웃 1단계 -->
+            <div class="notion-callout">
+                <span class="callout-icon">1️⃣</span>
+                <div class="callout-content">
+                    <strong>기본 진행 방식</strong>
+                    <p>각 참가자는 기본 판돈을 내고, 화투 패 2장씩을 부여받아 배팅 싸움을 진행합니다.</p>
+                    <div class="notion-tip">💡 심리전과 배팅(콜, 삥, 따당, 쿼터, 하프, 다이)을 통해 최후의 1인이 판돈을 가져갑니다.</div>
                 </div>
             </div>
+
+            <!-- 노션 콜아웃 2단계 -->
+            <div class="notion-callout">
+                <span class="callout-icon">2️⃣</span>
+                <div class="callout-content">
+                    <strong>핵심 족보 순위 (높은 순)</strong>
+                    <p>2장의 패 조합에 따라 족보 서열이 정해집니다.</p>
+                </div>
+            </div>
+
+            <!-- 족보 서열 카드 그룹 -->
+            <div class="notion-card-group">
+                <div class="notion-card">
+                    <h4>👑 삼광땡 / 광땡</h4>
+                    <p>3·8광땡(최강), 1·3광땡, 1·8광땡 (모든 족보를 제압하는 최강 패)</p>
+                </div>
+                <div class="notion-card">
+                    <h4>🔥 땡 (10땡~1땡)</h4>
+                    <p>같은 월(달) 2장 조합. 장땡(10땡)이 가장 높고 1땡이 가장 낮음</p>
+                </div>
+                <div class="notion-card">
+                    <h4>⚔️ 중간 특수 족보</h4>
+                    <p>알리(1·2) > 독사(1·4) > 구삐(1·9) > 장삐(1·10) > 장사(4·10) > 세륙(4·6)</p>
+                </div>
+                <div class="notion-card">
+                    <h4>🎲 끗 & 망통</h4>
+                    <p>두 패의 월 숫자를 더한 끝자리 (9끗 ~ 1끗, 0은 망통)</p>
+                </div>
+            </div>
+
+            <!-- 노션 콜아웃 3단계 -->
+            <div class="notion-callout">
+                <span class="callout-icon">3️⃣</span>
+                <div class="callout-content">
+                    <strong>특수 저격 패 (특수 규칙)</strong>
+                    <p>특정 족보를 판엎음하거나 잡을 수 있는 특수 조합입니다.</p>
+                </div>
+            </div>
+
+            <!-- 특수 패 상자 -->
+            <div class="notion-info-box">
+                <p><strong>🎯 암행어사 (4·7):</strong> 상대의 1·3광땡, 1·8광땡을 잡을 수 있음 (3·8광땡은 못 잡음)</p>
+                <p><strong>⚡ 땡잡이 (3·7):</strong> 1땡~9땡을 잡음 (장땡 및 광땡에게는 패배)</p>
+                <p><strong>🔄 멍구구사 (4·9 열끗/풍상):</strong> 알리 이하 족보와 붙을 경우 무승부 판정 후 재경기</p>
+            </div>
+
         </div>
     </div>
+</div>
 
     <!-- QR코드 모달 -->
     <div class="modal-overlay" id="qr-modal">

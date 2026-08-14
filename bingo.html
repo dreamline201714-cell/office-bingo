@@ -249,92 +249,76 @@
         </section>
     </main>
 
-    <div class="modal-overlay" id="help-modal">
-        <div class="modal-box help-modal-box">
-            <div class="modal-header">
-                <h3>🎮 게임 방법 &amp; 규칙</h3>
-                <button class="modal-close" id="help-modal-close">&times;</button>
-            </div>
+   <!-- 도움말 모달 (노션 스타일 완벽 개편) -->
+<div id="help-modal" class="modal-overlay">
+    <div class="modal-box notion-help-modal">
+        <div class="modal-header">
+            <h3>🎮 게임 방법 & 규칙</h3>
+            <button id="help-modal-close" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body-scroll notion-help-body">
             
-            <div class="modal-body-scroll help-modal-body">
-                <div class="help-section">
-                    <div class="help-section-title">📋 게임 진행 순서</div>
-                    <div class="help-step-list">
-                        <div class="help-step">
-                            <div class="help-step-num">1</div>
-                            <div class="help-step-text">
-                                <strong>방 만들기 / 참여하기</strong><br>
-                                방장은 게임 설정 후 방을 만들고 6자리 코드를 공유합니다. 참가자는 코드·링크·QR로 입장합니다.
-                            </div>
-                        </div>
-                        <div class="help-step">
-                            <div class="help-step-num">2</div>
-                            <div class="help-step-text">
-                                <strong>나만의 빙고판 채우기</strong><br>
-                                칸을 클릭해 직접 단어를 입력하거나, 하단 추천 단어를 클릭해 자동으로 채웁니다.<br>
-                                <span class="help-tip">💡 모든 칸을 채워야 준비 완료 버튼을 누를 수 있습니다.</span>
-                            </div>
-                        </div>
-                        <div class="help-step">
-                            <div class="help-step-num">3</div>
-                            <div class="help-step-text">
-                                <strong>준비 완료 ➔ 게임 시작</strong><br>
-                                모든 참가자가 준비 완료하면 방장이 게임을 시작합니다. 자동으로 랜덤 턴 순서가 결정됩니다.
-                            </div>
-                        </div>
-                        <div class="help-step">
-                            <div class="help-step-num">4</div>
-                            <div class="help-step-text">
-                                <strong>내 턴에 단어 하나 클릭</strong><br>
-                                상단 배너에 내 이름이 뜨면 내 빙고판에서 단어를 클릭합니다. 선택한 단어는 <strong>모든 참가자의 보드에서 동시에 지워집니다.</strong><br>
-                                <span class="help-tip">⏱️ 15초 안에 선택하지 않으면 자동으로 랜덤 단어가 선택됩니다.</span>
-                            </div>
-                        </div>
-                        <div class="help-step">
-                            <div class="help-step-num">5</div>
-                            <div class="help-step-text">
-                                <strong>목표 빙고 줄 수 완성!</strong><br>
-                                빙고판의 가로·세로·대각선 줄을 완성하여 설정된 목표 줄 수(1~12줄)를 달성하면 판정합니다.
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="help-section">
-                    <div class="help-section-title">🎯 게임 모드</div>
-                    <div class="help-mode-grid">
-                        <div class="help-mode-card winner">
-                            <div class="help-mode-icon">🏆</div>
-                            <div class="help-mode-name">승자 결정전</div>
-                            <div class="help-mode-desc">가장 먼저 목표 줄 수를 달성한 1인이 우승하는 모드입니다.</div>
-                        </div>
-                        <div class="help-mode-card loser">
-                            <div class="help-mode-icon">💣</div>
-                            <div class="help-mode-name">패자 결정전</div>
-                            <div class="help-mode-desc">끝까지 목표를 달성하지 못하고 남아있는 마지막 1인이 벌칙 당첨되는 모드입니다.</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="help-section">
-                    <div class="help-section-title">📐 보드 크기</div>
-                    <div class="help-size-row">
-                        <div class="help-size-item">⚡ <strong>3x3</strong> (9칸) - 스피드전</div>
-                        <div class="help-size-item">🌸 <strong>4x4</strong> (16칸) - 클래식</div>
-                        <div class="help-size-item">🔥 <strong>5x5</strong> (25칸) - 정통전</div>
-                    </div>
-                </div>
-
-                <div class="help-section">
-                    <div class="help-section-title">💡 기타 팁</div>
-                    <ul class="help-tip-list">
-                        <li>참가자 목록에서 상대방 이름을 클릭하면 그 사람의 보드를 실시간으로 관전할 수 있습니다.</li>
-                        <li>대화 탭에서 모든 참가자들과 실시간 채팅이 가능합니다.</li>
-                    </ul>
+            <!-- 노션 콜아웃 1단계 -->
+            <div class="notion-callout">
+                <span class="callout-icon">1️⃣</span>
+                <div class="callout-content">
+                    <strong>나만의 빙고판 채우기</strong>
+                    <p>칸을 클릭해 직접 단어를 입력하거나, 하단 추천 단어를 클릭해 자동으로 채웁니다.</p>
+                    <div class="notion-tip">💡 모든 칸을 채워야 준비 완료 버튼을 누를 수 있습니다.</div>
                 </div>
             </div>
+
+            <!-- 노션 콜아웃 2단계 -->
+            <div class="notion-callout">
+                <span class="callout-icon">2️⃣</span>
+                <div class="callout-content">
+                    <strong>준비 완료 ➔ 게임 시작</strong>
+                    <p>모든 참가자가 준비 완료하면 방장이 게임을 시작합니다. 자동으로 랜덤 턴 순서가 결정됩니다.</p>
+                </div>
+            </div>
+
+            <!-- 노션 콜아웃 3단계 -->
+            <div class="notion-callout">
+                <span class="callout-icon">3️⃣</span>
+                <div class="callout-content">
+                    <strong>내 턴에 단어 하나 클릭</strong>
+                    <p>상단 배너에 내 이름이 뜨면 내 빙고판에서 단어를 클릭합니다. 선택한 단어는 <strong>모든 참가자의 보드에서 동시에</strong> 지워집니다.</p>
+                    <div class="notion-tip">⏰ 15초 안에 선택하지 않으면 자동으로 랜덤 단어가 선택됩니다.</div>
+                </div>
+            </div>
+
+            <!-- 노션 콜아웃 4단계 -->
+            <div class="notion-callout">
+                <span class="callout-icon">4️⃣</span>
+                <div class="callout-content">
+                    <strong>목표 빙고 줄 수 완성!</strong>
+                    <p>빙고판의 가로·세로·대각선 줄을 완성하여 설정된 목표 줄 수(1~12줄)를 달성하면 판정합니다.</p>
+                </div>
+            </div>
+
+            <hr class="notion-divider">
+
+            <!-- 모드 안내 카드 -->
+            <div class="notion-card-group">
+                <div class="notion-card">
+                    <h4>🏆 승자 결정전</h4>
+                    <p>가장 먼저 목표 줄 수를 달성한 1인이 우승하는 모드입니다.</p>
+                </div>
+                <div class="notion-card">
+                    <h4>💣 패자 결정전</h4>
+                    <p>끝까지 목표를 달성하지 못하고 남아있는 마지막 1인이 벌칙 당첨되는 모드입니다.</p>
+                </div>
+            </div>
+
+            <!-- 기타 정보 -->
+            <div class="notion-info-box">
+                <p><strong>📐 보드 크기:</strong> 3x3(스피드전), 4x4(클래식), 5x5(정통전)</p>
+                <p><strong>💡 관전 팁:</strong> 참가자 목록에서 상대방 이름을 클릭하면 실시간으로 보드를 관전할 수 있습니다.</p>
+            </div>
+
         </div>
     </div>
+</div>
 
     <!-- 대기실 리셋 옵션 모달 -->
     <div class="modal-overlay" id="reset-option-modal">

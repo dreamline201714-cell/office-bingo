@@ -199,65 +199,73 @@
         </section>
     </main>
 
-    <!-- 규칙 안내 모달 -->
-    <div class="modal-overlay" id="help-modal">
-        <div class="modal-box help-modal-box">
-            <div class="modal-header">
-                <h3>🧩 루미큐브 핵심 규칙 &amp; 조작 가이드</h3>
-                <button class="modal-close" id="help-modal-close">&times;</button>
-            </div>
+   <!-- 도움말 모달 (루미큐브 노션 스타일 구조) -->
+<div id="help-modal" class="modal-overlay">
+    <div class="modal-box notion-help-modal">
+        <div class="modal-header">
+            <h3>🧩 루미큐브 게임 규칙 & 방법</h3>
+            <button id="help-modal-close" class="modal-close">&times;</button>
+        </div>
+        <div class="modal-body-scroll notion-help-body">
             
-            <div class="modal-body-scroll help-modal-body">
-                <div class="help-section">
-                    <div class="help-section-title">📋 유효한 세트 규칙 (3장 이상)</div>
-                    <div class="help-step-list">
-                        <div class="help-step">
-                            <div class="help-step-num">1</div>
-                            <div class="help-step-text">
-                                <strong>그룹 (Group)</strong><br>
-                                <strong>같은 숫자</strong>이면서 <strong>서로 다른 색상</strong> 3장 또는 4장의 모음 (예: 빨강7, 파랑7, 검정7)
-                            </div>
-                        </div>
-                        <div class="help-step">
-                            <div class="help-step-num">2</div>
-                            <div class="help-step-text">
-                                <strong>연속 (Run)</strong><br>
-                                <strong>같은 색상</strong>이면서 <strong>연속된 숫자</strong> 3장 이상의 모음 (예: 파랑3, 파랑4, 파랑5)
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="help-section">
-                    <div class="help-section-title">🕹️ 자유로운 조합 (Manipulation)</div>
-                    <div class="help-step-list">
-                        <div class="help-step">
-                            <div class="help-step-num">★</div>
-                            <div class="help-step-text">
-                                <strong>공유 테이블 타일 분해 &amp; 이동</strong><br>
-                                내 턴에는 테이블에 나와있는 모든 타일을 1장 단위로 선택해서 내 패와 자유롭게 떼어내고, 붙이고, 새로 묶을 수 있습니다!
-                            </div>
-                        </div>
-                        <div class="help-step">
-                            <div class="help-step-num">✅</div>
-                            <div class="help-step-text">
-                                <strong>턴 완료 검증</strong><br>
-                                조합을 마친 후 <strong>[턴 완료 / 제출]</strong>을 누르면, 테이블의 모든 묶음이 유효한 세트인지 검증하여 다음 사람에게 넘깁니다.
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="help-section">
-                    <div class="help-section-title">💡 기타 편의 기능</div>
-                    <ul class="help-tip-list">
-                        <li><strong>색상/숫자 정렬:</strong> 내 거치대의 정렬 방식을 바꾸면 게임이 끝날 때까지 턴마다 자동으로 정렬이 유지됩니다.</li>
-                        <li><strong>자동 오름차순 배치:</strong> 타일을 묶음에 내놓으면 숫자에 맞게 위치가 자동 정렬됩니다.</li>
-                    </ul>
+            <!-- 노션 콜아웃 1단계 -->
+            <div class="notion-callout">
+                <span class="callout-icon">1️⃣</span>
+                <div class="callout-content">
+                    <strong>기본 목표 & 등록 (Initial Registration)</strong>
+                    <p>자신의 대기열(Rack)에 있는 타일을 가장 먼저 모두 내놓는 사람이 승리합니다.</p>
+                    <div class="notion-tip">💡 첫 등록 시 내놓는 타일 조합의 숫자 합이 반드시 30 이상이어야 합니다.</div>
                 </div>
             </div>
+
+            <!-- 노션 콜아웃 2단계 -->
+            <div class="notion-callout">
+                <span class="callout-icon">2️⃣</span>
+                <div class="callout-content">
+                    <strong>올바른 세트 조합 규칙</strong>
+                    <p>공유 테이블에 내놓는 타일 묶음은 항상 <strong>최소 3장 이상</strong>이어야 합니다.</p>
+                </div>
+            </div>
+
+            <!-- 세트 종류 카드 그룹 -->
+            <div class="notion-card-group">
+                <div class="notion-card">
+                    <h4>🎨 그룹 (Group)</h4>
+                    <p>숫자는 같고, <strong>색상은 모두 다른</strong> 3장 또는 4장의 타일 조합</p>
+                </div>
+                <div class="notion-card">
+                    <h4>🔢 연속 (Run)</h4>
+                    <p><strong>같은 색상</strong>에 연속된 숫자로 이어지는 3장 이상의 타일 조합</p>
+                </div>
+            </div>
+
+            <!-- 노션 콜아웃 3단계 -->
+            <div class="notion-callout">
+                <span class="callout-icon">3️⃣</span>
+                <div class="callout-content">
+                    <strong>자유 재조합 (Manipulation)</strong>
+                    <p>이미 등록을 마쳤다면, 공유 테이블 위에 배치된 다른 타일들을 자유롭게 분해하고 재조합하여 내 타일을 붙일 수 있습니다.</p>
+                    <div class="notion-tip">⏰ 내놓을 타일이 없다면 '턴 넘기기(타일 1장 가져오기)'를 클릭합니다.</div>
+                </div>
+            </div>
+
+            <!-- 노션 콜아웃 4단계 -->
+            <div class="notion-callout">
+                <span class="callout-icon">4️⃣</span>
+                <div class="callout-content">
+                    <strong>조커 (Joker) 활용</strong>
+                    <p>조커 타일(★)은 어떤 색상, 어떤 숫자의 타일로도 대체하여 사용할 수 있습니다.</p>
+                </div>
+            </div>
+
+            <!-- 하단 팁 박스 -->
+            <div class="notion-info-box">
+                <p><strong>💡 팁:</strong> 제한 시간 내에 유효하지 않은 조합이 테이블에 남아있으면 턴을 제출할 수 없으니 정렬 버튼을 잘 활용하세요!</p>
+            </div>
+
         </div>
     </div>
+</div>
 
     <!-- 대기실 리셋 모달 -->
     <div class="modal-overlay" id="reset-option-modal">
