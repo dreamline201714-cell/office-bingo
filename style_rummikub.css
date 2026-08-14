@@ -81,3 +81,24 @@
     background: #2595c4 !important;
     transform: translateY(-1px);
 }
+/* ==========================================
+   하단 거치대(Rack) 및 조작 컨트롤 바닥 고정 (2번 방식)
+   ========================================== */
+
+/* 1. 하단 거치대 및 버튼 영역을 화면 바닥에 밀착 고정 */
+.board-container > div:last-child,
+#my-rack-container {
+    position: sticky;
+    bottom: 0;
+    z-index: 100;
+    background: var(--bg-card, #ffffff);
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1); /* 바닥 고정 느낌을 주는 그림자 */
+    border-top: 1px solid var(--border-block, #e0e0e0);
+    padding: 10px 12px;
+    border-radius: 8px 8px 0 0;
+}
+
+/* 2. 공유 테이블 영역 하단 여백 확보 (거치대에 가려지는 현상 방지) */
+#table-sets-container {
+    margin-bottom: 20px;
+}

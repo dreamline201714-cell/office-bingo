@@ -162,7 +162,9 @@
                 roomState = msg.state;
                 updateUI(true);
             }, 2500);
-        } else if (msg.type === 'ROOM_UPDATED') {
+        } else if (msg.type === 'GAME_OVER') {
+            showWinnerModal(msg.winner_name);
+		} else if (msg.type === 'ROOM_UPDATED') {
             roomState = msg.state;
             updateUI(false);
         } else if (msg.type === 'CHAT_MESSAGE') {
@@ -584,7 +586,33 @@
             }
         });
     }
+    function showWinnerModal(winnerName) {
+        // 이미 승자 모달이 있다면 중복 생성 방지
+        let modal = document.getElementById('winner-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'winner-modal';
+            modal.className = 'modal-overlay active';
+            modal.innerHTML = `
+                <div class="modal-box" style="text-align: center; padding: 24px;">
+                    <div style="font-size: 3.5rem; margin-bottom: 10px;">🏆</div>
+                    <h2 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 8px;">최종 우승!</h2>
+                    <p style="font-size: 1rem; color: var(--border-accent); font-weight: bold; margin-bottom: 16px;">
+                        [${escapeHtml(winnerName)}] 님이 승리하셨습니다!
+                    </p>
+                    <p style="font-size: 0.8rem; color: var(--text-muted);">잠시 후 대기실로 자동 이동합니다...</p>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        } else {
+            modal.classList.add('active');
+        }
 
+        // 3.5초 뒤 팝업 자동으로 닫기
+        setTimeout(() => {
+            if (modal) modal.classList.remove('active');
+        }, 3500);
+    }
     function initGameControls() {
         const btnToggleReady = document.getElementById('btn-toggle-ready');
         const hostStartBtn = document.getElementById('btn-host-start');

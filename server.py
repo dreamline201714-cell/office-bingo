@@ -532,14 +532,33 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
                 room['table_sets'] = new_table
 
                 if len(new_rack) == 0:
-                    player['wins'] = player.get('wins', 0) + 1 # ★ 타일 다 털어낸 1등 승수 1 증가
-                    room['chat_logs'].append({'system': True, 'text': f"🏆 축하합니다! [{player['nickname']}]님이 모든 타일을 털어 최종 우승하셨습니다!"})
-                    room['status'] = 'WAITING'
+                    player['wins'] = player.get('wins', 0) + 1
+                    winner_name = player['nickname']
+                    room['chat_logs'].append({'system': True, 'text': f"🏆 축하합니다! [{winner_name}]님이 모든 타일을 털어 최종 우승하셨습니다!"})
+                    
+                    # 1. 우승 메시지 전체 브로드캐스트 (클라이언트에서 모달 팝업 띄움)
+                    await broadcast_to_room(current_room_id, {
+                        'type': 'GAME_OVER',
+                        'winner_name': winner_name,
+                        'winner_id': player['id'],
+                        'state': None
+                    })
+
+                    # 2. 4초 후 백엔드 상태를 대기실(WAITING)로 자동 전환하고 방 갱신
+                    async def reset_to_waiting_after_delay():
+                        await asyncio.sleep(4)
+                        room['status'] = 'WAITING'
+                        room['table_sets'] = []
+                        for p in room['players'].values():
+                            p['rack'] = []
+                            p['is_ready'] = False
+                        await broadcast_to_room(current_room_id, {'type': 'ROOM_UPDATED', 'state': None})
+
+                    asyncio.create_task(reset_to_waiting_after_delay())
                 else:
                     room['current_turn_index'] = (room['current_turn_index'] + 1) % len(room['turn_order'])
                     room['turn_start_time'] = time.time()
-
-                await broadcast_to_room(current_room_id, {'type': 'ROOM_UPDATED', 'state': None})
+                    await broadcast_to_room(current_room_id, {'type': 'ROOM_UPDATED', 'state': None})
 
     elif msg_type == 'START_ROUND':
         room = ROOMS.get(current_room_id)
