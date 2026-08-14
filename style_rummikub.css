@@ -102,3 +102,56 @@
 #table-sets-container {
     margin-bottom: 20px;
 }
+/* ==========================================
+   공유 테이블 덜컹거림 및 레이아웃 변형 방지
+   ========================================== */
+
+/* 1. 공유 테이블 전체 세트 배치 구조를 항시 가로 래핑으로 고정 */
+#table-sets-container {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-content: flex-start !important;
+    gap: 10px !important;
+    min-height: 280px; /* 턴이 바뀌어도 최소 높이 유지 */
+    transition: none !important; /* 레이아웃 출렁거림 애니메이션 차단 */
+}
+
+/* 2. 각 타일 세트 묶음 레이아웃 고정 */
+.tile-group-set {
+    display: inline-flex !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important; /* 세트 내부 타일들은 한 줄 유지 */
+    padding: 6px 8px !important;
+    margin: 0 !important;
+    height: fit-content !important;
+}
+
+/* 3. '+ 여기에 붙이기' 가이드 태그가 떠도 세트가 뚱뚱해지지 않도록 컴팩트화 */
+.append-guide-tag {
+    font-size: 0.72rem !important;
+    padding: 2px 6px !important;
+    margin-left: 6px !important;
+    white-space: nowrap !important;
+    box-shadow: 0 0 4px rgba(46, 170, 220, 0.3);
+}
+/* ==========================================
+   방법 1: 가이드 버튼 제거 및 세트 박스 피드백 강조
+   ========================================== */
+
+/* 기존 가이드 버튼 숨김 */
+.append-guide-tag {
+    display: none !important;
+}
+
+/* 세트 박스 기본 스타일 */
+.tile-group-set {
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+/* 내 턴에서 타일을 하나 이상 선택했을 때 세트 상자 전체가 클릭 가능함을 강조 */
+body.my-turn-active .tile-group-set:hover,
+.tile-group-set:hover {
+    border-color: var(--border-accent, #2eaadc) !important;
+    box-shadow: 0 2px 8px rgba(46, 170, 220, 0.25) !important;
+}

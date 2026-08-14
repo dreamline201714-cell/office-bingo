@@ -432,36 +432,32 @@
                 setEl.appendChild(div);
             });
 
-            if (selectedTiles.length > 0) {
-                const guideTag = document.createElement('span');
-                guideTag.className = 'append-guide-tag';
-                guideTag.innerText = '+ 여기에 붙이기';
-                setEl.appendChild(guideTag);
-            }
+            
 
-            setEl.onclick = (e) => {
-                e.stopPropagation();
-                if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) return;
-                if (selectedTiles.length === 0) return;
+            // 세트 박스 자체를 클릭했을 때 붙이기 작동 (기존 유지)
+        setEl.onclick = (e) => {
+            e.stopPropagation();
+            if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) return;
+            if (selectedTiles.length === 0) return;
 
-                selectedTiles.forEach(st => {
-                    if (st.source === 'rack') {
-                        localRack = localRack.filter(t => t.id !== st.id);
-                    } else if (st.source === 'table') {
-                        if (localTableSets[st.setIndex]) {
-                            localTableSets[st.setIndex] = localTableSets[st.setIndex].filter(t => t.id !== st.id);
-                        }
+            selectedTiles.forEach(st => {
+                if (st.source === 'rack') {
+                    localRack = localRack.filter(t => t.id !== st.id);
+                } else if (st.source === 'table') {
+                    if (localTableSets[st.setIndex]) {
+                        localTableSets[st.setIndex] = localTableSets[st.setIndex].filter(t => t.id !== st.id);
                     }
-                });
+                }
+            });
 
-                const rawTiles = selectedTiles.map(st => ({ id: st.id, color: st.color, number: st.number, is_joker: st.is_joker }));
-                localTableSets[setIndex] = sortTileSetAuto([...localTableSets[setIndex], ...rawTiles]);
+            const rawTiles = selectedTiles.map(st => ({ id: st.id, color: st.color, number: st.number, is_joker: st.is_joker }));
+            localTableSets[setIndex] = sortTileSetAuto([...localTableSets[setIndex], ...rawTiles]);
 
-                selectedTiles = [];
-                showToast("타일을 해당 세트에 합치고 자동으로 순서를 정렬했습니다.");
-                renderRack();
-                renderTable();
-            };
+            selectedTiles = [];
+            showToast("타일을 해당 세트에 합치고 자동으로 순서를 정렬했습니다.");
+            renderRack();
+            renderTable();
+        };
 
             container.appendChild(setEl);
         });
