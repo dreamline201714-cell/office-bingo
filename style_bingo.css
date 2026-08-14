@@ -190,3 +190,42 @@
     50% { transform: scale(1.03); }
     100% { transform: scale(1); }
 }
+/* ==========================================
+   🌙 빙고 단어목록 패널 & 스크롤바 다크모드 보정
+   ========================================== */
+
+/* 웹킷 스크롤바 디자인 (다크모드 지원) */
+.topic-words-chips::-webkit-scrollbar {
+    width: 6px;
+}
+
+.topic-words-chips::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.topic-words-chips::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+}
+
+[data-theme="dark"] .topic-words-chips::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2) !important; /* 다크모드 시 하얀 스크롤바 제거 및 은은한 반투명 스크롤바 적용 */
+}
+
+/* 단어 칩 다크모드 시 이질감 제거 */
+[data-theme="dark"] .topic-word-chip {
+    background: #252525;
+    border-color: #333333;
+    color: #cccccc;
+}
+
+[data-theme="dark"] .topic-word-chip:hover {
+    border-color: var(--border-accent);
+    color: #ffffff;
+}
+
+[data-theme="dark"] .topic-word-chip.used {
+    background: #1e1e1e;
+    color: #555555;
+    border-color: #2a2a2a;
+}

@@ -22,11 +22,11 @@ html[data-theme="dark"],
     --bg-surface: #202020;
     --bg-card: #252525;
     --border-block: #2f2f2f;
-    --border-accent: #38bdf8;
+    --border-accent: #2563eb; /* 차분하고 안정감 있는 톤다운된 블루 */
     --text-primary: #d4d4d4;
     --text-secondary: #9b9b9b;
     --text-muted: #6b6b6b;
-    --text-on-accent: #000000;
+    --text-on-accent: #ffffff; /* 텍스트 가독성 확보 */
     --felt-mat-bg: #202020;
     --shadow-block: 0 2px 8px rgba(0,0,0,0.3);
     --shadow-block-sm: 0 1px 3px rgba(0,0,0,0.2);
@@ -487,4 +487,72 @@ body.excel-stealth-mode .primary-btn, body.excel-stealth-mode .start-game-btn:no
     .my-rack-container {
         padding-bottom: 16px !important;
     }
+}
+/* ==========================================
+   🌙 관전 버튼 다크모드 전용 보정
+   ========================================== */
+.spectate-btn {
+    padding: 2px 8px;
+    font-size: 0.72rem;
+    border-radius: 4px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-block);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.spectate-btn:hover {
+    border-color: var(--border-accent);
+    color: var(--text-primary);
+}
+
+/* 다크모드일 때 관전 버튼 차콜톤 매칭 */
+[data-theme="dark"] .spectate-btn {
+    background: #2b2b2b !important;
+    border-color: #3a3a3a !important;
+    color: #b0b0b0 !important;
+}
+
+[data-theme="dark"] .spectate-btn:hover {
+    background: #383838 !important;
+    color: #ffffff !important;
+    border-color: var(--border-accent) !important;
+}
+/* ==========================================
+   🌙 로비 입력창 자동완성 & Textarea 스크롤바 다크모드 보정
+   ========================================== */
+
+/* 1. 크롬/OS 자동 완성(Autofill) 시 강제로 배경이 하얗게 변하는 현상 방지 */
+[data-theme="dark"] input:-webkit-autofill,
+[data-theme="dark"] input:-webkit-autofill:hover, 
+[data-theme="dark"] input:-webkit-autofill:focus,
+[data-theme="dark"] input:-webkit-autofill:active {
+    -webkit-text-fill-color: var(--text-primary, #d4d4d4) !important;
+    -webkit-box-shadow: 0 0 0px 1000px var(--bg-card, #252525) inset !important;
+    transition: background-color 5000s ease-in-out 0s;
+}
+
+/* 2. 주제 단어 참고 리스트 (textarea) 다크모드 스크롤바 디자인 */
+.form-textarea::-webkit-scrollbar {
+    width: 6px;
+}
+
+.form-textarea::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.form-textarea::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+}
+
+[data-theme="dark"] .form-textarea::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2) !important; /* 다크모드 시 은은한 스크롤바 */
+}
+
+/* Firefox 전용 스크롤바 트랙 보정 */
+[data-theme="dark"] .form-textarea {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }

@@ -116,8 +116,10 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">주제 및 단어 프리셋 선택</label>
-                        <div class="preset-chip-group" id="preset-chip-group"></div>
+                        <label class="form-label" for="create-preset-select">주제 및 단어 프리셋 선택</label>
+                        <select id="create-preset-select" class="form-input">
+        <!-- JS(app_bingo.js)에서 PRESETS 데이터를 읽어 옵션이 자동으로 생성됩니다 -->
+                        </select>
                     </div>
 
                     <div class="form-group">
@@ -357,8 +359,10 @@
                     <select id="config-target-lines" class="form-input"></select>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">프리셋 선택</label>
-                    <div class="preset-chip-group" id="config-preset-chip-group"></div>
+                    <label class="form-label" for="config-preset-select">프리셋 선택</label>
+                    <select id="config-preset-select" class="form-input"> 
+        <!-- JS(app_bingo.js)에서 PRESETS 데이터를 읽어 옵션이 자동으로 생성됩니다 -->
+                    </select>
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="config-words-input">주제 단어 참고 리스트</label>

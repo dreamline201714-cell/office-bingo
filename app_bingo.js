@@ -98,44 +98,49 @@
         }
     }
 
-    function initPresetChips() {
-        const createGroup = document.getElementById('preset-chip-group');
-        const configGroup = document.getElementById('config-preset-chip-group');
+    function initPresetSelects() {
+		const createSelect = document.getElementById('create-preset-select');
+		const configSelect = document.getElementById('config-preset-select');
 
-        const presets = (typeof BINGO_PRESETS !== 'undefined' && Array.isArray(BINGO_PRESETS))
-            ? BINGO_PRESETS
-            : [{ id: "custom", title: "✨ 자유 주제 (직접 입력)", words: [] }];
+		const presets = (typeof BINGO_PRESETS !== 'undefined' && Array.isArray(BINGO_PRESETS))
+			? BINGO_PRESETS
+			: [{ id: "custom", title: "✨ 자유 주제 (직접 입력)", words: [] }];
 
-        function buildChips(container, isConfig) {
-            if (!container) return;
-            container.innerHTML = '';
-            presets.forEach((preset, index) => {
-                const chip = document.createElement('div');
-                chip.className = 'preset-chip' + (index === 0 ? ' active' : '');
-                chip.innerText = preset.title;
+		// 드롭다운 옵션 태그 동적 생성 함수
+		function buildSelectOptions(selectEl, isConfig) {
+			if (!selectEl) return;
+			selectEl.innerHTML = '';
 
-                chip.onclick = () => {
-                    container.querySelectorAll('.preset-chip').forEach(c => c.classList.remove('active'));
-                    chip.classList.add('active');
+			presets.forEach(preset => {
+				const opt = document.createElement('option');
+				opt.value = preset.id;
+				opt.innerText = preset.title;
+				selectEl.appendChild(opt);
+			});
 
-                    const topicInput = document.getElementById(isConfig ? 'config-topic-input' : 'create-topic');
-                    const wordsInput = document.getElementById(isConfig ? 'config-words-input' : 'create-words');
+			// 드롭다운 값 변경 이벤트 바인딩
+			selectEl.onchange = (e) => {
+				const selectedId = e.target.value;
+				const selectedPreset = presets.find(p => p.id === selectedId);
 
-                    if (preset.id === 'custom') {
-                        if (topicInput) topicInput.value = '자유 주제';
-                        if (wordsInput) wordsInput.value = '';
-                    } else {
-                        if (topicInput) topicInput.value = preset.title.replace(/^[^\s]+\s+/, '');
-                        if (wordsInput) wordsInput.value = (preset.words || []).join('\n');
-                    }
-                };
-                container.appendChild(chip);
-            });
-        }
+				const topicInput = document.getElementById(isConfig ? 'config-topic-input' : 'create-topic');
+				const wordsInput = document.getElementById(isConfig ? 'config-words-input' : 'create-words');
 
-        buildChips(createGroup, false);
-        buildChips(configGroup, true);
-    }
+				if (!selectedPreset || selectedPreset.id === 'custom') {
+					if (topicInput) topicInput.value = '자유 주제';
+					if (wordsInput) wordsInput.value = '';
+				} else {
+					// 이모지 및 접두사 제외 순수 주제명만 추출
+					if (topicInput) topicInput.value = selectedPreset.title.replace(/^[^\s]+\s+/, '');
+					// 단어들을 줄바꿈(\n) 단위로 텍스트 영역에 자동으로 채워줌
+					if (wordsInput) wordsInput.value = (selectedPreset.words || []).join('\n');
+				}
+			};
+		}
+
+		buildSelectOptions(createSelect, false);
+		buildSelectOptions(configSelect, true);
+	}
 
     function updateTargetLinesOptions(size, selectEl) {
         if (!selectEl) return;
@@ -934,7 +939,7 @@
     initStealthMode();
     initMobileSidebar();
     initNavControls();
-    initPresetChips();
+    initPresetSelects(); // ✅ 새로 작성한 initPresetSelects 함수로 호출명을 맞춰줍니다.
     initGlobalClickDelegation();
     initFormControls();
     initGameActionControls();
