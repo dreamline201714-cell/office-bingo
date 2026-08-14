@@ -18,18 +18,27 @@
 
 html[data-theme="dark"],
 [data-theme="dark"] {
-    --bg-primary: #191919;
-    --bg-surface: #202020;
-    --bg-card: #252525;
-    --border-block: #2f2f2f;
-    --border-accent: #2563eb; /* 차분하고 안정감 있는 톤다운된 블루 */
-    --text-primary: #d4d4d4;
-    --text-secondary: #9b9b9b;
-    --text-muted: #6b6b6b;
-    --text-on-accent: #ffffff; /* 텍스트 가독성 확보 */
-    --felt-mat-bg: #202020;
-    --shadow-block: 0 2px 8px rgba(0,0,0,0.3);
-    --shadow-block-sm: 0 1px 3px rgba(0,0,0,0.2);
+    /* 1단계: 가장 깊은 브라우저 바탕 배경 (완전 어두운 톤) */
+    --bg-primary: #141414; 
+    
+    /* 2단계: 메인 게임 보드판 및 상단 배너 (중간 차콜 톤) */
+    --bg-surface: #1e1e20; 
+    
+    /* 3단계: 클릭 가능한 타일, 버튼, 입력창 (가장 앞으로 튀어나오는 밝은 차콜 톤) */
+    --bg-card: #2a2a2e; 
+    
+    /* 구분을 명확히 해주는 선명한 테두리 색상 */
+    --border-block: #3f3f46; 
+    --border-accent: #2563eb; 
+    
+    /* 글자 가시성 대폭 향상 */
+    --text-primary: #f4f4f5; 
+    --text-secondary: #a1a1aa; 
+    --text-muted: #71717a; 
+    --text-on-accent: #ffffff; 
+    --felt-mat-bg: #1e1e20; 
+    --shadow-block: 0 4px 12px rgba(0, 0, 0, 0.4); 
+    --shadow-block-sm: 0 2px 5px rgba(0, 0, 0, 0.3); 
 }
 
 * { 
