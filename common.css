@@ -470,3 +470,21 @@ body.excel-stealth-mode .primary-btn, body.excel-stealth-mode .start-game-btn:no
     margin-left: 4px;
     vertical-align: middle;
 }
+/* ==========================================
+   📱 모바일 화면 전용: 대화/목록 버튼 타일 가림 방지
+   ========================================== */
+@media (max-width: 768px) {
+    /* 모바일 대화/목록 플로팅 버튼을 하단 거치대(Rack) 위쪽으로 위치 이동 */
+    #mobile-fab-btn,
+    .mobile-fab-btn,
+    .mobile-fab-container {
+        bottom: 120px !important; /* 하단 바닥 고정 거치대 박스 위로 띄움 */
+        right: 16px !important;
+        z-index: 1001 !important; /* 클릭 및 시각적 우선순위 유지 */
+    }
+
+    /* 거치대(Rack) 영역의 하단 여백 추가 보정 */
+    .my-rack-container {
+        padding-bottom: 16px !important;
+    }
+}
