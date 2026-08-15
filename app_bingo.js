@@ -1,5 +1,5 @@
 /**
- * Office Bingo Live Client Application Logic - Fully Fixed
+ * Office Bingo Live Client Application Logic - Fully Fixed & Cleaned
  */
 
 (function () {
@@ -46,7 +46,7 @@
 
     let roomState = null;
     let selectedSize = 5;
-    let selectedGameMode = 'WINNER';
+    let selectedGameMode = 'LOSER'; // ★ 기본 모드를 패자 결정전(LOSER)으로 고정
     let spectatingPlayerId = null;
     let configModalSelectedSize = 5;
 
@@ -199,16 +199,12 @@
         const urlParams = new URLSearchParams(window.location.search);
         const roomParam = urlParams.get('room');
         if (roomParam) {
-            // 방 참여하기 탭 활성화
             const joinTabBtn = document.getElementById('tab-btn-join');
             if (joinTabBtn) joinTabBtn.click();
 
-            // 방 코드 입력란에 자동 채움
             const joinCodeInput = document.getElementById('join-room-code');
             if (joinCodeInput) joinCodeInput.value = roomParam.toUpperCase();
 
-            // ★ 자동 sendMessage('JOIN_ROOM') 삭제!
-            // 사용자가 직접 닉네임을 입력하고 [게임 방 입장하기]를 누르게 유도
             showToast("초대받은 방 코드가 입력되었습니다. 닉네임을 입력 후 입장해주세요!");
         }
     }
@@ -808,8 +804,8 @@
                 selectedGameMode = modeBtn.getAttribute('data-mode') || 'LOSER';
                 const displayGameMode = document.getElementById('display-game-mode');
                 if (displayGameMode) {
-					displayGameMode.innerText = '패자 결정전';
-				}
+                    displayGameMode.innerText = '패자 결정전';
+                }
                 return;
             }
 
@@ -998,8 +994,9 @@
         const createRoomForm = document.getElementById('create-room-form');
         const joinRoomForm = document.getElementById('join-room-form');
 
+        // ★ [핵심 청소] 로컬스토리지에 저장된 기본 단어('참여자', '방장') 청소 및 자동 입력 안전 처리 ★
         const savedNick = localStorage.getItem('office_bingo_last_nickname');
-        if (savedNick) {
+        if (savedNick && savedNick !== '참여자' && savedNick !== '방장') {
             const createNickEl = document.getElementById('create-nickname');
             const joinNickEl = document.getElementById('join-nickname');
             if (createNickEl) createNickEl.value = savedNick;
@@ -1015,7 +1012,8 @@
                 const targetLinesEl = document.getElementById('create-target-lines');
                 const titleEl = document.getElementById('create-title');
 
-                const nickname = nicknameEl ? (nicknameEl.value.trim() || '김사원') : '김사원';
+                // 사용자가 직접 입력한 텍스트 최우선 추출
+                const nickname = (nicknameEl && nicknameEl.value.trim()) ? nicknameEl.value.trim() : '방장';
                 saveMyNickname(nickname);
 
                 const topic = topicEl ? (topicEl.value.trim() || '자유 주제') : '자유 주제';
@@ -1031,7 +1029,7 @@
                     size: selectedSize,
                     target_lines: targetLines,
                     topic: topic,
-                    game_mode: selectedGameMode,
+                    game_mode: 'LOSER',
                     word_pool: words
                 });
             };
@@ -1041,7 +1039,7 @@
             joinRoomForm.onsubmit = function (e) {
                 e.preventDefault();
                 const nicknameEl = document.getElementById('join-nickname');
-                // 입력창에 입력된 실제 텍스트를 최우선으로 읽고, 비어있을 때만 기본값 적용
+                // 사용자가 직접 입력한 텍스트 최우선 추출
                 const nickname = (nicknameEl && nicknameEl.value.trim()) ? nicknameEl.value.trim() : '참여자';
                 
                 saveMyNickname(nickname);
