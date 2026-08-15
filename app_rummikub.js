@@ -23,6 +23,51 @@
     let soundEnabled = true;
     let currentTheme = 'light';
 
+    // Web Audio API 합성 오디오 효과음 시스템
+    let audioCtx = null;
+    function playSoundEffect(type) {
+        if (!soundEnabled) return;
+        try {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'click') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.exponentialRampToValueAtTime(200, now + 0.05);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.05);
+                osc.start(now);
+                osc.stop(now + 0.05);
+            } else if (type === 'place') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.exponentialRampToValueAtTime(800, now + 0.08);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+                osc.start(now);
+                osc.stop(now + 0.08);
+            } else if (type === 'turn') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523.25, now); // C5
+                osc.frequency.setValueAtTime(659.25, now + 0.08); // E5
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
     function saveMyNickname(nickname) {
         if (nickname) {
             localStorage.setItem('office_rummikub_last_nickname', nickname);
@@ -212,15 +257,19 @@
 
         if (nonJokers.length === 0) return set;
 
-        const isSameColor = nonJokers.every(t => t.color === nonJokers[0].color);
-        if (isSameColor) {
-            nonJokers.sort((a, b) => a.number - b.number);
-            return [...nonJokers, ...jokers];
-        }
-
         const isSameNumber = nonJokers.every(t => t.number === nonJokers[0].number);
         if (isSameNumber) {
             nonJokers.sort((a, b) => a.color.localeCompare(b.color));
+            return [...nonJokers, ...jokers];
+        }
+
+        const isSameColor = nonJokers.every(t => t.color === nonJokers[0].color);
+        if (isSameColor) {
+            nonJokers.sort((a, b) => a.number - b.number);
+            const hasThirteen = nonJokers.some(t => t.number === 13);
+            if (hasThirteen && jokers.length > 0) {
+                return [...jokers, ...nonJokers];
+            }
             return [...nonJokers, ...jokers];
         }
 
@@ -255,10 +304,10 @@
         return false;
     }
 
-    // 세트 점수 계산 함수 (첫 등록 30점 검증용)
     function calculateSetScore(set) {
         if (!set) return 0;
         const nonJokers = set.filter(t => !t.is_joker);
+        const jokerCount = set.length - nonJokers.length;
         if (nonJokers.length === 0) return 0;
 
         const isGroup = nonJokers.every(t => t.number === nonJokers[0].number);
@@ -268,7 +317,24 @@
 
         const isSameColor = nonJokers.every(t => t.color === nonJokers[0].color);
         if (isSameColor) {
-            return nonJokers.reduce((acc, curr) => acc + curr.number, 0);
+            const sorted = [...nonJokers].sort((a, b) => a.number - b.number);
+            let scoreSum = sorted.reduce((acc, curr) => acc + curr.number, 0);
+
+            if (jokerCount > 0) {
+                let minNum = sorted[0].number;
+                let maxNum = sorted[sorted.length - 1].number;
+
+                for (let i = 0; i < jokerCount; i++) {
+                    if (maxNum >= 13) {
+                        minNum -= 1;
+                        scoreSum += minNum;
+                    } else {
+                        maxNum += 1;
+                        scoreSum += maxNum;
+                    }
+                }
+            }
+            return scoreSum;
         }
 
         return 0;
@@ -295,7 +361,12 @@
         const roomBadge = document.getElementById('room-state-badge');
 
         document.getElementById('display-room-code').innerText = roomState.room_id;
-        document.getElementById('display-grid-info').innerText = `턴 제한 시간: ${roomState.turn_time_limit || 60}초`;
+        
+        const gridInfoEl = document.getElementById('display-grid-info');
+        if (gridInfoEl) {
+            const poolCount = roomState.tile_pool_count !== undefined ? roomState.tile_pool_count : '-';
+            gridInfoEl.innerText = `턴 제한: ${roomState.turn_time_limit || 60}초 | 남은 타일 더미: ${poolCount}개`;
+        }
 
         if (status === 'WAITING') {
             if (roomBadge) { roomBadge.className = 'room-state-badge waiting'; roomBadge.innerText = '대기 중'; }
@@ -336,8 +407,8 @@
                 }
             }
 
-            // 내 턴이 새로 시작되었을 때 턴 초기 복사본 저장
             if (isMyTurn && String(previousTurnPlayerId) !== String(myPlayerId)) {
+                playSoundEffect('turn');
                 showToast("🧩 당신의 턴입니다! 자유 조합을 시작하세요!");
                 selectedTiles = [];
                 if (myPlayer && myPlayer.rack) {
@@ -364,6 +435,7 @@
         renderChatLogs();
     }
 
+    // ★ 턴 제한시간 카운트다운 및 타임아웃 시 자동 제출 처리 함수 ★
     function startClientTurnTimer(secondsLeft, totalLimit) {
         clearInterval(timerInterval);
         timerSecondsLeft = secondsLeft;
@@ -371,9 +443,26 @@
 
         timerInterval = setInterval(() => {
             timerSecondsLeft--;
-            if (timerSecondsLeft < 0) {
+            if (timerSecondsLeft <= 0) {
                 timerSecondsLeft = 0;
                 clearInterval(timerInterval);
+
+                // 시간 초과 시 내 턴이고 배치가 유효하면 자동 제출 실행
+                const isMyTurn = (String(myPlayerId) === String(roomState?.current_turn_player_id));
+                if (isMyTurn) {
+                    const originalTableCount = (initialTurnTableSets || []).flat().length;
+                    const currentTableCount = localTableSets.flat().length;
+                    const isTilePlaced = currentTableCount > originalTableCount;
+                    const invalidSet = localTableSets.find(s => !isValidRummikubSet(s));
+
+                    if (isTilePlaced && !invalidSet) {
+                        const submitBtn = document.getElementById('btn-submit-turn');
+                        if (submitBtn) {
+                            showToast("⏱️ 제한 시간이 초과되어 현재 배치가 자동으로 제출되었습니다!");
+                            submitBtn.click();
+                        }
+                    }
+                }
             }
             updateTimerBar(totalLimit);
         }, 1000);
@@ -407,6 +496,7 @@
                     return;
                 }
 
+                playSoundEffect('click');
                 if (isSel) {
                     selectedTiles = selectedTiles.filter(t => t.id !== tile.id);
                 } else {
@@ -418,7 +508,6 @@
             container.appendChild(div);
         });
 
-        // 거치대 클릭 시 테이블 타일을 거치대로 회수
         container.onclick = (e) => {
             if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) return;
             const tableSelected = selectedTiles.filter(st => st.source === 'table');
@@ -431,6 +520,7 @@
                 localRack.push({ id: st.id, color: st.color, number: st.number, is_joker: st.is_joker });
             });
 
+            playSoundEffect('place');
             selectedTiles = [];
             applyRackSort();
             renderRack();
@@ -466,14 +556,14 @@
                 div.className = `rummi-tile tile-${tile.color} ${isSel ? 'selected' : ''}`;
                 div.innerText = tile.is_joker ? '★' : tile.number;
 
-                // 개별 타일 클릭 (선택/해제)
                 div.onclick = (e) => {
-                    e.stopPropagation(); // 세트 합치기 전파 차단
+                    e.stopPropagation();
                     if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) {
                         showToast("내 턴일 때만 조작할 수 있습니다.");
                         return;
                     }
 
+                    playSoundEffect('click');
                     if (isSel) {
                         selectedTiles = selectedTiles.filter(t => t.id !== tile.id);
                     } else {
@@ -486,7 +576,6 @@
                 setEl.appendChild(div);
             });
 
-            // 세트 박스 여백 클릭 (선택한 타일 합치기)
             setEl.onclick = (e) => {
                 e.stopPropagation();
                 if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) return;
@@ -505,6 +594,7 @@
                 const rawTiles = selectedTiles.map(st => ({ id: st.id, color: st.color, number: st.number, is_joker: st.is_joker }));
                 localTableSets[setIndex] = sortTileSetAuto([...localTableSets[setIndex], ...rawTiles]);
 
+                playSoundEffect('place');
                 selectedTiles = [];
                 showToast("타일을 해당 세트에 합치고 자동으로 순서를 정렬했습니다.");
                 renderRack();
@@ -514,7 +604,6 @@
             container.appendChild(setEl);
         });
 
-        // 테이블 전체 여백 클릭 (새 세트 생성)
         container.onclick = () => {
             if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) return;
             if (selectedTiles.length === 0) return;
@@ -532,11 +621,27 @@
             const newSetRaw = selectedTiles.map(st => ({ id: st.id, color: st.color, number: st.number, is_joker: st.is_joker }));
             localTableSets.push(sortTileSetAuto(newSetRaw));
 
+            playSoundEffect('place');
             selectedTiles = [];
             showToast("선택한 타일로 새 묶음을 만들었습니다.");
             renderRack();
             renderTable();
         };
+
+        // ★ [추가] 내가 내놓은 타일이 존재할 경우 제출 버튼 시각적 강조 제어 ★
+        const submitBtn = document.getElementById('btn-submit-turn');
+        if (submitBtn) {
+            const isMyTurn = (String(myPlayerId) === String(roomState?.current_turn_player_id));
+            const originalTableCount = (initialTurnTableSets || []).flat().length;
+            const currentTableCount = localTableSets.flat().length;
+            const isTilePlaced = currentTableCount > originalTableCount;
+
+            if (isMyTurn && isTilePlaced) {
+                submitBtn.classList.add('highlight-submit');
+            } else {
+                submitBtn.classList.remove('highlight-submit');
+            }
+        }
     }
 
     function renderPlayers() {
@@ -583,10 +688,14 @@
             const nickname = String(p.nickname || '참여자');
             const firstLetter = nickname.charAt(0).toUpperCase();
             const avatarColor = p.color || 'var(--bg-surface)';
+            const tileCount = p.tile_count || 0;
+
+            const isDanger = (roomState.status === 'PLAYING' && tileCount > 0 && tileCount <= 3);
+            const dangerBadge = isDanger ? `<span class="danger-tile-badge">⚠️ ${tileCount}개 남음!</span>` : '';
 
             let statusHtml = (roomState.status === 'WAITING' || !roomState.status)
                 ? (p.is_ready ? '<span class="ready-tag ready">준비 완료</span>' : '<span class="ready-tag waiting">작성 중...</span>')
-                : `<span style="font-size:0.75rem; font-weight:bold; color:var(--border-accent);">타일 ${p.tile_count || 0}개 ${isTurnPlayer ? '🎯' : ''}</span>`;
+                : `<span style="font-size:0.75rem; font-weight:bold; color:var(--border-accent);">타일 ${tileCount}개 ${isTurnPlayer ? '🎯' : ''}</span> ${dangerBadge}`;
 
             const winCount = p.wins || 0;
             const winBadgeHtml = winCount > 0 ? `<span class="win-count-badge">👑 ${winCount}승</span>` : '';
@@ -698,7 +807,7 @@
 
         const btnSortColor = document.getElementById('btn-sort-color');
         const btnSortNumber = document.getElementById('btn-sort-number');
-        const btnResetTurn = document.getElementById('btn-reset-turn'); // 턴 초기화/무르기
+        const btnResetTurn = document.getElementById('btn-reset-turn');
         const btnSubmitTurn = document.getElementById('btn-submit-turn');
 
         const btnCopyLink = document.getElementById('btn-copy-link');
@@ -744,7 +853,6 @@
             };
         }
 
-        // 턴 초기화(무르기) 버튼
         if (btnResetTurn) {
             btnResetTurn.onclick = () => {
                 if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) return;
@@ -758,16 +866,18 @@
             };
         }
 
+        // ★ [통합] 단일 제출 / 패스 버튼 이벤트 ★
         if (btnSubmitTurn) {
             btnSubmitTurn.onclick = () => {
                 if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) {
-                    showToast("내 턴일 때만 턴을 완료할 수 있습니다!");
+                    showToast("내 턴일 때만 조작할 수 있습니다!");
                     return;
                 }
 
                 selectedTiles = [];
                 localTableSets = localTableSets.filter(s => s && s.length > 0);
 
+                // 유효하지 않은 세트가 테이블에 남아있는지 검증
                 const invalidSet = localTableSets.find(s => !isValidRummikubSet(s));
                 if (invalidSet) {
                     showToast("⚠️ 공유 테이블에 3장 미만이거나 올바르지 않은 세트 규칙이 존재합니다!");
@@ -775,24 +885,33 @@
                     return;
                 }
 
-                // 첫 등록(Initial Meld) 30점 이상 검증 (내 등록 상태가 false인 경우)
+                // 이번 턴 타일 제출 여부 판별
+                const originalTableCount = (initialTurnTableSets || []).flat().length;
+                const currentTableCount = localTableSets.flat().length;
+                const isTilePlaced = currentTableCount > originalTableCount;
+
+                // 첫 등록(Initial Meld) 30점 이상 검증
                 const myPlayer = roomState.players.find(p => String(p.player_id) === String(myPlayerId));
-                if (myPlayer && !myPlayer.has_opened) {
-                    const originalTableCount = (initialTurnTableSets || []).flat().length;
-                    const currentTableCount = localTableSets.flat().length;
+                if (myPlayer && !myPlayer.has_opened && isTilePlaced) {
+                    let newlyPlacedScore = 0;
+                    localTableSets.forEach(set => {
+                        newlyPlacedScore += calculateSetScore(set);
+                    });
 
-                    if (currentTableCount > originalTableCount) {
-                        // 새로 제출한 세트들의 점수 합계 계산
-                        let newlyPlacedScore = 0;
-                        localTableSets.forEach(set => {
-                            newlyPlacedScore += calculateSetScore(set);
-                        });
-
-                        if (newlyPlacedScore < 30) {
-                            showToast(`⚠️ 첫 등록 점수 합계가 30점 이상이어야 합니다! (현재: ${newlyPlacedScore}점)`);
-                            return;
-                        }
+                    if (newlyPlacedScore < 30) {
+                        showToast(`⚠️ 첫 등록 점수 합계가 30점 이상이어야 합니다! (현재: ${newlyPlacedScore}점)`);
+                        return;
                     }
+                }
+
+                // 제출 완료 시 버튼 강조 클래스 제거
+                btnSubmitTurn.classList.remove('highlight-submit');
+
+                // 플레이어 동작 방식에 맞춘 토스트 안내
+                if (isTilePlaced) {
+                    showToast("타일 배치를 완료하고 턴을 마칩니다.");
+                } else {
+                    showToast("타일 1장을 가져오고 턴을 넘깁니다.");
                 }
 
                 sendMessage({ type: 'SUBMIT_TURN', room_id: currentRoomId, table_sets: localTableSets, rack: localRack });

@@ -6,7 +6,7 @@
     <title>26년 재무상태표.xlsx - Excel</title>
     
     <link rel="stylesheet" href="common.css?v=20260814_v9">
-    <link rel="stylesheet" href="style_rummikub.css?v=20260814_v9">
+    <link rel="stylesheet" href="style_rummikub.css?v=20260814_v11">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
@@ -65,9 +65,8 @@
                     <div class="form-group">
 						<label class="form-label" for="create-nickname">내 닉네임</label>
 						<input type="text" id="create-nickname" class="form-input" placeholder="예: 김사원 (회계팀)" maxlength="12">
-						<!-- ★ 아래 안내 문구 추가 ★ -->
 						<p style="font-size:0.75rem; color:#71717a; margin-top:5px; margin-bottom:0; line-height:1.3;">
-							💡 오늘 하루 동안 <strong>동일한 닉네임</strong>을 사용하셔야 승수가 전전에 유지됩니다.
+							💡 오늘 하루 동안 <strong>동일한 닉네임</strong>을 사용하셔야 승수가 전적에 유지됩니다.
 						</p>
 					</div>
 
@@ -95,9 +94,8 @@
                     <div class="form-group">
 						<label class="form-label" for="join-nickname">내 닉네임</label>
 						<input type="text" id="join-nickname" class="form-input" placeholder="예: 이대리 (회계팀)" maxlength="12">
-						<!-- ★ 아래 안내 문구 추가 ★ -->
 						<p style="font-size:0.75rem; color:#71717a; margin-top:5px; margin-bottom:0; line-height:1.3;">
-							💡 오늘 하루 동안 <strong>동일한 닉네임</strong>을 사용하셔야 승수가 전전에 유지됩니다.
+							💡 오늘 하루 동안 <strong>동일한 닉네임</strong>을 사용하셔야 승수가 전적에 유지됩니다.
 						</p>
 					</div>
 
@@ -140,7 +138,7 @@
                 </div>
             </div>
 
-            <!-- ★ 방장 컨트롤 독립 박스 (style 인라인을 제거하여 JS display:flex가 100% 적용되도록 수정) ★ -->
+            <!-- ★ 방장 컨트롤 독립 박스 ★ -->
             <div id="host-controls" class="host-controls-box">
                 <button class="start-game-btn" id="btn-host-start">게임 시작하기!</button>
                 <button class="secondary-btn" id="btn-host-reset">대기실로 리셋</button>
@@ -166,19 +164,21 @@
                     <div class="rummikub-table-board" id="table-sets-container"></div>
 
                     <div class="board-footer" id="board-footer">
-                        <div id="footer-waiting-controls" style="display: flex; gap: 6px; flex-wrap: wrap; width: 100%; align-items: center; justify-content: space-between;">
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <button class="primary-btn" id="btn-toggle-ready" style="width: auto; padding: 6px 14px; margin: 0; font-size:0.85rem;">준비 완료</button>
-                            </div>
-                            <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+						<div id="footer-waiting-controls">
+							<!-- 1. 좌측 영역 (준비 완료) -->
+							<div class="footer-left-zone">
+								<button class="primary-btn" id="btn-toggle-ready">준비 완료</button>
+							</div>
+							
+							<!-- 2. 우측 영역 (게임 조작 버튼 그룹 - 단일 제출/패스 버튼) -->
+							<div class="footer-right-zone">
 								<button class="secondary-btn" id="btn-sort-color">색상 정렬</button>
 								<button class="secondary-btn" id="btn-sort-number">숫자 정렬</button>
-								<!-- ★ 아래 무르기 버튼 추가 ★ -->
-								<button class="secondary-btn" id="btn-reset-turn" style="color: #e11d48;">턴 초기화</button>
-								<button class="primary-btn" id="btn-submit-turn" style="margin:0; padding:6px 12px; font-size:0.85rem; width:auto;">턴 완료 / 제출</button>
+								<button class="secondary-btn" id="btn-reset-turn">원래대로</button>
+								<button class="primary-btn" id="btn-submit-turn">제출 / 패스</button>
 							</div>
-                        </div>
-                    </div>
+						</div>
+					</div>
 
                     <div class="topic-words-panel" style="background: var(--bg-surface); border: 1px solid var(--border-block); border-radius: 8px; padding: 12px;">
                         <h4 style="font-size:0.82rem; font-weight:600; color:var(--text-secondary); margin-bottom:8px;">내 거치대 (Rack) - 타일을 선택하여 공유 테이블로 내세요</h4>
@@ -191,7 +191,6 @@
                     
                     <div class="sidebar-players-fixed">
                         <div class="sidebar-section-title">
-						<!-- 👑 오늘 하루 누적 전적 뱃지 -->
 						<div class="today-king-banner" id="today-king-banner">
 							<span class="king-title">👑 오늘의 루미왕</span>
 							<span class="king-name" id="today-king-name-text">오늘 0승</span>
@@ -222,7 +221,7 @@
         </section>
     </main>
 
-   <!-- 도움말 모달 (루미큐브 노션 스타일 구조) -->
+   <!-- 도움말 모달 -->
 <div id="help-modal" class="modal-overlay">
     <div class="modal-box notion-help-modal">
         <div class="modal-header">
@@ -231,7 +230,6 @@
         </div>
         <div class="modal-body-scroll notion-help-body">
             
-            <!-- 노션 콜아웃 1단계 -->
             <div class="notion-callout">
                 <span class="callout-icon">1️⃣</span>
                 <div class="callout-content">
@@ -241,7 +239,6 @@
                 </div>
             </div>
 
-            <!-- 노션 콜아웃 2단계 -->
             <div class="notion-callout">
                 <span class="callout-icon">2️⃣</span>
                 <div class="callout-content">
@@ -250,7 +247,6 @@
                 </div>
             </div>
 
-            <!-- 세트 종류 카드 그룹 -->
             <div class="notion-card-group">
                 <div class="notion-card">
                     <h4>🎨 그룹 (Group)</h4>
@@ -262,17 +258,15 @@
                 </div>
             </div>
 
-            <!-- 노션 콜아웃 3단계 -->
             <div class="notion-callout">
                 <span class="callout-icon">3️⃣</span>
                 <div class="callout-content">
                     <strong>자유 재조합 (Manipulation)</strong>
                     <p>이미 등록을 마쳤다면, 공유 테이블 위에 배치된 다른 타일들을 자유롭게 분해하고 재조합하여 내 타일을 붙일 수 있습니다.</p>
-                    <div class="notion-tip">⏰ 내놓을 타일이 없다면 '턴 넘기기(타일 1장 가져오기)'를 클릭합니다.</div>
+                    <div class="notion-tip">⏰ 내놓을 타일이 없다면 '제출 / 패스' 버튼을 눌러 타일 1장을 가져옵니다.</div>
                 </div>
             </div>
 
-            <!-- 노션 콜아웃 4단계 -->
             <div class="notion-callout">
                 <span class="callout-icon">4️⃣</span>
                 <div class="callout-content">
@@ -281,9 +275,8 @@
                 </div>
             </div>
 
-            <!-- 하단 팁 박스 -->
             <div class="notion-info-box">
-                <p><strong>💡 팁:</strong> 제한 시간 내에 유효하지 않은 조합이 테이블에 남아있으면 턴을 제출할 수 없으니 정렬 버튼을 잘 활용하세요!</p>
+                <p><strong>💡 팁:</strong> 제한 시간 내에 유효하지 않은 세트가 테이블에 남아있으면 빨간색 테두리로 가이드되니 참고하세요!</p>
             </div>
 
         </div>
@@ -324,6 +317,6 @@
         </div>
     </div>
 
-    <script src="app_rummikub.js?v=20260814_v10"></script>
+    <script src="app_rummikub.js?v=20260814_v12"></script>
 </body>
 </html>
