@@ -559,3 +559,10 @@
 [data-theme="dark"] .today-king-banner .king-name {
     color: #fef08a !important;
 }
+/* 참가자 목록 높이 제한 원천 해제 및 전체 노출 */
+#panel-players,
+.player-list-scroll {
+    max-height: none !important;
+    height: auto !important;
+    overflow-y: visible !important;
+}

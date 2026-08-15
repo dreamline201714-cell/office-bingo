@@ -268,9 +268,10 @@ body {
 .arena-main { display: grid; grid-template-columns: 1fr 290px; gap: 16px; }
 .board-container { width: 100%; display: flex; flex-direction: column; gap: 14px; }
 
-.sidebar-panel { background: var(--bg-surface); border: 1px solid var(--border-block); border-radius: 8px; display: flex; flex-direction: column; height: 520px; padding: 12px; gap: 10px; }
-.sidebar-players-fixed { display: flex; flex-direction: column; max-height: 140px; border: 1px solid var(--border-block); border-radius: 6px; background: var(--bg-card); padding: 8px; }
-.sidebar-section-title { font-size: 0.78rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; padding-bottom: 4px; border-bottom: 1px solid var(--border-block); }
+.sidebar-panel { background: var(--bg-surface); border: 1px solid var(--border-block); border-radius: 8px; display: flex; flex-direction: column; min-height: 520px; height: auto; padding: 12px; gap: 10px; }
+/* 높이 제한(max-height)을 없애서 참가자가 다 보이도록 수정 */
+.sidebar-players-fixed { display: flex; flex-direction: column; max-height: none !important; border: 1px solid var(--border-block); border-radius: 6px; background: var(--bg-card); padding: 8px; }
+.player-list-scroll { overflow-y: visible !important; display: flex; flex-direction: column; gap: 4px; max-height: none !important; }
 .player-list-scroll { overflow-y: auto; display: flex; flex-direction: column; gap: 4px; max-height: 100px; }
 
 .sidebar-tabbed-area { display: flex; flex-direction: column; flex: 1; min-height: 0; border: 1px solid var(--border-block); border-radius: 6px; background: var(--bg-card); }

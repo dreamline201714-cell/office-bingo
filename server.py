@@ -25,7 +25,7 @@ PUBLIC_DIR = os.path.dirname(os.path.abspath(__file__))
 TURN_DURATION_SECONDS = 15
 
 # ★ Render.com 환경변수에서 DATABASE_URL 읽기
-DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://postgres:[ARE8d#%_T*E!qWH]@db.clsavoupapzxeyfybevr.supabase.co:5432/postgres')
+DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://postgres:[OfficeBingo2026Db]@db.clsavoupapzxeyfybevr.supabase.co:5432/postgres')
 
 def get_db_connection():
     """Supabase DB 연결 객체 생성"""

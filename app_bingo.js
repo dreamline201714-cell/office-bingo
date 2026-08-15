@@ -199,10 +199,17 @@
         const urlParams = new URLSearchParams(window.location.search);
         const roomParam = urlParams.get('room');
         if (roomParam) {
-            const tabBtnJoin = document.getElementById('tab-btn-join');
-            const joinRoomCodeInput = document.getElementById('join-room-code');
-            if (tabBtnJoin) tabBtnJoin.click();
-            if (joinRoomCodeInput) joinRoomCodeInput.value = roomParam.toUpperCase();
+            // 방 참여하기 탭 활성화
+            const joinTabBtn = document.getElementById('tab-btn-join');
+            if (joinTabBtn) joinTabBtn.click();
+
+            // 방 코드 입력란에 자동 채움
+            const joinCodeInput = document.getElementById('join-room-code');
+            if (joinCodeInput) joinCodeInput.value = roomParam.toUpperCase();
+
+            // ★ 자동 sendMessage('JOIN_ROOM') 삭제!
+            // 사용자가 직접 닉네임을 입력하고 [게임 방 입장하기]를 누르게 유도
+            showToast("초대받은 방 코드가 입력되었습니다. 닉네임을 입력 후 입장해주세요!");
         }
     }
 
