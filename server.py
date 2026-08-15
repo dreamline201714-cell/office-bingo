@@ -61,17 +61,20 @@ def record_daily_win(game_type: str, nickname: str):
         conn.close()
 
 def get_today_top_winner(game_type: str):
-    """오늘 하루 해당 게임 최다 승자(오늘의 대왕) DB 조회"""
+    """오늘 하루 해당 게임 최다 승자(오늘의 대왕) DB 조회 (한국 시간 KST 기준 보정)"""
     conn = get_db_connection()
     if not conn:
         return None
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # 한국 시간(Asia/Seoul) 기준 오늘 날짜의 1등 조회
             sql = """
                 SELECT nickname, wins 
                 FROM daily_stats 
-                WHERE game_type = %s AND play_date = CURRENT_DATE 
-                ORDER BY wins DESC 
+                WHERE UPPER(game_type) = UPPER(%s) 
+                  AND play_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul')::date
+                  AND wins > 0
+                ORDER BY wins DESC, id DESC 
                 LIMIT 1;
             """
             cur.execute(sql, (game_type,))

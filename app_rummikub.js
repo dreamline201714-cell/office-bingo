@@ -1,35 +1,8 @@
 /**
- * Office Rummikub Live Client Application Logic - Host Control Fix
+ * Office Rummikub Live Client Application Logic - Fully Fixed
  */
 (function () {
-    // ★ 루미큐브 전용 TODAY 전적 로컬스토리지 엔진 ★
-    const RUMMIKUB_TODAY_STATS_KEY = 'office_rummikub_today_stats';
-
-    function getTodayString() {
-        return new Date().toISOString().slice(0, 10);
-    }
-
-    function getRummikubTodayStats() {
-        const raw = localStorage.getItem(RUMMIKUB_TODAY_STATS_KEY);
-        const today = getTodayString();
-        if (raw) {
-            try {
-                const parsed = JSON.parse(raw);
-                if (parsed.date === today) return parsed;
-            } catch (e) {}
-        }
-        return { date: today, wins: 0 };
-    }
-
-    function recordRummikubTodayWin() {
-        const stats = getRummikubTodayStats();
-        stats.wins += 1;
-        localStorage.setItem(RUMMIKUB_TODAY_STATS_KEY, JSON.stringify(stats));
-        if (isMeWinner) {
-        recordRummikubTodayWin(); // ★ 루미큐브 오늘 1승 추가 저장
-    }      
-	}
-	let socket = null;
+    let socket = null;
     let currentRoomId = null;
     let myPlayerId = null;
     let roomState = null;
@@ -45,6 +18,12 @@
     let timerSecondsLeft = 60;
     let soundEnabled = true;
     let currentTheme = 'light';
+
+    function saveMyNickname(nickname) {
+        if (nickname) {
+            localStorage.setItem('office_rummikub_last_nickname', nickname);
+        }
+    }
 
     function initStealthMode() {
         const btnStealthToggle = document.getElementById('btn-stealth-toggle');
@@ -191,7 +170,7 @@
             }, 2500);
         } else if (msg.type === 'GAME_OVER') {
             showWinnerModal(msg.winner_name);
-		} else if (msg.type === 'ROOM_UPDATED') {
+        } else if (msg.type === 'ROOM_UPDATED') {
             roomState = msg.state;
             updateUI(false);
         } else if (msg.type === 'CHAT_MESSAGE') {
@@ -280,7 +259,6 @@
         }
     }
 
-    // ★ [핵심 정밀 수정] display: flex 제어로 방장 상자 확실히 노출 ★
     function updateUI(isFirstJoin) {
         if (!roomState) return;
 
@@ -305,7 +283,7 @@
             }
 
             if (myPlayer && myPlayer.is_host) {
-                if (hostControls) hostControls.style.display = 'flex'; // ★ display: flex로 설정하여 노출 및 우측 정렬 적용
+                if (hostControls) hostControls.style.display = 'flex';
                 if (hostStartBtn) {
                     const allReady = roomState.players.every(p => p.is_ready);
                     if (!hostStartBtn.getAttribute('data-loading')) {
@@ -459,32 +437,29 @@
                 setEl.appendChild(div);
             });
 
-            
+            setEl.onclick = (e) => {
+                e.stopPropagation();
+                if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) return;
+                if (selectedTiles.length === 0) return;
 
-            // 세트 박스 자체를 클릭했을 때 붙이기 작동 (기존 유지)
-        setEl.onclick = (e) => {
-            e.stopPropagation();
-            if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) return;
-            if (selectedTiles.length === 0) return;
-
-            selectedTiles.forEach(st => {
-                if (st.source === 'rack') {
-                    localRack = localRack.filter(t => t.id !== st.id);
-                } else if (st.source === 'table') {
-                    if (localTableSets[st.setIndex]) {
-                        localTableSets[st.setIndex] = localTableSets[st.setIndex].filter(t => t.id !== st.id);
+                selectedTiles.forEach(st => {
+                    if (st.source === 'rack') {
+                        localRack = localRack.filter(t => t.id !== st.id);
+                    } else if (st.source === 'table') {
+                        if (localTableSets[st.setIndex]) {
+                            localTableSets[st.setIndex] = localTableSets[st.setIndex].filter(t => t.id !== st.id);
+                        }
                     }
-                }
-            });
+                });
 
-            const rawTiles = selectedTiles.map(st => ({ id: st.id, color: st.color, number: st.number, is_joker: st.is_joker }));
-            localTableSets[setIndex] = sortTileSetAuto([...localTableSets[setIndex], ...rawTiles]);
+                const rawTiles = selectedTiles.map(st => ({ id: st.id, color: st.color, number: st.number, is_joker: st.is_joker }));
+                localTableSets[setIndex] = sortTileSetAuto([...localTableSets[setIndex], ...rawTiles]);
 
-            selectedTiles = [];
-            showToast("타일을 해당 세트에 합치고 자동으로 순서를 정렬했습니다.");
-            renderRack();
-            renderTable();
-        };
+                selectedTiles = [];
+                showToast("타일을 해당 세트에 합치고 자동으로 순서를 정렬했습니다.");
+                renderRack();
+                renderTable();
+            };
 
             container.appendChild(setEl);
         });
@@ -523,7 +498,35 @@
         if (countSpan) countSpan.innerText = roomState.players.length;
         if (mobilePlayerCount) mobilePlayerCount.innerText = roomState.players.length;
 
-        roomState.players.forEach(p => {
+        const playersList = roomState ? roomState.players : [];
+
+        // 1. 현재 방 최다 승자 (상단 티커)
+        const mvpEl = document.getElementById('rank-mvp-text');
+        if (mvpEl && playersList.length > 0) {
+            const sorted = [...playersList].sort((a, b) => (b.wins || 0) - (a.wins || 0));
+            const maxWins = sorted[0]?.wins || 0;
+            if (maxWins > 0) {
+                const topWinners = sorted.filter(p => (p.wins || 0) === maxWins);
+                mvpEl.innerText = topWinners.length === 1 
+                    ? `${topWinners[0].nickname} (${maxWins}승)` 
+                    : `${topWinners[0].nickname} 외 ${topWinners.length - 1}명 (${maxWins}승)`;
+            } else {
+                mvpEl.innerText = '집계 중...';
+            }
+        }
+
+        // 2. ★ Supabase DB에서 읽어온 오늘 하루 최다 승자(오늘의 루미대왕) 실시간 전광판 렌더링 ★
+        const todayKingEl = document.getElementById('today-king-name-text');
+        if (todayKingEl) {
+            const todayKing = roomState ? roomState.today_king : null;
+            if (todayKing && todayKing.wins > 0) {
+                todayKingEl.innerText = `${todayKing.nickname} (🏆 ${todayKing.wins}승)`;
+            } else {
+                todayKingEl.innerText = "왕좌 비어있음";
+            }
+        }
+
+        playersList.forEach(p => {
             const card = document.createElement('div');
             const isTurnPlayer = (String(p.player_id) === String(roomState.current_turn_player_id) && roomState.status === 'PLAYING');
             card.className = 'player-card' + (isTurnPlayer ? ' active-turn' : '');
@@ -546,33 +549,7 @@
                 </div>
                 <div>${statusHtml}</div>
             `;
-            // 1. 현재 방 최다 승자 (상단 전광판)
-			const mvpEl = document.getElementById('rank-mvp-text');
-			const playersList = roomState ? roomState.players : [];
-			if (mvpEl && playersList.length > 0) {
-				const sorted = [...playersList].sort((a, b) => (b.wins || 0) - (a.wins || 0));
-				const maxWins = sorted[0]?.wins || 0;
-				if (maxWins > 0) {
-					const topWinners = sorted.filter(p => (p.wins || 0) === maxWins);
-					mvpEl.innerText = topWinners.length === 1 
-						? `${topWinners[0].nickname} (${maxWins}승)` 
-						: `${topWinners[0].nickname} 외 ${topWinners.length - 1}명 (${maxWins}승)`;
-				} else {
-					mvpEl.innerText = '집계 중...';
-				}
-			}
-
-			// ★ DB에서 읽어온 오늘 하루 최다 승자(오늘의 루미대왕) 실시간 전광판 렌더링 ★
-        const todayKingEl = document.getElementById('today-king-name-text');
-        if (todayKingEl) {
-            const todayKing = roomState ? roomState.today_king : null;
-            if (todayKing && todayKing.wins > 0) {
-                todayKingEl.innerText = `${todayKing.nickname} (🏆 ${todayKing.wins}승)`;
-            } else {
-                todayKingEl.innerText = "왕좌 비어있음";
-            }
-        }
-			panel.appendChild(card);
+            panel.appendChild(card);
         });
     }
 
@@ -635,8 +612,8 @@
             }
         });
     }
+
     function showWinnerModal(winnerName) {
-        // 이미 승자 모달이 있다면 중복 생성 방지
         let modal = document.getElementById('winner-modal');
         if (!modal) {
             modal = document.createElement('div');
@@ -657,11 +634,11 @@
             modal.classList.add('active');
         }
 
-        // 3.5초 뒤 팝업 자동으로 닫기
         setTimeout(() => {
             if (modal) modal.classList.remove('active');
         }, 3500);
     }
+
     function initGameControls() {
         const btnToggleReady = document.getElementById('btn-toggle-ready');
         const hostStartBtn = document.getElementById('btn-host-start');
@@ -775,14 +752,26 @@
         const createForm = document.getElementById('create-room-form');
         const joinForm = document.getElementById('join-room-form');
 
+        const savedNick = localStorage.getItem('office_rummikub_last_nickname');
+        if (savedNick) {
+            const createNickEl = document.getElementById('create-nickname');
+            const joinNickEl = document.getElementById('join-nickname');
+            if (createNickEl) createNickEl.value = savedNick;
+            if (joinNickEl) joinNickEl.value = savedNick;
+        }
+
         if (createForm) {
             createForm.onsubmit = (e) => {
                 e.preventDefault();
+                const nickEl = document.getElementById('create-nickname');
+                const nick = nickEl ? (nickEl.value.trim() || '루미마스터') : '루미마스터';
+                saveMyNickname(nick);
+
                 sendMessage({
                     type: 'CREATE_ROOM', 
                     game_type: 'RUMMIKUB',
                     title: document.getElementById('create-title') ? document.getElementById('create-title').value.trim() : '사내 실시간 루미큐브',
-                    nickname: document.getElementById('create-nickname').value,
+                    nickname: nick,
                     turn_time_limit: selectedTimeLimit
                 });
             };
@@ -791,8 +780,13 @@
         if (joinForm) {
             joinForm.onsubmit = (e) => {
                 e.preventDefault();
+                const nickEl = document.getElementById('join-nickname');
+                const nick = nickEl ? (nickEl.value.trim() || '루미마스터') : '루미마스터';
+                saveMyNickname(nick);
+
                 sendMessage({
-                    type: 'JOIN_ROOM', nickname: document.getElementById('join-nickname').value,
+                    type: 'JOIN_ROOM', 
+                    nickname: nick,
                     room_id: document.getElementById('join-room-code').value
                 });
             };
