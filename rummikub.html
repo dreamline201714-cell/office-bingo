@@ -63,9 +63,13 @@
 
                 <form id="create-room-form">
                     <div class="form-group">
-                        <label class="form-label" for="create-nickname">내 닉네임</label>
-                        <input type="text" id="create-nickname" class="form-input" placeholder="예: 루미마스터" maxlength="12" required>
-                    </div>
+						<label class="form-label" for="create-nickname">내 닉네임</label>
+						<input type="text" id="create-nickname" class="form-input" placeholder="예: 김사원 (회계팀)" maxlength="12">
+						<!-- ★ 아래 안내 문구 추가 ★ -->
+						<p style="font-size:0.75rem; color:#71717a; margin-top:5px; margin-bottom:0; line-height:1.3;">
+							💡 오늘 하루 동안 <strong>동일한 닉네임</strong>을 사용하셔야 승수가 전전에 유지됩니다.
+						</p>
+					</div>
 
                     <div class="form-group">
                         <label class="form-label" for="create-title">게임 방 제목 설정</label>
@@ -89,9 +93,13 @@
 
                 <form id="join-room-form" style="display: none;">
                     <div class="form-group">
-                        <label class="form-label" for="join-nickname">내 닉네임</label>
-                        <input type="text" id="join-nickname" class="form-input" placeholder="예: 이대리" maxlength="12" required>
-                    </div>
+						<label class="form-label" for="join-nickname">내 닉네임</label>
+						<input type="text" id="join-nickname" class="form-input" placeholder="예: 이대리 (회계팀)" maxlength="12">
+						<!-- ★ 아래 안내 문구 추가 ★ -->
+						<p style="font-size:0.75rem; color:#71717a; margin-top:5px; margin-bottom:0; line-height:1.3;">
+							💡 오늘 하루 동안 <strong>동일한 닉네임</strong>을 사용하셔야 승수가 전전에 유지됩니다.
+						</p>
+					</div>
 
                     <div class="form-group">
                         <label class="form-label" for="join-room-code">방 코드 (6자리)</label>
@@ -116,7 +124,15 @@
                         <span style="font-size: 0.78rem; color: var(--text-secondary);" id="display-grid-info">턴 제한 시간: 60초</span>
                     </div>
 
-                    <div class="room-share-box">
+                    <!-- 🏆 상단 방 실시간 전광판 -->
+					<div class="today-rank-ticker" id="today-rank-ticker">
+						<div class="ticker-item">
+							<span class="ticker-label">🏆 루미왕</span>
+							<span id="rank-mvp-text" class="ticker-value gold">집계 중...</span>
+						</div>
+					</div>
+					
+					<div class="room-share-box">
                         <div class="room-code-badge" id="display-room-code">------</div>
                         <button class="secondary-btn" id="btn-copy-link">링크 복사</button>
                         <button class="secondary-btn" id="btn-show-qr">QR 코드</button>
@@ -173,6 +189,11 @@
                     
                     <div class="sidebar-players-fixed">
                         <div class="sidebar-section-title">
+						<!-- 👑 오늘 하루 누적 전적 뱃지 -->
+						<div class="today-king-banner" id="today-king-banner">
+							<span class="king-title">👑 TODAY 전적</span>
+							<span class="king-name" id="today-king-name-text">오늘 0승</span>
+						</div>
                             <span>참가자 목록</span>
                             <span class="player-count-badge">(<span id="player-count">0</span>명)</span>
                         </div>

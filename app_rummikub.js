@@ -2,7 +2,34 @@
  * Office Rummikub Live Client Application Logic - Host Control Fix
  */
 (function () {
-    let socket = null;
+    // ★ 루미큐브 전용 TODAY 전적 로컬스토리지 엔진 ★
+    const RUMMIKUB_TODAY_STATS_KEY = 'office_rummikub_today_stats';
+
+    function getTodayString() {
+        return new Date().toISOString().slice(0, 10);
+    }
+
+    function getRummikubTodayStats() {
+        const raw = localStorage.getItem(RUMMIKUB_TODAY_STATS_KEY);
+        const today = getTodayString();
+        if (raw) {
+            try {
+                const parsed = JSON.parse(raw);
+                if (parsed.date === today) return parsed;
+            } catch (e) {}
+        }
+        return { date: today, wins: 0 };
+    }
+
+    function recordRummikubTodayWin() {
+        const stats = getRummikubTodayStats();
+        stats.wins += 1;
+        localStorage.setItem(RUMMIKUB_TODAY_STATS_KEY, JSON.stringify(stats));
+        if (isMeWinner) {
+        recordRummikubTodayWin(); // ★ 루미큐브 오늘 1승 추가 저장
+    }      
+	}
+	let socket = null;
     let currentRoomId = null;
     let myPlayerId = null;
     let roomState = null;
@@ -519,7 +546,33 @@
                 </div>
                 <div>${statusHtml}</div>
             `;
-            panel.appendChild(card);
+            // 1. 현재 방 최다 승자 (상단 전광판)
+			const mvpEl = document.getElementById('rank-mvp-text');
+			const playersList = roomState ? roomState.players : [];
+			if (mvpEl && playersList.length > 0) {
+				const sorted = [...playersList].sort((a, b) => (b.wins || 0) - (a.wins || 0));
+				const maxWins = sorted[0]?.wins || 0;
+				if (maxWins > 0) {
+					const topWinners = sorted.filter(p => (p.wins || 0) === maxWins);
+					mvpEl.innerText = topWinners.length === 1 
+						? `${topWinners[0].nickname} (${maxWins}승)` 
+						: `${topWinners[0].nickname} 외 ${topWinners.length - 1}명 (${maxWins}승)`;
+				} else {
+					mvpEl.innerText = '집계 중...';
+				}
+			}
+
+			// ★ DB에서 읽어온 오늘 하루 최다 승자(오늘의 루미대왕) 실시간 전광판 렌더링 ★
+        const todayKingEl = document.getElementById('today-king-name-text');
+        if (todayKingEl) {
+            const todayKing = roomState ? roomState.today_king : null;
+            if (todayKing && todayKing.wins > 0) {
+                todayKingEl.innerText = `${todayKing.nickname} (🏆 ${todayKing.wins}승)`;
+            } else {
+                todayKingEl.innerText = "왕좌 비어있음";
+            }
+        }
+			panel.appendChild(card);
         });
     }
 

@@ -1,8 +1,42 @@
 /**
- * Office Bingo Live Client Application Logic - Persist Escape Rank Badge Fix
+ * Office Bingo Live Client Application Logic - Fully Fixed
  */
 
 (function () {
+    // ==========================================
+    // 💾 오늘 하루 전적 로컬스토리지 안전 엔진
+    // ==========================================
+    var TODAY_STATS_KEY = 'office_bingo_today_stats';
+
+    function getTodayString() {
+        return new Date().toISOString().slice(0, 10);
+    }
+
+    function getTodayStats() {
+        try {
+            var raw = localStorage.getItem(TODAY_STATS_KEY);
+            var today = getTodayString();
+            if (raw) {
+                var parsed = JSON.parse(raw);
+                if (parsed && parsed.date === today) return parsed;
+            }
+        } catch (e) {
+            console.warn("로컬스토리지 읽기 에러:", e);
+        }
+        return { date: getTodayString(), wins: 0, loses: 0 };
+    }
+
+    function recordTodayResult(isWin, isLoser) {
+        try {
+            var stats = getTodayStats();
+            if (isWin) stats.wins += 1;
+            if (isLoser) stats.loses += 1;
+            localStorage.setItem(TODAY_STATS_KEY, JSON.stringify(stats));
+        } catch (e) {
+            console.warn("로컬스토리지 쓰기 에러:", e);
+        }
+    }
+
     let socket = null;
     let currentRoomId = null;
     let myPlayerId = null;
@@ -99,48 +133,44 @@
     }
 
     function initPresetSelects() {
-		const createSelect = document.getElementById('create-preset-select');
-		const configSelect = document.getElementById('config-preset-select');
+        const createSelect = document.getElementById('create-preset-select');
+        const configSelect = document.getElementById('config-preset-select');
 
-		const presets = (typeof BINGO_PRESETS !== 'undefined' && Array.isArray(BINGO_PRESETS))
-			? BINGO_PRESETS
-			: [{ id: "custom", title: "✨ 자유 주제 (직접 입력)", words: [] }];
+        const presets = (typeof BINGO_PRESETS !== 'undefined' && Array.isArray(BINGO_PRESETS))
+            ? BINGO_PRESETS
+            : [{ id: "custom", title: "✨ 자유 주제 (직접 입력)", words: [] }];
 
-		// 드롭다운 옵션 태그 동적 생성 함수
-		function buildSelectOptions(selectEl, isConfig) {
-			if (!selectEl) return;
-			selectEl.innerHTML = '';
+        function buildSelectOptions(selectEl, isConfig) {
+            if (!selectEl) return;
+            selectEl.innerHTML = '';
 
-			presets.forEach(preset => {
-				const opt = document.createElement('option');
-				opt.value = preset.id;
-				opt.innerText = preset.title;
-				selectEl.appendChild(opt);
-			});
+            presets.forEach(preset => {
+                const opt = document.createElement('option');
+                opt.value = preset.id;
+                opt.innerText = preset.title;
+                selectEl.appendChild(opt);
+            });
 
-			// 드롭다운 값 변경 이벤트 바인딩
-			selectEl.onchange = (e) => {
-				const selectedId = e.target.value;
-				const selectedPreset = presets.find(p => p.id === selectedId);
+            selectEl.onchange = (e) => {
+                const selectedId = e.target.value;
+                const selectedPreset = presets.find(p => p.id === selectedId);
 
-				const topicInput = document.getElementById(isConfig ? 'config-topic-input' : 'create-topic');
-				const wordsInput = document.getElementById(isConfig ? 'config-words-input' : 'create-words');
+                const topicInput = document.getElementById(isConfig ? 'config-topic-input' : 'create-topic');
+                const wordsInput = document.getElementById(isConfig ? 'config-words-input' : 'create-words');
 
-				if (!selectedPreset || selectedPreset.id === 'custom') {
-					if (topicInput) topicInput.value = '자유 주제';
-					if (wordsInput) wordsInput.value = '';
-				} else {
-					// 이모지 및 접두사 제외 순수 주제명만 추출
-					if (topicInput) topicInput.value = selectedPreset.title.replace(/^[^\s]+\s+/, '');
-					// 단어들을 줄바꿈(\n) 단위로 텍스트 영역에 자동으로 채워줌
-					if (wordsInput) wordsInput.value = (selectedPreset.words || []).join('\n');
-				}
-			};
-		}
+                if (!selectedPreset || selectedPreset.id === 'custom') {
+                    if (topicInput) topicInput.value = '자유 주제';
+                    if (wordsInput) wordsInput.value = '';
+                } else {
+                    if (topicInput) topicInput.value = selectedPreset.title.replace(/^[^\s]+\s+/, '');
+                    if (wordsInput) wordsInput.value = (selectedPreset.words || []).join('\n');
+                }
+            };
+        }
 
-		buildSelectOptions(createSelect, false);
-		buildSelectOptions(configSelect, true);
-	}
+        buildSelectOptions(createSelect, false);
+        buildSelectOptions(configSelect, true);
+    }
 
     function updateTargetLinesOptions(size, selectEl) {
         if (!selectEl) return;
@@ -224,6 +254,20 @@
         document.getElementById('draw-modal').classList.add('active');
     }
 
+    function triggerStampAnimation(text, isLoser) {
+        const overlay = document.getElementById('office-stamp-overlay');
+        const box = document.getElementById('office-stamp-box');
+        if (!overlay || !box) return;
+
+        box.className = 'office-stamp-box' + (isLoser ? ' loser' : '');
+        box.innerHTML = text;
+        overlay.classList.add('active');
+
+        setTimeout(() => {
+            overlay.classList.remove('active');
+        }, 3000);
+    }
+
     function showGameOverModal(roomState) {
         const gameOverModal = document.getElementById('game-over-modal');
         const iconEl = document.getElementById('game-over-icon');
@@ -243,8 +287,10 @@
             const isMeWinner = winners.some(w => w.player_id === myPlayerId);
 
             if (isMeWinner) {
+                recordTodayResult(true, false);
+                triggerStampAnimation("APPROVED<br><span style='font-size:0.8rem;'>1등 승리 확정!</span>", false);
                 if (iconEl) iconEl.innerText = '🏆';
-                if (titleEl) titleEl.innerText = '최종 우승!';
+                if (titleEl) titleEl.innerText = '승리!';
                 if (msgEl) msgEl.innerText = `축하합니다! 승리 목표를 달성하셨습니다!`;
                 fireConfetti();
             } else {
@@ -258,10 +304,15 @@
             const isMeLoser = loser && (loser.player_id === myPlayerId);
 
             if (isMeLoser) {
+                recordTodayResult(false, true);
+                triggerStampAnimation("REJECTED<br><span style='font-size:0.8rem;'>최종 벌칙 당첨!</span>", true);
                 if (iconEl) iconEl.innerText = '💣';
                 if (titleEl) titleEl.innerText = '벌칙 당첨!';
                 if (msgEl) msgEl.innerText = `아쉽게도 끝까지 탈출하지 못하여 최종 벌칙 당첨자가 되셨습니다!`;
             } else {
+                const myPlayer = roomState.players.find(p => p.player_id === myPlayerId);
+                const rankText = myPlayer && myPlayer.escape_rank ? `${myPlayer.escape_rank}등 ` : '';
+                triggerStampAnimation(`APPROVED<br><span style='font-size:0.8rem;'>${rankText}탈출 성공!</span>`, false);
                 if (iconEl) iconEl.innerText = '🎉';
                 if (titleEl) titleEl.innerText = '탈출 성공!';
                 if (msgEl) msgEl.innerText = `축하합니다! 무사히 탈출하셨습니다. (벌칙 당첨자: ${loser ? loser.nickname : '없음'})`;
@@ -377,6 +428,11 @@
         const displayGridInfo = document.getElementById('display-grid-info');
         const displayRoomCode = document.getElementById('display-room-code');
         const roomStateBadge = document.getElementById('room-state-badge');
+        const displayGameMode = document.getElementById('display-game-mode');
+
+        if (displayGameMode && config) {
+            displayGameMode.innerText = '패자 결정전';
+        }
         const footerWaitingControls = document.getElementById('footer-waiting-controls');
         const footerPlayingControls = document.getElementById('footer-playing-controls');
         const turnBanner = document.getElementById('turn-banner');
@@ -387,7 +443,7 @@
         const turnPlayerBadge = document.getElementById('turn-player-badge');
 
         if (displayTopicTitle) displayTopicTitle.innerText = config.topic;
-        if (displayGridInfo) displayGridInfo.innerText = `${config.size}x${config.size} 빙고 | 완성 목표: ${config.target_lines || config.size}줄 (${config.game_mode === 'LOSER' ? '패자 결정전' : '승자 결정전'})`;
+        if (displayGridInfo) displayGridInfo.innerText = `${config.size}x${config.size} 빙고 | 완성 목표: ${config.target_lines || config.size}줄 (패자 결정전)`;
         if (displayRoomCode) displayRoomCode.innerText = roomState.room_id;
 
         if (status === 'WAITING') {
@@ -405,15 +461,13 @@
             const isMyTurn = (myPlayerId === roomState.current_turn_player_id);
 
             if (turnPlayerBadge) {
-               turnPlayerBadge.innerText = isMyTurn ? `내 턴입니다!` : `${turnPlayer?.nickname || '참여자'}님 턴`;
-    
-               // 내 턴일 때와 타인 턴일 때 클래스 구분
-               if (isMyTurn) {
-                  turnPlayerBadge.className = 'turn-badge my-turn';
-               } else {
-                 turnPlayerBadge.className = 'turn-badge other-turn';
-               }
-              }
+                turnPlayerBadge.innerText = isMyTurn ? `내 턴입니다!` : `${turnPlayer?.nickname || '참여자'}님 턴`;
+                if (isMyTurn) {
+                    turnPlayerBadge.className = 'turn-badge my-turn';
+                } else {
+                    turnPlayerBadge.className = 'turn-badge other-turn';
+                }
+            }
 
             startTurnTimer(roomState.turn_time_remaining || roomState.turn_time_limit || 15, roomState.turn_time_limit || 15);
 
@@ -441,15 +495,21 @@
                 btnToggleReady.innerText = myPlayer.is_ready ? '준비 완료됨 (해제)' : '준비 완료';
             }
 
-            if (myPlayer.is_host) {
-                if (hostControls) hostControls.style.display = status === 'WAITING' ? 'block' : 'none';
+            const isMeHost = myPlayer && (myPlayer.is_host === true || String(myPlayer.player_id) === String(roomState.players.find(p => p.is_host)?.player_id));
+
+            if (isMeHost) {
+                if (hostControls) {
+                    hostControls.style.display = (status === 'WAITING') ? 'inline-flex' : 'none';
+                }
                 if (btnHostStart) {
                     const allReady = roomState.players.every(p => p.is_ready);
                     btnHostStart.disabled = !allReady;
                     btnHostStart.innerText = allReady ? '게임 시작하기!' : '준비 대기 중...';
                 }
             } else {
-                if (hostControls) hostControls.style.display = 'none';
+                if (hostControls) {
+                    hostControls.style.display = 'none';
+                }
             }
 
             renderBingoBoard(myPlayer.board, myPlayer.marked, config.size, status);
@@ -577,7 +637,6 @@
         });
     }
 
-    // ★ [핵심 정밀 수정] 대기실(WAITING) 상태라도 지난 게임 탈출 순위 뱃지 우선 노출 ★
     function renderPlayersRoster(status) {
         const panelPlayers = document.getElementById('panel-players');
         const playerCountSpan = document.getElementById('player-count');
@@ -590,11 +649,22 @@
         if (mobilePlayerCount) mobilePlayerCount.innerText = playersList.length;
 
         const isLoserMode = roomState?.config?.game_mode === 'LOSER';
+        const myPlayer = playersList.find(p => p.player_id === myPlayerId);
+
+        // ★ DB에서 읽어온 오늘 하루 최다 승자(오늘의 빙고대왕) 실시간 전광판 렌더링 ★
+        const todayKingEl = document.getElementById('today-king-name-text');
+        if (todayKingEl) {
+            const todayKing = roomState ? roomState.today_king : null;
+            if (todayKing && todayKing.wins > 0) {
+                todayKingEl.innerText = `${todayKing.nickname} (🏆 ${todayKing.wins}승)`;
+            } else {
+                todayKingEl.innerText = "왕좌 비어있음";
+            }
+        }
 
         playersList.forEach(p => {
             let statusHtml = '';
 
-            // 탈출 정보가 남아있으면 WAITING 여부와 무관하게 탈출 순위 우선 렌더링
             if (isLoserMode && p.is_escaped) {
                 statusHtml = `<span class="escape-rank-badge escaped">${p.escape_rank || 1}등 탈출 🏃‍♂️</span>`;
             } else if (status === 'WAITING') {
@@ -610,7 +680,12 @@
             }
 
             const winCount = p.wins || 0;
-            const winBadgeHtml = winCount > 0 ? `<span class="win-count-badge">👑 ${winCount}승</span>` : '';
+            let winBadgeHtml = '';
+            if (winCount >= 3) {
+                winBadgeHtml = `<span class="win-count-badge king">👑 ${winCount}승 (빙고왕)</span>`;
+            } else if (winCount > 0) {
+                winBadgeHtml = `<span class="win-count-badge">${winCount}승</span>`;
+            }
 
             const card = document.createElement('div');
             card.className = 'player-card' + (p.is_escaped ? ' player-escaped' : '');
@@ -632,9 +707,42 @@
                     openSpectateModal(p.player_id);
                 };
             }
-
             panelPlayers.appendChild(card);
         });
+
+        // ★ 상단 전광판 랭킹 실시간 계산 ★
+        const mvpEl = document.getElementById('rank-mvp-text');
+        const loserEl = document.getElementById('rank-loser-text');
+
+        if (mvpEl && loserEl && playersList.length > 0) {
+            const sortedByWins = [...playersList].sort((a, b) => (b.wins || 0) - (a.wins || 0));
+            const maxWins = sortedByWins[0]?.wins || 0;
+
+            if (maxWins > 0) {
+                const topWinners = sortedByWins.filter(p => (p.wins || 0) === maxWins);
+                if (topWinners.length === 1) {
+                    mvpEl.innerText = `${topWinners[0].nickname} (${maxWins}승)`;
+                } else {
+                    mvpEl.innerText = `${topWinners[0].nickname} 외 ${topWinners.length - 1}명 (${maxWins}승)`;
+                }
+            } else {
+                mvpEl.innerText = '집계 중...';
+            }
+
+            const sortedByWinsAsc = [...playersList].sort((a, b) => (a.wins || 0) - (b.wins || 0));
+            const minWins = sortedByWinsAsc[0]?.wins || 0;
+
+            if (maxWins > 0) {
+                const bottomPlayers = sortedByWinsAsc.filter(p => (p.wins || 0) === minWins);
+                if (bottomPlayers.length === 1) {
+                    loserEl.innerText = `${bottomPlayers[0].nickname} (${minWins}승)`;
+                } else {
+                    loserEl.innerText = `${bottomPlayers[0].nickname} 외 ${bottomPlayers.length - 1}명 (${minWins}승)`;
+                }
+            } else {
+                loserEl.innerText = '집계 중...';
+            }
+        }
     }
 
     function renderChatLogs() {
@@ -690,11 +798,11 @@
             if (modeBtn) {
                 document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('selected'));
                 modeBtn.classList.add('selected');
-                selectedGameMode = modeBtn.getAttribute('data-mode') || 'WINNER';
+                selectedGameMode = modeBtn.getAttribute('data-mode') || 'LOSER';
                 const displayGameMode = document.getElementById('display-game-mode');
                 if (displayGameMode) {
-                    displayGameMode.innerText = selectedGameMode === 'WINNER' ? '승자 결정전' : '패자 결정전';
-                }
+					displayGameMode.innerText = '패자 결정전';
+				}
                 return;
             }
 
@@ -873,9 +981,23 @@
         if (qrModalClose) qrModalClose.onclick = () => { if (qrModal) qrModal.classList.remove('active'); };
     }
 
+    function saveMyNickname(nickname) {
+        if (nickname) {
+            localStorage.setItem('office_bingo_last_nickname', nickname);
+        }
+    }
+
     function initFormControls() {
         const createRoomForm = document.getElementById('create-room-form');
         const joinRoomForm = document.getElementById('join-room-form');
+
+        const savedNick = localStorage.getItem('office_bingo_last_nickname');
+        if (savedNick) {
+            const createNickEl = document.getElementById('create-nickname');
+            const joinNickEl = document.getElementById('join-nickname');
+            if (createNickEl) createNickEl.value = savedNick;
+            if (joinNickEl) joinNickEl.value = savedNick;
+        }
 
         if (createRoomForm) {
             createRoomForm.onsubmit = function (e) {
@@ -887,6 +1009,8 @@
                 const titleEl = document.getElementById('create-title');
 
                 const nickname = nicknameEl ? (nicknameEl.value.trim() || '김사원') : '김사원';
+                saveMyNickname(nickname);
+
                 const topic = topicEl ? (topicEl.value.trim() || '자유 주제') : '자유 주제';
                 const words = wordsEl ? (wordsEl.value || '').split('\n').map(w => w.trim()).filter(w => w) : [];
                 const targetLines = targetLinesEl ? parseInt(targetLinesEl.value) : selectedSize;
@@ -913,6 +1037,8 @@
                 const roomCodeEl = document.getElementById('join-room-code');
 
                 const nickname = nicknameEl ? (nicknameEl.value.trim() || '이대리') : '이대리';
+                saveMyNickname(nickname);
+
                 const roomCode = roomCodeEl ? roomCodeEl.value.trim().toUpperCase() : '';
 
                 sendMessage({
@@ -939,7 +1065,7 @@
     initStealthMode();
     initMobileSidebar();
     initNavControls();
-    initPresetSelects(); // ✅ 새로 작성한 initPresetSelects 함수로 호출명을 맞춰줍니다.
+    initPresetSelects();
     initGlobalClickDelegation();
     initFormControls();
     initGameActionControls();

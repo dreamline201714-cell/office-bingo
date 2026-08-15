@@ -184,3 +184,70 @@
     border-color: var(--border-accent, #2eaadc) !important;
     background: #182830 !important; /* 호버 시 약간 짙은 푸른빛 배경 */
 }
+/* ==========================================
+   🏆 루미큐브 전광판 및 오늘의 전적 뱃지 디자인
+   ========================================== */
+.today-rank-ticker {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-card, #fff);
+    border: 1px solid var(--border-block, #e4e4e7);
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.today-rank-ticker .ticker-label {
+    font-weight: 700;
+    color: var(--text-secondary, #71717a);
+    font-size: 0.72rem;
+}
+
+.today-rank-ticker .ticker-value.gold {
+    font-weight: 800;
+    color: #d97706;
+}
+
+/* 👑 우측 사이드바 TODAY 전적 뱃지 */
+.today-king-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(245, 158, 11, 0.05));
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    border-radius: 6px;
+    padding: 5px 8px;
+    margin-bottom: 8px;
+    white-space: nowrap;
+    box-sizing: border-box;
+}
+
+.today-king-banner .king-title {
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: #b45309;
+    flex-shrink: 0;
+}
+
+.today-king-banner .king-name {
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: #d97706;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+[data-theme="dark"] .today-king-banner {
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.12), rgba(30, 30, 30, 0.9)) !important;
+    border-color: rgba(251, 191, 36, 0.35) !important;
+}
+
+[data-theme="dark"] .today-king-banner .king-title {
+    color: #fbbf24 !important;
+}
+
+[data-theme="dark"] .today-king-banner .king-name {
+    color: #fef08a !important;
+}

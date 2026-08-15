@@ -66,22 +66,28 @@
 
                 <form id="create-room-form">
                     <div class="form-group">
-                        <label class="form-label" for="create-nickname">내 닉네임</label>
-                        <input type="text" id="create-nickname" class="form-input" placeholder="예: 김사원 (마케팅팀)" maxlength="12">
-                    </div>
+						<label class="form-label" for="create-nickname">내 닉네임</label>
+						<input type="text" id="create-nickname" class="form-input" placeholder="예: 김사원 (회계팀)" maxlength="12">
+						<!-- ★ 닉네임 유지 안내 팁 추가 ★ -->
+						<p style="font-size:0.75rem; color:var(--text-secondary); margin-top:4px; margin-bottom:0;">
+							💡 오늘 하루 동안 <strong>동일한 닉네임</strong>을 사용하셔야 누적 승수가 유지됩니다.
+						</p>
+					</div>
 
                     <div class="form-group">
                         <label class="form-label" for="create-title">게임 방 제목 설정</label>
                         <input type="text" id="create-title" class="form-input" value="사내 실시간 빙고" placeholder="예: [마케팅팀] 점심 메뉴 빙고 한판!" maxlength="20" required>
                     </div>
 
-                    <div class="form-group">
+                    <!--
+					<div class="form-group">
                         <label class="form-label">게임 승패 방식 선택</label>
                         <div class="size-options">
                             <button type="button" class="mode-btn selected" data-mode="WINNER">승자 결정전 (1등 승리)</button>
                             <button type="button" class="mode-btn" data-mode="LOSER">패자 결정전 (벌칙 당첨전)</button>
                         </div>
                     </div>
+					-->
 
                     <div class="form-group">
                         <label class="form-label">격자 크기 선택</label>
@@ -134,9 +140,13 @@
 
                 <form id="join-room-form" style="display: none;">
                     <div class="form-group">
-                        <label class="form-label" for="join-nickname">내 닉네임</label>
-                        <input type="text" id="join-nickname" class="form-input" placeholder="예: 이대리 (개발팀)" maxlength="12">
-                    </div>
+						<label class="form-label" for="create-nickname">내 닉네임</label>
+						<input type="text" id="create-nickname" class="form-input" placeholder="예: 이대리 (회계팀)" maxlength="12">
+						<!-- ★ 닉네임 유지 안내 팁 추가 ★ -->
+						<p style="font-size:0.75rem; color:var(--text-secondary); margin-top:4px; margin-bottom:0;">
+							💡 오늘 하루 동안 <strong>동일한 닉네임</strong>을 사용하셔야 누적 승수가 유지됩니다.
+						</p>
+					</div>
 
                     <div class="form-group">
                         <label class="form-label" for="join-room-code">방 코드 (6자리)</label>
@@ -155,11 +165,28 @@
             <div class="arena-header">
                 <div class="topic-banner">
                     <div class="topic-info">
-                        <span class="topic-tag">CURRENT TOPIC</span>
-                        <span class="mode-tag" id="display-game-mode">승자 결정전</span>
-                        <span class="room-state-badge waiting" id="room-state-badge">대기 중</span>
-                        <h2 id="display-topic-title">주제 이름</h2>
-                        <span style="font-size: 0.8rem; color: var(--text-secondary);" id="display-grid-info">5x5 빙고 | 완성 목표: 5줄</span>
+                        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                            <span class="topic-tag">CURRENT TOPIC</span>
+                            <span class="mode-tag" id="display-game-mode">승자 결정전</span>
+                            <span class="room-state-badge waiting" id="room-state-badge">대기 중</span>
+                        </div>
+                        <h2 id="display-topic-title" style="margin:4px 0 2px 0;">주제 이름</h2>
+                        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                            <span style="font-size: 0.78rem; color: var(--text-secondary);" id="display-grid-info">5x5 빙고 | 완성 목표: 5줄</span>
+                            
+                            <!-- 🏆 상단 전광판 티커 -->
+                            <div class="today-rank-ticker" id="today-rank-ticker">
+                                <div class="ticker-item">
+                                    <span class="ticker-label">🏆 빙고왕</span>
+                                    <span id="rank-mvp-text" class="ticker-value gold">-</span>
+                                </div>
+                                <div class="ticker-divider"></div>
+                                <div class="ticker-item">
+                                    <span class="ticker-label">💣 꼴등</span>
+                                    <span id="rank-loser-text" class="ticker-value red">-</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="room-share-box">
@@ -170,13 +197,9 @@
                 </div>
             </div>
 
-            <div id="host-controls" class="host-controls-box" style="display: none;">
-                <div id="unready-players-info" class="unready-info-text"></div>
-                <div style="text-align: right;">
-                    <button class="start-game-btn" id="btn-host-start">게임 시작하기!</button>
-                    <button class="secondary-btn" id="btn-host-reset" style="border-color: var(--accent); color: var(--accent); margin-left: 6px;">대기실로 리셋</button>
-                    <button class="secondary-btn" id="btn-host-config" style="margin-left: 6px;">주제/설정 변경</button>
-                </div>
+            <!-- 결재 스탬프 레이어 -->
+            <div class="office-stamp-overlay" id="office-stamp-overlay">
+                <div class="office-stamp-box" id="office-stamp-box">APPROVED</div>
             </div>
 
             <div class="turn-banner" id="turn-banner" style="display: none;">
@@ -194,15 +217,27 @@
                     <div class="board-grid" id="bingo-board-grid" data-size="5"></div>
 
                     <div class="board-footer" id="board-footer">
-                        <div id="footer-waiting-controls" style="display: flex; gap: 6px; flex-wrap: wrap; width: 100%; align-items: center; justify-content: space-between;">
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <button class="primary-btn" id="btn-toggle-ready" style="width: auto; padding: 8px 14px; margin: 0; font-size:0.9rem;">준비 완료</button>
-                                <span id="empty-cell-count" class="empty-cell-counter">빈 칸: 0개</span>
+                        <div id="footer-waiting-controls">
+                            
+                            <!-- 1. 좌측: 준비 완료 및 빈칸 -->
+                            <div style="display: flex; align-items: center; gap: 6px; white-space: nowrap;">
+                                <button class="primary-btn" id="btn-toggle-ready" style="width: auto; padding: 6px 12px; margin: 0; font-size:0.8rem;">준비 완료</button>
+                                <span id="empty-cell-count" class="empty-cell-counter" style="font-size:0.78rem; color:var(--text-secondary);">빈 칸: 0개</span>
                             </div>
-                            <div style="display: flex; gap: 4px;">
-                                <button class="secondary-btn" id="btn-auto-fill">무작위 채우기</button>
-                                <button class="secondary-btn" id="btn-clear-board">비우기</button>
+
+                            <!-- 2. 중앙: 방장 전용 버튼 (한 줄 인라인) -->
+                            <div id="host-controls" style="display: none;">
+                                <button class="start-game-btn" id="btn-host-start">게임 시작하기!</button>
+                                <button class="secondary-btn" id="btn-host-reset">리셋</button>
+                                <button class="secondary-btn" id="btn-host-config">설정</button>
                             </div>
+
+                            <!-- 3. 우측: 무작위 채우기/비우기 -->
+                            <div style="display: flex; gap: 4px; white-space: nowrap;">
+                                <button class="secondary-btn" id="btn-auto-fill" style="padding: 6px 10px; font-size:0.8rem;">무작위 채우기</button>
+                                <button class="secondary-btn" id="btn-clear-board" style="padding: 6px 10px; font-size:0.8rem;">비우기</button>
+                            </div>
+
                         </div>
 
                         <div id="footer-playing-controls" style="display: none; width: 100%; justify-content: space-between; align-items: center;">
@@ -215,7 +250,7 @@
                     </div>
 
                     <div class="topic-words-panel" id="topic-words-panel">
-                        <h4 style="font-size:0.85rem; margin-bottom:8px;">주제 참고 단어 목록 (클릭 시 빈 칸 자동 채우기)</h4>
+                        <h4 style="font-size:0.82rem; margin-bottom:6px; color:var(--text-secondary);">주제 참고 단어 목록 (클릭 시 빈 칸 자동 채우기)</h4>
                         <div class="topic-words-chips" id="topic-words-chips"></div>
                     </div>
                 </div>
@@ -224,6 +259,12 @@
                     <button class="mobile-sidebar-close" id="mobile-sidebar-close">▼ 창 닫기</button>
                     
                     <div class="sidebar-players-fixed">
+                        <!-- ★ 오늘 하루 누적 빙고대왕 전광판 ★ -->
+                        <div class="today-king-banner" id="today-king-banner">
+                            <span class="king-title">👑 TODAY 전적</span>
+                            <span class="king-name" id="today-king-name-text">오늘 0승 0벌칙</span>
+                        </div>
+
                         <div class="sidebar-section-title">
                             <span>참가자 목록</span>
                             <span class="player-count-badge">(<span id="player-count">1</span>명)</span>
@@ -428,6 +469,6 @@
     </div>
 
     <script src="presets.js?v=20260814_v7"></script>
-    <script src="app_bingo.js?v=20260814_v7"></script>
+    <script src="app_bingo.js?v=20260814_v8"></script>
 </body>
 </html>
