@@ -497,7 +497,7 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
                                 room['current_turn_index'] = (room['current_turn_index'] + 1) % len(room['turn_order'])
                                 room['turn_start_time'] = time.time()
 
-                       elif game_mode == 'LOSER':
+                        elif game_mode == 'LOSER':
                             already_escaped_count = sum(1 for p in room['players'].values() if p.get('is_escaped', False))
                             newly_escaped = []
 
