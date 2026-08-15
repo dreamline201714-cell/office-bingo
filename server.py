@@ -39,7 +39,7 @@ def get_db_connection():
         return None
 
 def record_daily_win(game_type: str, nickname: str):
-    """승리 시 DB에 오늘 승수 +1 누적 (UPSERT 구문 사용)"""
+    """승리 시 DB에 오늘 승수 +1 누적 (game_type 대문자 고정)"""
     conn = get_db_connection()
     if not conn:
         return
@@ -47,13 +47,13 @@ def record_daily_win(game_type: str, nickname: str):
         with conn.cursor() as cur:
             sql = """
                 INSERT INTO daily_stats (game_type, nickname, play_date, wins)
-                VALUES (%s, %s, CURRENT_DATE, 1)
+                VALUES (UPPER(%s), %s, CURRENT_DATE, 1)
                 ON CONFLICT (game_type, nickname, play_date)
                 DO UPDATE SET wins = daily_stats.wins + 1;
             """
             cur.execute(sql, (game_type, nickname))
             conn.commit()
-            print(f"🎯 DB 승수 기록 완료: [{game_type}] {nickname} +1승")
+            print(f"🎯 DB 승수 기록 완료: [{game_type.upper()}] {nickname} +1승")
     except Exception as e:
         print(f"❌ DB 승수 저장 실패: {e}")
         conn.rollback()
@@ -61,13 +61,12 @@ def record_daily_win(game_type: str, nickname: str):
         conn.close()
 
 def get_today_top_winner(game_type: str):
-    """오늘 하루 해당 게임 최다 승자(오늘의 대왕) DB 조회 (한국 시간 KST 기준 보정)"""
+    """오늘 하루 해당 게임 최다 승자(오늘의 대왕) DB 조회 (한국 시간 KST & 대문자 보정)"""
     conn = get_db_connection()
     if not conn:
         return None
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            # 한국 시간(Asia/Seoul) 기준 오늘 날짜의 1등 조회
             sql = """
                 SELECT nickname, wins 
                 FROM daily_stats 

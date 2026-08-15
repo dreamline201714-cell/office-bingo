@@ -1034,11 +1034,12 @@
             joinRoomForm.onsubmit = function (e) {
                 e.preventDefault();
                 const nicknameEl = document.getElementById('join-nickname');
-                const roomCodeEl = document.getElementById('join-room-code');
-
-                const nickname = nicknameEl ? (nicknameEl.value.trim() || '이대리') : '이대리';
+                // 입력창에 입력된 실제 텍스트를 최우선으로 읽고, 비어있을 때만 기본값 적용
+                const nickname = (nicknameEl && nicknameEl.value.trim()) ? nicknameEl.value.trim() : '참여자';
+                
                 saveMyNickname(nickname);
 
+                const roomCodeEl = document.getElementById('join-room-code');
                 const roomCode = roomCodeEl ? roomCodeEl.value.trim().toUpperCase() : '';
 
                 sendMessage({
