@@ -38,7 +38,7 @@ def get_db_connection():
         print(f"❌ DB 연결 실패: {e}")
         return None
 
-def asyncio.create_task(asyncio.to_thread(record_daily_win, 'BINGO', str(p['nickname']).strip()))
+def record_daily_win(game_type: str, nickname: str):
     """승리 시 DB에 오늘 승수 +1 누적 (game_type 대문자 고정)"""
     conn = get_db_connection()
     if not conn:
@@ -487,8 +487,8 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
                             if winners:
                                 for w in winners:
                                     w['wins'] = w.get('wins', 0) + 1
-                                    # ★ Supabase DB에 승수 +1 기록
-                                    record_daily_win('BINGO', w['nickname'])
+                                    # ★ Supabase DB 비동기 백그라운드 기록 (딜레이 차단)
+                                    asyncio.create_task(asyncio.to_thread(record_daily_win, 'BINGO', str(w['nickname']).strip()))
                                     
                                 winner_names = ", ".join([w['nickname'] for w in winners])
                                 room['chat_logs'].append({'system': True, 'text': f"🏆 축하합니다! [{winner_names}]님이 목표 ({target_lines}줄)를 달성하여 우승하셨습니다!"})
@@ -507,11 +507,10 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
                                     p['is_escaped'] = True
                                     p['escape_rank'] = already_escaped_count
                                     
-                                    # ★ 가장 먼저 탈출한 1등 발생하는 즉시 DB 승수 누적
+                                    # ★ 가장 먼저 탈출한 1등 발생하는 즉시 DB 비동기 백그라운드 누적 (딜레이 차단)
                                     if already_escaped_count == 1:
                                         p['wins'] = p.get('wins', 0) + 1
-                                        # DB에 대문자 'BINGO'로 확실히 저장
-                                        record_daily_win('BINGO', str(p['nickname']).strip())
+                                        asyncio.create_task(asyncio.to_thread(record_daily_win, 'BINGO', str(p['nickname']).strip()))
                                         
                                     newly_escaped.append(f"[{p['nickname']}] ({already_escaped_count}등 탈출!)")
 
@@ -606,8 +605,8 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
                     player['wins'] = player.get('wins', 0) + 1
                     winner_name = player['nickname']
                     
-                    # ★ 루미큐브 우승자 DB 승수 +1 기록
-                    record_daily_win('RUMMIKUB', winner_name)
+                    # ★ 루미큐브 우승자 DB 비동기 백그라운드 승수 +1 기록
+                    asyncio.create_task(asyncio.to_thread(record_daily_win, 'RUMMIKUB', str(winner_name).strip()))
 
                     room['chat_logs'].append({'system': True, 'text': f"🏆 축하합니다! [{winner_name}]님이 모든 타일을 털어 최종 우승하셨습니다!"})
                     
