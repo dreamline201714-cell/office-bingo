@@ -58,7 +58,7 @@
     min-width: 32px !important;
     max-width: 38px !important;
     min-height: 48px !important;
-    pointer-events: none; /* 세트 내부 타일을 클릭해도 세트 박스 전체가 바로 선택됨 */
+    pointer-events: auto; /* 타일 자체 클릭 이벤트 수신 허용 */
 }
 
 /* 가이드 버튼 태그 비활성화 */

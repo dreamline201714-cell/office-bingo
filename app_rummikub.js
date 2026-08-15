@@ -419,28 +419,29 @@
                 div.innerText = tile.is_joker ? '★' : tile.number;
 
                 div.onclick = (e) => {
-                    e.stopPropagation();
-                    if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) {
-                        showToast("내 턴일 때만 조작할 수 있습니다.");
-                        return;
-                    }
+					e.stopPropagation(); // ★ 중요: 점선 박스(합치기)로 클릭 이벤트가 전달되지 않도록 차단
+					
+					if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) {
+						showToast("내 턴일 때만 조작할 수 있습니다.");
+						return;
+					}
 
-                    if (isSel) {
-                        selectedTiles = selectedTiles.filter(t => t.id !== tile.id);
-                    } else {
-                        selectedTiles.push({ ...tile, source: 'table', setIndex, tileIndex });
-                    }
-                    renderRack();
-                    renderTable();
-                };
+					if (isSel) {
+						selectedTiles = selectedTiles.filter(t => t.id !== tile.id);
+					} else {
+						selectedTiles.push({ ...tile, source: 'table', setIndex, tileIndex });
+					}
+					renderRack();
+					renderTable();
+				};
 
                 setEl.appendChild(div);
             });
 
             setEl.onclick = (e) => {
-                e.stopPropagation();
-                if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) return;
-                if (selectedTiles.length === 0) return;
+				e.stopPropagation();
+				if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) return;
+				if (selectedTiles.length === 0) return; // 선택한 타일이 없으면 동작하지 않음
 
                 selectedTiles.forEach(st => {
                     if (st.source === 'rack') {
