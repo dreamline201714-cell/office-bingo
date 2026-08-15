@@ -13,7 +13,6 @@ import string
 import sys
 import time
 
-# ★ Supabase DB 연동을 위한 psycopg2 라이브러리 추가
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
@@ -24,7 +23,6 @@ PORT = int(os.environ.get("PORT", 8000))
 PUBLIC_DIR = os.path.dirname(os.path.abspath(__file__))
 TURN_DURATION_SECONDS = 15
 
-# ★ Render.com 환경변수에서 DATABASE_URL 읽기
 DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://postgres:OfficeBingo2026Db@db.clsavoupapzxeyfybevr.supabase.co:5432/postgres')
 
 def get_db_connection():
@@ -61,7 +59,7 @@ def record_daily_win(game_type: str, nickname: str):
         conn.close()
 
 def get_today_top_winner(game_type: str):
-    """오늘 하루 해당 게임 최다 승자(오늘의 대왕) DB 조회 (한국 시간 KST & 대문자 보정)"""
+    """오늘 하루 해당 게임 최다 승자 DB 조회"""
     conn = get_db_connection()
     if not conn:
         return None
@@ -86,6 +84,24 @@ def get_today_top_winner(game_type: str):
         return None
     finally:
         conn.close()
+
+ROOMS = {}
+
+# ★ 오늘의 대왕 안전 메모리 캐시
+TODAY_KING_CACHE = {}
+
+async def update_today_king_loop():
+    """백그라운드에서 10초마다 DB 전광판 갱신 (클라이언트 요청에 영향을 주지 않음)"""
+    global TODAY_KING_CACHE
+    while True:
+        try:
+            for g_type in ['BINGO', 'RUMMIKUB', 'SEOTDA']:
+                king_data = await asyncio.to_thread(get_today_top_winner, g_type)
+                if king_data:
+                    TODAY_KING_CACHE[g_type] = king_data
+        except Exception as e:
+            print(f"⚠️ 백그라운드 DB 갱신 오류: {e}")
+        await asyncio.sleep(10)
 
 AVATAR_COLORS = [
     "#E53935", "#1E88E5", "#43A047", "#FB8C00", 
@@ -115,8 +131,6 @@ SEOTDA_CARDS_DECK = [
     {'id': 'c_10_1', 'month': 10, 'is_kwang': False, 'name': '10월 십'},
     {'id': 'c_10_2', 'month': 10, 'is_kwang': False, 'name': '10월 피'},
 ]
-
-ROOMS = {}
 
 def generate_room_code(length=6):
     chars = string.ascii_uppercase + string.digits
@@ -262,20 +276,15 @@ def serialize_room_state(room_id, requester_ws=None):
             })
         players_data.append(p_info)
 
-    # ★ DB에서 오늘 하루 최다 승자(오늘의 대왕) 데이터 조회
-    if room['status'] == 'WAITING':
-        today_king = get_cached_today_king(game_type)
-        room['cached_today_king'] = today_king  # 방 메모리에 보관
-    else:
-        # 게임 중에는 대기실에서 마지막으로 확인했던 전광판 데이터 재사용 (DB 접근 0회)
-        today_king = room.get('cached_today_king')
+    # ★ DB 조회 없이 백그라운드 캐시에서 0.0001초 만에 로드 (크래시 및 딜레이 완벽 제거)
+    today_king = TODAY_KING_CACHE.get(game_type)
 
     state = {
         'room_id': room_id, 'game_type': game_type, 'status': room['status'],
         'title': room.get('title', '레트로 멀티 미니게임'),
         'current_turn_player_id': current_player_id, 'turn_time_limit': turn_time_limit,
         'turn_time_remaining': time_left, 'players': players_data, 'chat_logs': room['chat_logs'][-30:],
-        'today_king': today_king  # ★ 클라이언트로 오늘 하루 1등 정보 전달
+        'today_king': today_king
     }
 
     if game_type == 'BINGO':
@@ -360,9 +369,12 @@ async def check_turn_timeouts():
 
 async def start_background_tasks(app):
     app['timeout_checker'] = asyncio.create_task(check_turn_timeouts())
+    app['king_updater'] = asyncio.create_task(update_today_king_loop())
 
 async def cleanup_background_tasks(app):
     app['timeout_checker'].cancel()
+    if 'king_updater' in app:
+        app['king_updater'].cancel()
     await app['timeout_checker']
 
 async def process_client_msg(ws, current_player_id, data, current_room_id):
@@ -492,7 +504,7 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
                             if winners:
                                 for w in winners:
                                     w['wins'] = w.get('wins', 0) + 1
-                                    # ★ Supabase DB 비동기 백그라운드 기록 (딜레이 차단)
+                                    # ★ 백그라운드 DB 승수 기록 (클릭 딜레이 0초)
                                     asyncio.create_task(asyncio.to_thread(record_daily_win, 'BINGO', str(w['nickname']).strip()))
                                     
                                 winner_names = ", ".join([w['nickname'] for w in winners])
@@ -512,7 +524,7 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
                                     p['is_escaped'] = True
                                     p['escape_rank'] = already_escaped_count
                                     
-                                    # ★ 가장 먼저 탈출한 1등 발생하는 즉시 DB 비동기 백그라운드 누적 (딜레이 차단)
+                                    # ★ 1등 탈출 시 백그라운드 DB 승수 기록 (클릭 딜레이 0초)
                                     if already_escaped_count == 1:
                                         p['wins'] = p.get('wins', 0) + 1
                                         asyncio.create_task(asyncio.to_thread(record_daily_win, 'BINGO', str(p['nickname']).strip()))
@@ -610,7 +622,6 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
                     player['wins'] = player.get('wins', 0) + 1
                     winner_name = player['nickname']
                     
-                    # ★ 루미큐브 우승자 DB 비동기 백그라운드 승수 +1 기록
                     asyncio.create_task(asyncio.to_thread(record_daily_win, 'RUMMIKUB', str(winner_name).strip()))
 
                     room['chat_logs'].append({'system': True, 'text': f"🏆 축하합니다! [{winner_name}]님이 모든 타일을 털어 최종 우승하셨습니다!"})
