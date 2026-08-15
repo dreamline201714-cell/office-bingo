@@ -25,7 +25,7 @@ PUBLIC_DIR = os.path.dirname(os.path.abspath(__file__))
 TURN_DURATION_SECONDS = 15
 
 # ★ Render.com 환경변수에서 DATABASE_URL 읽기
-DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://postgres:[OfficeBingo2026Db]@db.clsavoupapzxeyfybevr.supabase.co:5432/postgres')
+DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://postgres:OfficeBingo2026Db@db.clsavoupapzxeyfybevr.supabase.co:5432/postgres')
 
 def get_db_connection():
     """Supabase DB 연결 객체 생성"""
@@ -497,7 +497,7 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
                                 room['current_turn_index'] = (room['current_turn_index'] + 1) % len(room['turn_order'])
                                 room['turn_start_time'] = time.time()
 
-                        elif game_mode == 'LOSER':
+                       elif game_mode == 'LOSER':
                             already_escaped_count = sum(1 for p in room['players'].values() if p.get('is_escaped', False))
                             newly_escaped = []
 
@@ -506,10 +506,13 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
                                     already_escaped_count += 1
                                     p['is_escaped'] = True
                                     p['escape_rank'] = already_escaped_count
+                                    
+                                    # ★ 가장 먼저 탈출한 1등 발생하는 즉시 DB 승수 누적
                                     if already_escaped_count == 1:
                                         p['wins'] = p.get('wins', 0) + 1
-                                        # ★ 1등 탈출자 DB 승수 기록
-                                        record_daily_win('BINGO', p['nickname'])
+                                        # DB에 대문자 'BINGO'로 확실히 저장
+                                        record_daily_win('BINGO', str(p['nickname']).strip())
+                                        
                                     newly_escaped.append(f"[{p['nickname']}] ({already_escaped_count}등 탈출!)")
 
                             if newly_escaped:
