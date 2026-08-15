@@ -38,7 +38,7 @@ def get_db_connection():
         print(f"❌ DB 연결 실패: {e}")
         return None
 
-def record_daily_win(game_type: str, nickname: str):
+def asyncio.create_task(asyncio.to_thread(record_daily_win, 'BINGO', str(p['nickname']).strip()))
     """승리 시 DB에 오늘 승수 +1 누적 (game_type 대문자 고정)"""
     conn = get_db_connection()
     if not conn:
