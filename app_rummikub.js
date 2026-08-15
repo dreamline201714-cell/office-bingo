@@ -1,5 +1,5 @@
 /**
- * Office Rummikub Live Client Application Logic - Fully Fixed
+ * Office Rummikub Live Client Application Logic - Fully Improved & Fixed
  */
 (function () {
     let socket = null;
@@ -7,6 +7,10 @@
     let myPlayerId = null;
     let roomState = null;
     let previousTurnPlayerId = null;
+
+    // 턴 시작 시점의 복사본 (무르기/초기화용)
+    let initialTurnRack = [];
+    let initialTurnTableSets = [];
 
     let selectedTiles = []; 
     let localRack = [];
@@ -251,6 +255,25 @@
         return false;
     }
 
+    // 세트 점수 계산 함수 (첫 등록 30점 검증용)
+    function calculateSetScore(set) {
+        if (!set) return 0;
+        const nonJokers = set.filter(t => !t.is_joker);
+        if (nonJokers.length === 0) return 0;
+
+        const isGroup = nonJokers.every(t => t.number === nonJokers[0].number);
+        if (isGroup) {
+            return nonJokers[0].number * set.length;
+        }
+
+        const isSameColor = nonJokers.every(t => t.color === nonJokers[0].color);
+        if (isSameColor) {
+            return nonJokers.reduce((acc, curr) => acc + curr.number, 0);
+        }
+
+        return 0;
+    }
+
     function applyRackSort() {
         if (currentSortMode === 'color') {
             localRack.sort((a, b) => a.color.localeCompare(b.color) || a.number - b.number);
@@ -313,9 +336,14 @@
                 }
             }
 
-            if (String(roomState.current_turn_player_id) === String(myPlayerId) && String(previousTurnPlayerId) !== String(myPlayerId)) {
+            // 내 턴이 새로 시작되었을 때 턴 초기 복사본 저장
+            if (isMyTurn && String(previousTurnPlayerId) !== String(myPlayerId)) {
                 showToast("🧩 당신의 턴입니다! 자유 조합을 시작하세요!");
                 selectedTiles = [];
+                if (myPlayer && myPlayer.rack) {
+                    initialTurnRack = JSON.parse(JSON.stringify(myPlayer.rack));
+                }
+                initialTurnTableSets = JSON.parse(JSON.stringify(roomState.table_sets || []));
             }
             previousTurnPlayerId = roomState.current_turn_player_id;
 
@@ -389,6 +417,26 @@
             };
             container.appendChild(div);
         });
+
+        // 거치대 클릭 시 테이블 타일을 거치대로 회수
+        container.onclick = (e) => {
+            if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) return;
+            const tableSelected = selectedTiles.filter(st => st.source === 'table');
+            if (tableSelected.length === 0) return;
+
+            tableSelected.forEach(st => {
+                if (localTableSets[st.setIndex]) {
+                    localTableSets[st.setIndex] = localTableSets[st.setIndex].filter(t => t.id !== st.id);
+                }
+                localRack.push({ id: st.id, color: st.color, number: st.number, is_joker: st.is_joker });
+            });
+
+            selectedTiles = [];
+            applyRackSort();
+            renderRack();
+            renderTable();
+            showToast("선택한 타일을 내 거치대로 회수했습니다.");
+        };
     }
 
     function renderTable() {
@@ -418,30 +466,31 @@
                 div.className = `rummi-tile tile-${tile.color} ${isSel ? 'selected' : ''}`;
                 div.innerText = tile.is_joker ? '★' : tile.number;
 
+                // 개별 타일 클릭 (선택/해제)
                 div.onclick = (e) => {
-					e.stopPropagation(); // ★ 중요: 점선 박스(합치기)로 클릭 이벤트가 전달되지 않도록 차단
-					
-					if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) {
-						showToast("내 턴일 때만 조작할 수 있습니다.");
-						return;
-					}
+                    e.stopPropagation(); // 세트 합치기 전파 차단
+                    if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) {
+                        showToast("내 턴일 때만 조작할 수 있습니다.");
+                        return;
+                    }
 
-					if (isSel) {
-						selectedTiles = selectedTiles.filter(t => t.id !== tile.id);
-					} else {
-						selectedTiles.push({ ...tile, source: 'table', setIndex, tileIndex });
-					}
-					renderRack();
-					renderTable();
-				};
+                    if (isSel) {
+                        selectedTiles = selectedTiles.filter(t => t.id !== tile.id);
+                    } else {
+                        selectedTiles.push({ ...tile, source: 'table', setIndex, tileIndex });
+                    }
+                    renderRack();
+                    renderTable();
+                };
 
                 setEl.appendChild(div);
             });
 
+            // 세트 박스 여백 클릭 (선택한 타일 합치기)
             setEl.onclick = (e) => {
-				e.stopPropagation();
-				if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) return;
-				if (selectedTiles.length === 0) return; // 선택한 타일이 없으면 동작하지 않음
+                e.stopPropagation();
+                if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) return;
+                if (selectedTiles.length === 0) return;
 
                 selectedTiles.forEach(st => {
                     if (st.source === 'rack') {
@@ -465,6 +514,7 @@
             container.appendChild(setEl);
         });
 
+        // 테이블 전체 여백 클릭 (새 세트 생성)
         container.onclick = () => {
             if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) return;
             if (selectedTiles.length === 0) return;
@@ -501,7 +551,6 @@
 
         const playersList = roomState ? roomState.players : [];
 
-        // 1. 현재 방 최다 승자 (상단 티커)
         const mvpEl = document.getElementById('rank-mvp-text');
         if (mvpEl && playersList.length > 0) {
             const sorted = [...playersList].sort((a, b) => (b.wins || 0) - (a.wins || 0));
@@ -516,7 +565,6 @@
             }
         }
 
-        // 2. ★ Supabase DB에서 읽어온 오늘 하루 최다 승자(오늘의 루미대왕) 실시간 전광판 렌더링 ★
         const todayKingEl = document.getElementById('today-king-name-text');
         if (todayKingEl) {
             const todayKing = roomState ? roomState.today_king : null;
@@ -650,6 +698,7 @@
 
         const btnSortColor = document.getElementById('btn-sort-color');
         const btnSortNumber = document.getElementById('btn-sort-number');
+        const btnResetTurn = document.getElementById('btn-reset-turn'); // 턴 초기화/무르기
         const btnSubmitTurn = document.getElementById('btn-submit-turn');
 
         const btnCopyLink = document.getElementById('btn-copy-link');
@@ -695,6 +744,20 @@
             };
         }
 
+        // 턴 초기화(무르기) 버튼
+        if (btnResetTurn) {
+            btnResetTurn.onclick = () => {
+                if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) return;
+                localRack = JSON.parse(JSON.stringify(initialTurnRack));
+                localTableSets = JSON.parse(JSON.stringify(initialTurnTableSets));
+                selectedTiles = [];
+                applyRackSort();
+                renderRack();
+                renderTable();
+                showToast("이번 턴에 변경한 사항을 원래대로 돌렸습니다.");
+            };
+        }
+
         if (btnSubmitTurn) {
             btnSubmitTurn.onclick = () => {
                 if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) {
@@ -710,6 +773,26 @@
                     showToast("⚠️ 공유 테이블에 3장 미만이거나 올바르지 않은 세트 규칙이 존재합니다!");
                     renderTable();
                     return;
+                }
+
+                // 첫 등록(Initial Meld) 30점 이상 검증 (내 등록 상태가 false인 경우)
+                const myPlayer = roomState.players.find(p => String(p.player_id) === String(myPlayerId));
+                if (myPlayer && !myPlayer.has_opened) {
+                    const originalTableCount = (initialTurnTableSets || []).flat().length;
+                    const currentTableCount = localTableSets.flat().length;
+
+                    if (currentTableCount > originalTableCount) {
+                        // 새로 제출한 세트들의 점수 합계 계산
+                        let newlyPlacedScore = 0;
+                        localTableSets.forEach(set => {
+                            newlyPlacedScore += calculateSetScore(set);
+                        });
+
+                        if (newlyPlacedScore < 30) {
+                            showToast(`⚠️ 첫 등록 점수 합계가 30점 이상이어야 합니다! (현재: ${newlyPlacedScore}점)`);
+                            return;
+                        }
+                    }
                 }
 
                 sendMessage({ type: 'SUBMIT_TURN', room_id: currentRoomId, table_sets: localTableSets, rack: localRack });

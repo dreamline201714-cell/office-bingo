@@ -1,10 +1,10 @@
-/* style_rummikub.css - Optimized Wide & Compact Notion Rummikub Style */
+/* style_rummikub.css - Fully Optimized Wide & High-Contrast Notion Rummikub Style */
 
-/* 1. 공유 테이블 전체 컨테이너 (너비 제한 해제 및 세로 높이 확장) */
+/* 1. 공유 테이블 전체 컨테이너 */
 .rummikub-table-board,
 #table-sets-container {
     width: 100% !important;
-    max-width: none !important; /* 가로 폭 520px 제한 해제하여 오른쪽 여백 활용 */
+    max-width: none !important;
     min-height: 340px;
     max-height: 540px;
     margin: 0 auto;
@@ -21,7 +21,6 @@
     margin-bottom: 16px;
 }
 
-/* 공유 테이블 내부 스크롤바 디자인 */
 #table-sets-container::-webkit-scrollbar {
     width: 6px;
 }
@@ -30,13 +29,13 @@
     border-radius: 3px;
 }
 
-/* 2. 타일 세트 묶음 상자 (가로는 슬림하게, 세로 클릭 영역은 위아래로 넓게 확보) */
+/* 2. 타일 세트 묶음 상자 */
 .tile-group-set {
     display: inline-flex !important;
     align-items: center !important;
     flex-wrap: nowrap !important;
-    gap: 3px !important; /* 타일 사이 간격 촘촘화 */
-    padding: 12px 6px !important; /* 상하 여백 12px로 확장, 좌우 여백 6px로 슬림화 */
+    gap: 3px !important;
+    padding: 12px 6px !important;
     margin: 4px 2px !important;
     height: fit-content !important;
     background: #ffffff !important;
@@ -47,26 +46,20 @@
     transition: border-color 0.15s, background-color 0.15s;
 }
 
-/* 세트 박스 호버 시 클릭 영역 시각적 강조 */
 .tile-group-set:hover {
     border-color: var(--border-accent, #2eaadc) !important;
     background: #f0f9ff !important;
 }
 
-/* 세트 내부 타일 크기 및 클릭 이벤트를 세트 전체로 전달 */
+/* ★ 중요: 타일 자체 클릭 허용 (pointer-events: auto) ★ */
 .tile-group-set .rummi-tile {
     min-width: 32px !important;
     max-width: 38px !important;
     min-height: 48px !important;
-    pointer-events: auto; /* 타일 자체 클릭 이벤트 수신 허용 */
+    pointer-events: auto !important;
 }
 
-/* 가이드 버튼 태그 비활성화 */
-.append-guide-tag {
-    display: none !important;
-}
-
-/* 3. 📝 타일 기본 디자인 - 시독성 보장 */
+/* 3. 타일 기본 디자인 */
 .rummi-tile {
     width: 100%;
     aspect-ratio: 1 / 1.35;
@@ -95,27 +88,30 @@
     z-index: 10;
 }
 
-/* 타일 고대비 색상 */
+/* 라이트 모드 타일 색상 */
 .rummi-tile.tile-red { color: #e11d48 !important; }
 .rummi-tile.tile-orange { color: #d97706 !important; }
 .rummi-tile.tile-blue { color: #0284c7 !important; }
 .rummi-tile.tile-black { color: #1e293b !important; }
 .rummi-tile.tile-joker { color: #9333ea !important; }
 
-/* 4. 내 거치대 영역 (Rack) */
+/* 4. 내 거치대 영역 (Rack) 높이 확장 및 스크롤 최적화 */
 .my-rack-container {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(42px, 1fr));
     gap: 6px !important;
-    min-height: 100px;
+    min-height: 110px !important;
+    max-height: 180px !important;
+    overflow-y: auto !important;
     padding: 12px !important;
     background: var(--bg-card);
     border: 1px solid var(--border-block);
     border-radius: 8px;
     align-content: start;
+    cursor: pointer;
 }
 
-/* 5. 하단 거치대 및 조작 컨트롤 화면 바닥 밀착 고정 (Sticky) */
+/* 5. 바닥 밀착 고정 (Sticky) */
 .board-container > div:last-child,
 #my-rack-container {
     position: sticky !important;
@@ -128,17 +124,8 @@
     border-radius: 12px 12px 0 0 !important;
 }
 
-/* 턴 완료 및 조작 버튼 위치 */
 #board-footer {
     margin-top: 10px !important;
-}
-
-.rack-controls-bar,
-#board-action-buttons {
-    display: flex !important;
-    justify-content: flex-end !important;
-    gap: 8px !important;
-    margin-bottom: 6px !important;
 }
 
 #btn-submit-turn {
@@ -154,13 +141,12 @@
     background: #2595c4 !important;
     transform: translateY(-1px);
 }
-/* ==========================================
-   🌙 다크 모드 타일 & 세트 박스 전용 스타일
-   ========================================== */
 
-/* 1. 다크모드 타일 배경 및 테두리 (어두운 회색/차콜 톤) */
+/* ==========================================
+   🌙 다크 모드 타일 고대비 보정
+   ========================================== */
 [data-theme="dark"] .rummi-tile {
-    background: #2b2d31 !important; /* 밝은 눈뽕 하얀색 -> 어두운 테마용 배경색 */
+    background: #2b2d31 !important;
     border-color: #404249 !important;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4) !important;
 }
@@ -169,12 +155,13 @@
     border-color: #5c5e66 !important;
 }
 
-/* 2. 다크모드 검은색 타일 글자색 보정 (검은 배경에서 잘 보이도록 연한 밝은 회색) */
-[data-theme="dark"] .rummi-tile.tile-black {
-    color: #e2e8f0 !important;
-}
+/* 다크 모드 시각 선명도 보정 */
+[data-theme="dark"] .rummi-tile.tile-black { color: #f8fafc !important; }
+[data-theme="dark"] .rummi-tile.tile-red { color: #ff4d4d !important; }
+[data-theme="dark"] .rummi-tile.tile-orange { color: #fbbf24 !important; }
+[data-theme="dark"] .rummi-tile.tile-blue { color: #38bdf8 !important; }
+[data-theme="dark"] .rummi-tile.tile-joker { color: #c084fc !important; }
 
-/* 3. 다크모드 공유 테이블 세트 묶음 박스 */
 [data-theme="dark"] .tile-group-set {
     background: #1e1f22 !important;
     border-color: #404249 !important;
@@ -182,10 +169,11 @@
 
 [data-theme="dark"] .tile-group-set:hover {
     border-color: var(--border-accent, #2eaadc) !important;
-    background: #182830 !important; /* 호버 시 약간 짙은 푸른빛 배경 */
+    background: #182830 !important;
 }
+
 /* ==========================================
-   🏆 루미큐브 전광판 및 오늘의 전적 뱃지 디자인
+   🏆 전광판 및 뱃지 스타일
    ========================================== */
 .today-rank-ticker {
     display: inline-flex;
@@ -210,7 +198,6 @@
     color: #d97706;
 }
 
-/* 👑 우측 사이드바 TODAY 전적 뱃지 */
 .today-king-banner {
     display: flex;
     align-items: center;
