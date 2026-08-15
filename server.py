@@ -263,7 +263,12 @@ def serialize_room_state(room_id, requester_ws=None):
         players_data.append(p_info)
 
     # ★ DB에서 오늘 하루 최다 승자(오늘의 대왕) 데이터 조회
-    today_king = get_today_top_winner(game_type)
+    if room['status'] == 'WAITING':
+        today_king = get_cached_today_king(game_type)
+        room['cached_today_king'] = today_king  # 방 메모리에 보관
+    else:
+        # 게임 중에는 대기실에서 마지막으로 확인했던 전광판 데이터 재사용 (DB 접근 0회)
+        today_king = room.get('cached_today_king')
 
     state = {
         'room_id': room_id, 'game_type': game_type, 'status': room['status'],
