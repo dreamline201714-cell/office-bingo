@@ -1,4 +1,4 @@
-/* style_seotda.css - High Contrast & Dark Mode Hwatu Card Support */
+/* style_seotda.css - Fixed Betting Button Display Control & Shared Hwatu Card Design */
 
 .seotda-table-board {
     width: 100%; max-width: 100%; min-height: 230px; margin: 0 auto;
@@ -18,7 +18,6 @@
 
 .other-players-grid { display: flex; justify-content: space-around; margin-top: 8px; gap: 8px; flex-wrap: wrap; }
 
-/* 상대방 플레이어 자리 고대비 박스 */
 .player-seat-card {
     background: rgba(15, 23, 42, 0.85) !important;
     border: 1px solid rgba(255, 255, 255, 0.3) !important;
@@ -32,7 +31,6 @@
     font-weight: 700 !important;
     font-size: 0.85rem !important;
     color: #ffffff !important;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.8);
 }
 
 .seat-player-chips {
@@ -48,59 +46,174 @@
     margin-top: 4px;
 }
 
-.table-hwatu-container { display: flex; justify-content: center; gap: 4px; margin-top: 6px; }
-.table-hwatu-card {
-    width: 40px; height: 60px; border: 1px solid #000; border-radius: 4px;
-    background: #ffffff; color: #000000; font-weight: bold;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    font-size: 0.75rem; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+.table-hwatu-container { display: flex; justify-content: center; gap: 6px; margin-top: 6px; }
+
+/* ★ 고스톱 공유 화투패 카드 기본 규격 (42px × 66px) ★ */
+.hwatu-card {
+    width: 42px !important;
+    height: 66px !important;
+    background: var(--bg-card, #ffffff) !important;
+    border: 1px solid var(--border-block, #ccc) !important;
+    border-radius: 5px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    padding: 3px !important;
+    font-size: 0.65rem !important;
+    font-weight: 700 !important;
+    cursor: pointer !important;
+    user-select: none !important;
+    box-shadow: var(--shadow-block-sm, 0 1px 3px rgba(0,0,0,0.1)) !important;
+    box-sizing: border-box !important;
+    flex-shrink: 0 !important;
+    transition: transform 0.15s ease !important;
 }
 
-/* ★ 화투 패 뒷면 레트로 붉은 펄 디자인 ★ */
-.hwatu-card.card-back,
-.table-hwatu-card.card-back {
+.hwatu-card:hover { transform: translateY(-3px) !important; }
+
+/* 레트로 화투패 뒷면 붉은 펄 스타일 */
+.hwatu-card.card-back {
     background: linear-gradient(135deg, #b71c1c 0%, #880e4f 100%) !important;
     border: 1px solid #5f092b !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
 }
 
-/* ★ 다크 모드 시 화투 패 앞면/뒷면 차분한 다크 톤 매칭 ★ */
-html[data-theme="dark"] .hwatu-card.card-front,
-html[data-theme="dark"] .table-hwatu-card.card-front,
-[data-theme="dark"] .hwatu-card.card-front,
-[data-theme="dark"] .table-hwatu-card.card-front {
-    background: #2d3748 !important;
-    color: #f8fafc !important;
-    border: 1px solid #475569 !important;
+/* 카드 내부 구성 요소 구조 */
+.hwatu-card .card-top { display: flex !important; justify-content: space-between !important; align-items: center !important; line-height: 1 !important; }
+.hwatu-card .card-month { font-size: 0.68rem !important; color: var(--text-primary) !important; }
+.hwatu-card .card-icon { font-size: 0.9rem !important; text-align: center !important; line-height: 1 !important; margin: 1px 0 !important; }
+.hwatu-card .card-badge { font-size: 0.58rem !important; text-align: center !important; border-radius: 2px !important; padding: 1px 2px !important; color: #ffffff !important; line-height: 1 !important; }
+.hwatu-card .card-name-sub { font-size: 0.52rem !important; color: var(--text-muted) !important; text-align: center !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; line-height: 1 !important; }
+
+.kwang { border: 1px solid #e53935 !important; } .kwang .card-badge { background: #e53935 !important; }
+.animal { border: 1px solid #1e88e5 !important; } .animal .card-badge { background: #1e88e5 !important; }
+.ribbon { border: 1px solid #43a047 !important; } .ribbon .card-badge { background: #43a047 !important; }
+.pi { border: 1px solid #787774 !important; } .pi .card-badge { background: #787774 !important; }
+
+/* 퀵 도발 바 영역 - 짤림 방지 및 둥근 네모 형태 */
+.quick-speech-bar {
+    display: flex !important;
+    gap: 6px !important;
+    margin: 8px 0 !important;
+    overflow-x: auto !important;
+    padding: 6px 4px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    align-items: center !important;
 }
 
-.quick-speech-bar { display: flex; gap: 4px; margin: 10px 0; overflow-x: auto; padding-bottom: 2px; }
-.quick-btn { padding: 4px 8px; background: var(--bg-card); border: 1px solid var(--border-block); border-radius: 4px; font-size: 0.75rem; cursor: pointer; white-space: nowrap; color: var(--text-secondary); }
-.quick-btn:hover { border-color: var(--border-accent); color: var(--border-accent); }
+.quick-speech-bar::-webkit-scrollbar {
+    height: 4px;
+}
+
+.quick-speech-bar::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 2px;
+}
+
+.quick-btn {
+    padding: 4px 10px !important;
+    background: var(--bg-card, #ffffff) !important;
+    border: 1px solid var(--border-block, #e2e8f0) !important;
+    border-radius: 4px !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    white-space: nowrap !important;
+    color: var(--text-primary, #334155) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
+    transition: border-color 0.15s, color 0.15s, box-shadow 0.15s !important;
+}
+
+.quick-btn:hover {
+    border-color: var(--border-accent, #2eaadc) !important;
+    color: var(--border-accent, #2eaadc) !important;
+    box-shadow: 0 2px 6px rgba(46, 170, 220, 0.25) !important;
+    transform: none !important;
+}
 
 .my-seotda-hand-panel { background: var(--bg-surface); border: 1px solid var(--border-block); border-radius: 8px; padding: 12px; margin-top: 10px; }
 .my-hand-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-weight: 600; font-size: 0.88rem; }
 .my-jokbo-badge { background: rgba(46, 170, 220, 0.15); color: var(--border-accent); padding: 3px 8px; border: 1px solid var(--border-accent); border-radius: 4px; font-size: 0.8rem; font-weight: 600; }
-
 .my-cards-container { display: flex; justify-content: center; gap: 10px; margin: 8px 0; }
-.hwatu-card {
-    width: 50px; height: 76px; border: 1px solid #000; border-radius: 4px;
-    background-color: #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    color: #000000; font-weight: 700; cursor: pointer; transition: transform 0.15s;
-}
-.hwatu-card:hover { transform: translateY(-3px); }
 
-.betting-action-group { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px; width: 100%; }
+/* ★ [핵심 수리] JS의 display:none / flex 동작이 정상 작동하도록 !important 제거 ★ */
+.betting-action-group,
+#betting-action-group { 
+    gap: 6px; 
+    flex-wrap: nowrap; 
+    margin-top: 10px; 
+    width: 100%; 
+}
+
 .bet-btn { 
-    flex: 1; min-width: 48px; padding: 8px 2px; font-weight: 600; font-size: 0.78rem; 
-    border: 1px solid var(--border-block); border-radius: 4px; background: var(--bg-card); 
-    color: var(--text-primary); cursor: pointer; text-align: center; 
+    flex: 1; 
+    min-width: 50px; 
+    padding: 10px 4px; 
+    font-weight: 700; 
+    font-size: 0.82rem; 
+    border: 1px solid var(--border-block, #ccc); 
+    border-radius: 6px; 
+    background: var(--bg-card, #ffffff); 
+    color: var(--text-primary, #333333); 
+    cursor: pointer; 
+    text-align: center; 
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    transition: all 0.15s ease;
 }
-.bet-btn:hover { border-color: var(--border-accent); color: var(--border-accent); }
 
+.bet-btn:hover { 
+    border-color: var(--border-accent, #2eaadc); 
+    color: var(--border-accent, #2eaadc); 
+    background: var(--bg-surface, #f0f0f0);
+    transform: translateY(-1px);
+}
+
+/* 배팅 칩 애니메이션 */
 .flying-chip {
     position: fixed; width: 18px; height: 18px; border-radius: 50%;
     background: #ffd700; border: 1px solid #000000;
     box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     z-index: 9999; pointer-events: none; transition: all 0.65s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* 섯다 다크 모드 연동 */
+[data-theme="dark"] .hwatu-card:not(.card-back) {
+    background: #2a2a2e !important;
+    border-color: #3f3f46 !important;
+    color: #f4f4f5 !important;
+}
+
+[data-theme="dark"] .my-seotda-hand-panel {
+    background: #1e1e20 !important;
+    border-color: #3f3f46 !important;
+}
+
+[data-theme="dark"] .quick-btn {
+    background: #2a2a2e !important;
+    border-color: #3f3f46 !important;
+    color: #f4f4f5 !important;
+}
+
+[data-theme="dark"] .quick-btn:hover {
+    border-color: #38bdf8 !important;
+    color: #38bdf8 !important;
+    box-shadow: 0 2px 6px rgba(56, 189, 248, 0.3) !important;
+}
+
+[data-theme="dark"] .bet-btn {
+    background: #2a2a2e !important;
+    border-color: #3f3f46 !important;
+    color: #f4f4f5 !important;
+}
+
+[data-theme="dark"] .bet-btn:hover {
+    border-color: #38bdf8 !important;
+    color: #38bdf8 !important;
+    background: #333338 !important;
 }

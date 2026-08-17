@@ -1,5 +1,5 @@
 /**
- * Office Seotda Live Client Application Logic - Restored & Cleaned
+ * Office Seotda Live Client Application Logic - Shared Hwatu Card Rendering
  */
 
 (function () {
@@ -160,7 +160,7 @@
 
         if (btnCopyLink) {
             btnCopyLink.onclick = () => {
-                const shareUrl = `${window.location.origin}${window.location.pathname}?room=${currentRoomId}`;
+                const shareUrl = `${window.location.origin}/index.html?game=seotda&room=${currentRoomId}`;
                 if (navigator.clipboard && navigator.clipboard.writeText) {
                     navigator.clipboard.writeText(shareUrl).then(() => showToast('초대 링크가 복사되었습니다!'))
                     .catch(() => prompt('아래 링크를 복사하세요:', shareUrl));
@@ -172,7 +172,7 @@
 
         if (btnShowQr) {
             btnShowQr.onclick = () => {
-                const shareUrl = `${window.location.origin}${window.location.pathname}?room=${currentRoomId}`;
+                const shareUrl = `${window.location.origin}/index.html?game=seotda&room=${currentRoomId}`;
                 if (qrCodeContainer) {
                     qrCodeContainer.innerHTML = '';
                     if (typeof QRCode === 'function') {
@@ -275,7 +275,6 @@
         }
     }
 
-    // UI 업데이트 (방장/선 권한 display: flex / none 완벽 매칭)
     function updateUI() {
         if (!roomState) return;
 
@@ -297,7 +296,6 @@
         const titleEl = document.getElementById('display-topic-title');
         if (titleEl && roomState.title) titleEl.innerText = roomState.title;
 
-        // 1. 대기실 상태 (WAITING)
         if (status === 'WAITING') {
             if (roomBadge) { roomBadge.className = 'room-state-badge waiting'; roomBadge.innerText = '대기 중'; }
             if (turnBanner) turnBanner.style.display = 'none';
@@ -324,7 +322,6 @@
                 }
             }
         } 
-        // 2. 결과 공개 상태 (SHOWDOWN) - 승자(선) 1명에게만 표시
         else if (status === 'SHOWDOWN') {
             if (roomBadge) { roomBadge.className = 'room-state-badge waiting'; roomBadge.innerText = '결과 공개 중'; }
             if (turnBanner) turnBanner.style.display = 'none';
@@ -355,7 +352,6 @@
                 }
             }
         } 
-        // 3. 배팅 진행 중 상태 (PLAYING)
         else {
             if (roomBadge) { roomBadge.className = 'room-state-badge playing'; roomBadge.innerText = '배팅 진행 중'; }
             if (turnBanner) turnBanner.style.display = 'flex';
@@ -407,8 +403,16 @@
 
         hand.forEach((card) => {
             const div = document.createElement('div');
-            div.className = 'hwatu-card card-front';
-            div.innerHTML = `<span>${card.month}월</span><span style="font-size:0.7rem; color:${card.is_kwang ? '#e53935':'#666'}">${card.is_kwang ? '광(光)' : '피'}</span>`;
+            const typeClass = card.is_kwang ? 'kwang' : 'pi';
+            div.className = `hwatu-card ${typeClass}`;
+            div.innerHTML = `
+                <div class="card-top">
+                    <span class="card-month">${card.month}월</span>
+                    <span class="card-badge">${card.is_kwang ? '광' : '피'}</span>
+                </div>
+                <div class="card-icon">${card.is_kwang ? '☀' : '🍃'}</div>
+                <div class="card-name-sub">${card.name || ''}</div>
+            `;
             cardsBox.appendChild(div);
         });
     }
@@ -432,13 +436,13 @@
                 if (hand.length >= 2) {
                     cardsHtml = `
                         <div class="table-hwatu-container">
-                            <div class="table-hwatu-card card-front">
-                                <span>${hand[0].month}월</span>
-                                <span style="font-size:0.65rem; color:${hand[0].is_kwang ? '#e53935':'#666'}">${hand[0].is_kwang ? '광' : '피'}</span>
+                            <div class="hwatu-card ${hand[0].is_kwang ? 'kwang' : 'pi'}">
+                                <div class="card-top"><span class="card-month">${hand[0].month}월</span><span class="card-badge">${hand[0].is_kwang ? '광' : '피'}</span></div>
+                                <div class="card-icon">${hand[0].is_kwang ? '☀' : '🍃'}</div>
                             </div>
-                            <div class="table-hwatu-card card-front">
-                                <span>${hand[1].month}월</span>
-                                <span style="font-size:0.65rem; color:${hand[1].is_kwang ? '#e53935':'#666'}">${hand[1].is_kwang ? '광' : '피'}</span>
+                            <div class="hwatu-card ${hand[1].is_kwang ? 'kwang' : 'pi'}">
+                                <div class="card-top"><span class="card-month">${hand[1].month}월</span><span class="card-badge">${hand[1].is_kwang ? '광' : '피'}</span></div>
+                                <div class="card-icon">${hand[1].is_kwang ? '☀' : '🍃'}</div>
                             </div>
                         </div>
                     `;
@@ -446,8 +450,8 @@
             } else if (roomState.status === 'PLAYING' && !p.is_folded) {
                 cardsHtml = `
                     <div class="table-hwatu-container">
-                        <div class="table-hwatu-card card-back"></div>
-                        <div class="table-hwatu-card card-back"></div>
+                        <div class="hwatu-card card-back"></div>
+                        <div class="hwatu-card card-back"></div>
                     </div>
                 `;
             }

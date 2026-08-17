@@ -3,9 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Office Live Games Hub v1.0</title>
-    
+    <title>Office Live Games Hub</title>
     <link rel="stylesheet" href="common.css?v=20260813_v1">
+    <style>
+        body { margin: 0; padding: 0; }
+        .game-tab-container { display: flex; gap: 8px; margin: 12px 16px; }
+        .game-tab-btn {
+            flex: 1; padding: 10px 14px; border: 1px solid var(--border-block, #e4e4e7);
+            border-radius: 8px; background: var(--bg-surface, #ffffff); cursor: pointer;
+            font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; gap: 6px;
+            color: var(--text-primary);
+        }
+        .game-tab-btn.active {
+            background: var(--primary-color, #2563eb); color: #ffffff; border-color: var(--primary-color, #2563eb);
+        }
+        
+        .iframe-wrapper { 
+            position: relative;
+            width: 100%; 
+            height: calc(100vh - 120px); 
+            background-color: var(--bg-primary, #ffffff);
+        }
+        .game-iframe { 
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%; 
+            border: none; 
+            display: none;
+        }
+        .game-iframe.active {
+            display: block;
+        }
+		@media screen and (max-width: 768px) {
+			.game-tab-container {
+				margin: 6px 8px !important;
+				gap: 4px !important;
+			}
+			.game-tab-btn {
+				padding: 6px 8px !important;
+				font-size: 0.78rem !important;
+				border-radius: 6px !important;
+			}
+			.iframe-wrapper {
+				height: calc(100vh - 95px) !important; /* 상단바 줄어든 만큼 iFrame 높이 확보 */
+			}
+		}
+    </style>
 </head>
 <body>
     <header class="navbar">
@@ -13,48 +56,117 @@
             <div class="brand-icon">🎮</div>
             <span>Office Live Games <small style="font-size:0.65rem; color:var(--accent); vertical-align:super;">HUB</small></span>
         </a>
+        <div class="nav-controls">
+            <button class="icon-btn" id="btn-global-stealth" title="스텔스 모드" onclick="toggleGlobalStealth()">📊</button>
+            <button class="icon-btn" id="btn-global-sound" title="사운드 설정" onclick="toggleGlobalSound()">🔊</button>
+            <button class="icon-btn" id="btn-global-theme" title="테마 변경" onclick="toggleGlobalTheme()">🌙</button>
+        </div>
     </header>
 
-    <main class="container" style="max-width: 800px; margin-top: 20px;">
-        <div class="glass-card" style="text-align: center; margin-bottom: 24px;">
-            <h1 style="font-size: 2rem; font-weight: 800; margin-bottom: 10px;">실시간 멀티 미니게임</h1>
-            <p style="color: var(--text-secondary); font-size: 1rem;">웹 브라우저에서 바로 실시간으로 즐기는 미니게임 모음집입니다.</p>
-        </div>
+    <div class="game-tab-container">
+        <button class="game-tab-btn active" data-game="bingo" data-target="iframe-bingo" onclick="switchGameTab(this)">🎯 빙고</button>
+        <button class="game-tab-btn" data-game="rummikub" data-target="iframe-rummikub" onclick="switchGameTab(this)">🧩 루미큐브</button>
+        <button class="game-tab-btn" data-game="seotda" data-target="iframe-seotda" onclick="switchGameTab(this)">🃏 섯다</button>
+        <button class="game-tab-btn" data-game="gostop" data-target="iframe-gostop" onclick="switchGameTab(this)">🎴 고스톱</button>
+    </div>
 
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;">
-            <!-- 1. 빙고 카드 -->
-            <a href="bingo.html" style="text-decoration: none; color: inherit;">
-                <div class="glass-card" style="height: 100%; transition: transform 0.15s;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='translateY(0)'">
-                    <div style="font-size: 3rem; margin-bottom: 12px; text-align: center;">🎯</div>
-                    <h2 style="font-size: 1.3rem; margin-bottom: 8px; text-align: center;">실시간 빙고</h2>
-                    <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; text-align: center;">
-                        3x3 ~ 5x5 자유 주제 빙고! 추천 프리셋과 자유 주제로 승수를 쌓아보세요!
-                    </p>
-                </div>
-            </a>
+    <div class="iframe-wrapper">
+        <iframe id="iframe-bingo" class="game-iframe active" src="bingo.html"></iframe>
+        <iframe id="iframe-rummikub" class="game-iframe" src="rummikub.html"></iframe>
+        <iframe id="iframe-seotda" class="game-iframe" src="seotda.html"></iframe>
+        <iframe id="iframe-gostop" class="game-iframe" src="gostop.html"></iframe>
+    </div>
 
-            <!-- 2. 루미큐브 카드 -->
-            <a href="rummikub.html" style="text-decoration: none; color: inherit;">
-                <div class="glass-card" style="height: 100%; transition: transform 0.15s;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='translateY(0)'">
-                    <div style="font-size: 3rem; margin-bottom: 12px; text-align: center;">🧩</div>
-                    <h2 style="font-size: 1.3rem; margin-bottom: 8px; text-align: center;">실시간 루미큐브</h2>
-                    <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; text-align: center;">
-                        타일 조합 및 수싸움! 15초~90초 턴 제한과 공유 테이블을 제공합니다.
-                    </p>
-                </div>
-            </a>
+    <script>
+        window.addEventListener('DOMContentLoaded', () => {
+            const iframes = document.querySelectorAll('.game-iframe');
+            iframes.forEach(iframe => {
+                iframe.addEventListener('load', () => syncThemeToAllIframes());
+            });
 
-            <!-- 3. 섯다 카드 -->
-            <a href="seotda.html" style="text-decoration: none; color: inherit;">
-                <div class="glass-card" style="height: 100%; transition: transform 0.15s;" onmouseover="this.style.transform='translateY(-4px)'" onmouseout="this.style.transform='translateY(0)'">
-                    <div style="font-size: 3rem; margin-bottom: 12px; text-align: center;">🃏</div>
-                    <h2 style="font-size: 1.3rem; margin-bottom: 8px; text-align: center; color: var(--accent);">실시간 섯다</h2>
-                    <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; text-align: center;">
-                        칩 배팅 투척 연출과 퀵 말풍선 심리전! 20장 화투 족보 싸움 상대를 파산시키세요.
-                    </p>
-                </div>
-            </a>
-        </div>
-    </main>
+            // 방 초대 링크 파라미터 감지 (?game=gostop&room=XXXXXX)
+            const urlParams = new URLSearchParams(window.location.search);
+            const gameParam = urlParams.get('game');
+            const roomParam = urlParams.get('room');
+
+            if (gameParam) {
+                const targetIframe = document.getElementById(`iframe-${gameParam}`);
+                const targetTab = document.querySelector(`.game-tab-btn[data-game="${gameParam}"]`);
+
+                if (targetIframe && targetTab) {
+                    if (roomParam) {
+                        targetIframe.src = `${gameParam}.html?room=${roomParam}`;
+                    }
+                    switchGameTab(targetTab);
+                }
+            }
+        });
+
+        function switchGameTab(element) {
+            document.querySelectorAll('.game-tab-btn').forEach(tab => tab.classList.remove('active'));
+            element.classList.add('active');
+            
+            const targetId = element.getAttribute('data-target');
+            document.querySelectorAll('.game-iframe').forEach(iframe => {
+                if (iframe.id === targetId) {
+                    iframe.classList.add('active');
+                } else {
+                    iframe.classList.remove('active');
+                }
+            });
+        }
+
+        function toggleGlobalTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', currentTheme);
+            syncThemeToAllIframes();
+        }
+
+        function syncThemeToAllIframes() {
+            const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+            const iframes = document.querySelectorAll('.game-iframe');
+
+            iframes.forEach(iframe => {
+                try {
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    if (iframeDoc && iframeDoc.documentElement) {
+                        iframeDoc.documentElement.setAttribute('data-theme', currentTheme);
+                        if (currentTheme === 'dark') {
+                            iframeDoc.body.classList.add('dark-theme');
+                        } else {
+                            iframeDoc.body.classList.remove('dark-theme');
+                        }
+                    }
+                } catch (e) {}
+            });
+        }
+
+        function toggleGlobalStealth() {
+            document.body.classList.toggle('excel-stealth-mode');
+            const iframes = document.querySelectorAll('.game-iframe');
+
+            iframes.forEach(iframe => {
+                try {
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    if (iframeDoc && iframeDoc.body) {
+                        iframeDoc.body.classList.toggle('excel-stealth-mode');
+                    }
+                } catch (e) {}
+            });
+        }
+
+        function toggleGlobalSound() {
+            const iframes = document.querySelectorAll('.game-iframe');
+            iframes.forEach(iframe => {
+                try {
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    if (iframeDoc) {
+                        const soundBtn = iframeDoc.getElementById('sound-toggle-btn');
+                        if (soundBtn) soundBtn.click();
+                    }
+                } catch (e) {}
+            });
+        }
+    </script>
 </body>
 </html>

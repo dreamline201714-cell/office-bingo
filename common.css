@@ -566,3 +566,191 @@ body.excel-stealth-mode .primary-btn, body.excel-stealth-mode .start-game-btn:no
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }
+
+/* ==========================================
+   🎮 노션 스타일 도움말 모달 가독성 대폭 강화
+   ========================================== */
+
+/* 1. 단계별 콜아웃 박스 (Section Box) */
+.notion-help-body .notion-callout {
+    background: var(--bg-surface, #f8f9fa);
+    border: 1px solid var(--border-block, #e9ecef);
+    border-left: 4px solid var(--primary-color, #2563eb);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 18px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.notion-help-body .callout-icon {
+    font-size: 1.2rem;
+    line-height: 1;
+    margin-top: 2px;
+}
+
+.notion-help-body .callout-content {
+    flex: 1;
+}
+
+.notion-help-body .callout-content strong {
+    display: block;
+    font-size: 0.95rem;
+    color: var(--text-primary, #111827);
+    margin-bottom: 4px;
+}
+
+.notion-help-body .callout-content p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary, #4b5563);
+    line-height: 1.5;
+}
+
+/* 팁 상자 (Callout 내부 팁) */
+.notion-help-body .notion-tip {
+    margin-top: 8px;
+    padding: 6px 10px;
+    background: rgba(37, 99, 235, 0.08);
+    border-radius: 6px;
+    font-size: 0.78rem;
+    color: var(--primary-color, #2563eb);
+    font-weight: 600;
+}
+
+/* 2. 2열/4열 카드 그리드 배치 (Card Group) */
+.notion-help-body .notion-card-group {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.notion-help-body .notion-card {
+    background: var(--bg-card, #ffffff);
+    border: 1px solid var(--border-block, #e5e7eb);
+    border-radius: 8px;
+    padding: 10px 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.notion-help-body .notion-card h4 {
+    margin: 0 0 6px 0;
+    font-size: 0.85rem;
+    color: var(--text-primary, #111827);
+    font-weight: 700;
+    border-bottom: 1px solid var(--border-block, #f3f4f6);
+    padding-bottom: 4px;
+}
+
+.notion-help-body .notion-card p {
+    margin: 0;
+    font-size: 0.78rem;
+    color: var(--text-secondary, #4b5563);
+    line-height: 1.5;
+}
+
+/* 3. 하단 안내 상자 (Info Box) */
+.notion-help-body .notion-info-box {
+    background: rgba(245, 158, 11, 0.08);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 20px;
+}
+
+.notion-help-body .notion-info-box p {
+    margin: 0 0 6px 0;
+    font-size: 0.8rem;
+    color: var(--text-primary, #1f2937);
+    line-height: 1.4;
+}
+
+.notion-help-body .notion-info-box p:last-child {
+    margin-bottom: 0;
+}
+
+/* 🌙 다크모드 적용 시 모달 스타일 보정 */
+[data-theme="dark"] .notion-help-body .notion-callout {
+    background: #1f2937 !important;
+    border-color: #374151 !important;
+    border-left-color: #3b82f6 !important;
+}
+
+[data-theme="dark"] .notion-help-body .notion-card {
+    background: #111827 !important;
+    border-color: #374151 !important;
+}
+
+[data-theme="dark"] .notion-help-body .notion-card h4 {
+    border-bottom-color: #374151 !important;
+    color: #f3f4f6 !important;
+}
+
+[data-theme="dark"] .notion-help-body .notion-info-box {
+    background: rgba(245, 158, 11, 0.15) !important;
+    border-color: rgba(245, 158, 11, 0.4) !important;
+}
+
+/* ==========================================
+   📱 모바일 대화/목록 플로팅 버튼(FAB) & 서랍 보정
+   ========================================== */
+@media screen and (max-width: 768px) {
+    /* 플로팅 버튼을 우측 하단 구석으로 이동 (게임판 방해 방지) */
+    .mobile-fab,
+    #mobile-fab-btn {
+        position: fixed !important;
+        bottom: 20px !important;
+        right: 16px !important;
+        top: auto !important;
+        left: auto !important;
+        z-index: 9999 !important;
+        background: var(--primary-color, #2563eb) !important;
+        color: #ffffff !important;
+        border: none !important;
+        border-radius: 24px !important;
+        padding: 10px 16px !important;
+        font-size: 0.82rem !important;
+        font-weight: 700 !important;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3) !important;
+        cursor: pointer !important;
+    }
+
+    /* 사이드바 패널을 모바일 하단 서랍(Bottom Sheet) 형태로 전환 */
+    .sidebar-panel,
+    #mobile-sidebar {
+        position: fixed !important;
+        top: auto !important;
+        bottom: -100% !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 75vh !important;
+        z-index: 10000 !important;
+        transition: bottom 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+        border-radius: 16px 16px 0 0 !important;
+        box-shadow: 0 -6px 25px rgba(0,0,0,0.3) !important;
+        background: var(--bg-card, #ffffff) !important;
+    }
+
+    .sidebar-panel.active,
+    #mobile-sidebar.active {
+        bottom: 0 !important;
+    }
+
+    /* 서랍 닫기 버튼 상단 노출 */
+    .mobile-sidebar-close,
+    #mobile-sidebar-close {
+        display: block !important;
+        width: 100% !important;
+        padding: 10px !important;
+        text-align: center !important;
+        background: var(--bg-surface, #f3f4f6) !important;
+        border: none !important;
+        font-weight: 800 !important;
+        font-size: 0.85rem !important;
+        color: var(--text-secondary, #4b5563) !important;
+        cursor: pointer !important;
+        border-radius: 16px 16px 0 0 !important;
+    }
+}

@@ -920,7 +920,7 @@
 
         if (btnCopyLink) {
             btnCopyLink.onclick = () => {
-                const shareUrl = `${window.location.origin}${window.location.pathname}?room=${currentRoomId}`;
+                const shareUrl = `${window.location.origin}/index.html?game=rummikub&room=${currentRoomId}`;
                 if (navigator.clipboard && navigator.clipboard.writeText) {
                     navigator.clipboard.writeText(shareUrl).then(() => showToast('초대 링크가 복사되었습니다!'))
                     .catch(() => prompt('아래 링크를 복사하세요:', shareUrl));
@@ -932,7 +932,7 @@
 
         if (btnShowQr) {
             btnShowQr.onclick = () => {
-                const shareUrl = `${window.location.origin}${window.location.pathname}?room=${currentRoomId}`;
+                const shareUrl = `${window.location.origin}/index.html?game=rummikub&room=${currentRoomId}`;
                 const qrContainer = document.getElementById('qrcode');
                 if (qrContainer) {
                     qrContainer.innerHTML = '';

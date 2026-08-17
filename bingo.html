@@ -1,7 +1,20 @@
 <!DOCTYPE html>
 <html lang="ko" data-theme="light">
 <head>
-    <meta charset="UTF-8">
+    <script>
+        // 단독 접속 시 index.html로 자동 리다이렉트
+        if (window.self === window.top) {
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomCode = urlParams.get('room');
+            const currentGame = window.location.pathname.split('/').pop().replace('.html', '');
+            
+            let targetUrl = `/index.html?game=${currentGame}`;
+            if (roomCode) targetUrl += `&room=${roomCode}`;
+            
+            window.location.href = targetUrl;
+        }
+    </script>
+	<meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>26년 재무상태표.xlsx - Excel</title>
     
@@ -19,30 +32,17 @@
         💬 대화 / 목록 (<span id="mobile-player-count">1</span>명)
     </button>
 
-    <header class="navbar">
-        <a href="index.html" class="brand" id="nav-logo">
-            <div class="brand-icon" id="brand-icon-el">🎯</div>
-            <span id="brand-title-el">Office Bingo <small style="font-size:0.65rem; color:var(--accent); vertical-align:super;">LIVE</small></span>
-        </a>
-        <div class="nav-controls">
-            <div id="stealth-opacity-box" style="display:none; align-items:center; gap:4px; background:rgba(255,255,255,0.2); padding:2px 6px; border-radius:4px;">
-                <span style="font-size:10px; color:#fff;">투명도</span>
-                <input type="range" id="stealth-opacity-range" min="30" max="100" value="100" style="width:50px; cursor:pointer;">
-            </div>
-
-            <button class="icon-btn" id="btn-stealth-toggle" style="width:auto; padding:0 6px; font-weight:bold; gap:2px;" title="스텔스 모드">
-                📊 <span style="font-size:0.75rem;">스텔스</span>
-            </button>
-
-            <div class="status-badge">
-                <span class="status-dot" id="status-dot"></span>
-                <span id="status-text">연결 대기 중</span>
-            </div>
-            <button class="icon-btn" id="btn-help" title="게임 방법">❓</button>
-            <button class="icon-btn" id="sound-toggle-btn" title="사운드 설정">🔊</button>
-            <button class="icon-btn" id="theme-toggle-btn" title="테마 변경">🌙</button>
-        </div>
-    </header>
+    <header class="navbar-slim" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 12px;">
+		<div class="status-badge">
+			<span class="status-dot" id="status-dot"></span>
+			<span id="status-text">연결 대기 중</span>
+		</div>
+		
+		<div class="nav-controls">
+			<!-- 게임 규칙 도움말만 내부에 유지 -->
+			<button class="icon-btn" id="btn-help" title="게임 방법">❓</button>
+		</div>
+	</header>
 
     <div class="excel-formula-bar excel-only-bar">
         <div class="excel-cell-name">C3</div>
@@ -55,8 +55,8 @@
         <section id="lobby-section" class="lobby-grid">
             <div class="glass-card">
                 <div style="text-align: center; margin-bottom: 20px;">
-                    <h1 style="font-size: 1.6rem; font-weight: 800; margin-bottom: 6px;">사내 실시간 빙고</h1>
-                    <p style="color: var(--text-secondary); font-size: 0.9rem;">링크 하나로 사내 동료들과 실시간 빙고 게임을 즐겨보세요.</p>
+                    <h1 style="font-size: 1.6rem; font-weight: 800; margin-bottom: 6px;">빙고</h1>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem;">링크 하나로 동료들과 실시간 빙고 게임을 즐겨보세요.</p>
                 </div>
 
                 <div class="tab-selector">
@@ -76,7 +76,7 @@
 
                     <div class="form-group">
                         <label class="form-label" for="create-title">게임 방 제목 설정</label>
-                        <input type="text" id="create-title" class="form-input" value="사내 실시간 빙고" placeholder="예: [마케팅팀] 점심 메뉴 빙고 한판!" maxlength="20" required>
+                        <input type="text" id="create-title" class="form-input" value="실시간 빙고" placeholder="예: [마케팅팀] 점심 메뉴 빙고 한판!" maxlength="20" required>
                     </div>
 
                     <!--
@@ -166,7 +166,7 @@
                 <div class="topic-banner">
                     <div class="topic-info">
                         <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                            <span class="topic-tag">CURRENT TOPIC</span>
+                            <span class="topic-tag">빙고</span>
                             <span class="mode-tag" id="display-game-mode">승자 결정전</span>
                             <span class="room-state-badge waiting" id="room-state-badge">대기 중</span>
                         </div>

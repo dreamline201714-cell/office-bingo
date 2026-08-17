@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="light">
+<head>
+    <script>
+        if (window.self === window.top) {
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomCode = urlParams.get('room');
+            const currentGame = window.location.pathname.split('/').pop().replace('.html', '');
+            let targetUrl = `/index.html?game=${currentGame}`;
+            if (roomCode) targetUrl += `&room=${roomCode}`;
+            window.location.href = targetUrl;
+        }
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Office Live Games - 고스톱</title>
+    <link rel="stylesheet" href="common.css?v=20260813_v1">
+    <link rel="stylesheet" href="style_gostop.css?v=20260816_v14">
+</head>
+<body>
+    <header class="navbar-slim" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 12px;">
+		<div class="status-badge">
+			<span class="status-dot" id="status-dot"></span>
+			<span id="status-text">연결 대기 중</span>
+		</div>
+		<div class="nav-controls">
+			<button class="icon-btn" id="btn-help" title="게임 방법" onclick="openHelpModal()">❓</button>
+		</div>
+	</header>
+
+    <div id="special-fx-badge" class="special-fx-badge"></div>
+
+    <main class="container">
+        <!-- 로비 영역 -->
+        <div id="lobby-card" class="glass-card lobby-grid">
+            <h2 style="margin-bottom: 12px; text-align:center;">고스톱</h2>
+            
+            <!-- 탭 선택을 상단으로 이동 -->
+            <div class="tab-selector">
+                <button class="tab-btn active" onclick="switchTab('create')">방 만들기</button>
+                <button class="tab-btn" onclick="switchTab('join')">방 참가하기</button>
+            </div>
+            
+            <!-- 방 만들기 탭 -->
+            <div id="create-tab">
+                <div class="form-group">
+                    <label class="form-label">내 닉네임</label>
+                    <input type="text" id="nickname-input" class="form-input" placeholder="예: 타짜김사원" value="타짜" maxlength="12">
+                    <p style="font-size:0.75rem; color:var(--text-secondary); margin-top:4px; margin-bottom:0;">
+                        💡 동일한 <strong>닉네임</strong>을 사용하셔야 보유 칩이 계속 유지됩니다.
+                    </p>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">기본 시작 칩</label>
+                    <div class="size-options">
+                        <button class="config-size-btn selected" onclick="selectChip(this, 10000)">10,000</button>
+                        <button class="config-size-btn" onclick="selectChip(this, 30000)">30,000</button>
+                        <button class="config-size-btn" onclick="selectChip(this, 50000)">50,000</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">점당 칩 금액</label>
+                    <div class="size-options">
+                        <button class="mode-btn selected" onclick="selectPointChip(this, 100)">100칩</button>
+                        <button class="mode-btn" onclick="selectPointChip(this, 500)">500칩</button>
+                        <button class="mode-btn" onclick="selectPointChip(this, 1000)">1,000칩</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">턴 제한 시간</label>
+                    <div class="size-options">
+                        <button class="time-btn" onclick="selectTurnTime(this, 10)">10초</button>
+                        <button class="time-btn selected" onclick="selectTurnTime(this, 15)">15초</button>
+                        <button class="time-btn" onclick="selectTurnTime(this, 30)">30초</button>
+                    </div>
+                </div>
+                <button class="primary-btn" onclick="createRoom()">방 생성하기</button>
+            </div>
+            
+            <!-- 방 참가하기 탭 -->
+            <div id="join-tab" style="display:none;">
+                <div class="form-group">
+                    <label class="form-label">내 닉네임</label>
+                    <input type="text" id="join-nickname-input" class="form-input" placeholder="예: 이대리" value="타짜" maxlength="12">
+                    <p style="font-size:0.75rem; color:var(--text-secondary); margin-top:4px; margin-bottom:0;">
+                        💡 동일한 <strong>닉네임</strong>을 사용하셔야 보유 칩이 계속 유지됩니다.
+                    </p>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">방 코드 (6자리)</label>
+                    <input type="text" id="room-code-input" class="form-input" placeholder="예: WORK12" style="text-transform: uppercase; letter-spacing: 2px;" maxlength="8">
+                </div>
+                <button class="primary-btn" onclick="joinRoom()">입장하기</button>
+            </div>
+        </div>
+
+        <!-- 게임 아레나 영역 (이하 기존 동일) -->
+        <div id="arena" style="display:none;" class="arena-main">
+            <!-- 기존 arena 내부 동일 -->
+            <div class="board-container">
+                <div class="topic-banner">
+                    <div>
+                        <span class="topic-tag">고스톱</span>
+                        <h2 id="room-title">고스톱 대국</h2>
+                    </div>
+                    <div class="room-share-box">
+                        <button class="secondary-btn" onclick="copyRoomLink()">링크 복사</button>
+                        <button class="secondary-btn" onclick="openQRModal()">QR 코드</button>
+                        <span id="room-code-display" class="room-code-badge">------</span>
+                    </div>
+                </div>
+
+                <div class="turn-banner">
+                    <div class="turn-banner-header">
+                        <div class="turn-banner-left">
+                            <span>현재 턴:</span>
+                            <span id="turn-player-name" class="turn-player-badge">-</span>
+                            <span id="game-status-hint" style="font-size:0.78rem; color:var(--border-accent); font-weight:bold; margin-left:6px;"></span>
+                        </div>
+                        <div class="turn-banner-right">
+                            <span id="turn-timer" class="turn-timer-text">15초</span>
+                            <div class="turn-timer-track"><div id="turn-timer-fill" class="turn-timer-fill" style="width: 100%;"></div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="opponents-container" class="player-row"></div>
+
+                <div class="glass-card board-mat-center" onclick="onTableEmptyClick()">
+                    <div style="font-size:0.78rem; color:var(--text-secondary); margin-bottom:6px; font-weight:bold;">🟩 바닥 패 (Table)</div>
+                    <div class="circle-mat-grid">
+                        <div id="table-slot-top" class="table-slot table-slot-top"></div>
+                        <div id="table-slot-left" class="table-slot table-slot-left"></div>
+                        
+                        <div class="table-slot-center deck-center-box">
+                            <div style="text-align:center;">
+                                <div style="font-size:0.62rem; color:var(--text-secondary); margin-bottom:2px;">남은 덱</div>
+                                <div id="deck-stack" class="deck-stack-card" onclick="onDeckClick()">🎴<br><span id="deck-count-num">0</span></div>
+                            </div>
+                            <span class="deck-arrow" id="deck-arrow" style="display:none;">➔</span>
+                            <div id="drawn-card-wrapper" class="drawn-card-box" style="display:none;">
+                                <div style="font-size:0.62rem; color:#f59e0b; font-weight:bold; margin-bottom:2px;">오픈 패</div>
+                                <div id="drawn-card-display"></div>
+                            </div>
+                        </div>
+
+                        <div id="table-slot-right" class="table-slot table-slot-right"></div>
+                        <div id="table-slot-bottom" class="table-slot table-slot-bottom"></div>
+                    </div>
+                </div>
+
+                <div class="glass-card" style="margin-bottom: 10px;">
+                    <div class="player-header">
+                        <span id="my-name">나</span>
+                        <div>
+                            <span class="chip-badge" id="my-chips">10,000 칩</span>
+                            <span id="my-score" style="margin-left:8px; color:#e53935; font-weight:bold;">0점</span>
+                        </div>
+                    </div>
+                    <div style="font-size:0.72rem; color:var(--text-secondary); margin-bottom:3px; display:flex; justify-content:space-between;">
+                        <span>📥 내가 획득한 패 (클릭 시 전체보기)</span>
+                        <small style="color:var(--border-accent); cursor:pointer;">🔍 크게보기</small>
+                    </div>
+                    <div id="my-captured" class="captured-mat-box" onclick="openCapturedDetailModal('my')">
+                        <div class="captured-group">
+                            <div class="captured-group-title">☀ 광 <span id="my-kwang-count">0</span></div>
+                            <div id="my-captured-kwang" class="captured-group-cards-stack"></div>
+                        </div>
+                        <div class="captured-group">
+                            <div class="captured-group-title">🦅 열끗 <span id="my-animal-count">0</span></div>
+                            <div id="my-captured-animal" class="captured-group-cards-stack"></div>
+                        </div>
+                        <div class="captured-group">
+                            <div class="captured-group-title">🎗 띠 <span id="my-ribbon-count">0</span></div>
+                            <div id="my-captured-ribbon" class="captured-group-cards-stack"></div>
+                        </div>
+                        <div class="captured-group">
+                            <div class="captured-group-title">🍃 피 <span id="my-pi-count">0</span></div>
+                            <div id="my-captured-pi" class="captured-group-cards-stack"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="hand-tray-container">
+                    <div class="hand-tray-header">
+                        <span class="hand-tray-title">🎴 내 손패 (Hand)</span>
+                        <div style="display:flex; gap:6px;">
+                            <button class="sort-btn active" id="sort-month-btn" onclick="setSortMode('month')">🔢 월순 정렬</button>
+                            <button class="sort-btn" id="sort-type-btn" onclick="setSortMode('type')">⭐ 종류순 정렬</button>
+                        </div>
+                    </div>
+                    <div id="my-hand" class="card-grid"></div>
+                </div>
+
+                <div id="host-controls" class="host-controls-box">
+                    <button id="ready-btn" class="btn-ready" onclick="toggleReady()">준비 완료</button>
+                    <button id="start-btn" class="start-game-btn" onclick="startGame()" disabled>게임 시작</button>
+                </div>
+            </div>
+
+            <div class="sidebar-panel">
+                <div class="sidebar-title">👥 참가자 목록</div>
+                <div class="sidebar-players-fixed" style="margin-bottom: 12px;">
+                    <div id="player-list" class="player-list-scroll"></div>
+                </div>
+                <div class="sidebar-tabbed-area">
+                    <div class="sidebar-title" style="padding: 6px 8px 0 8px;">💬 실시간 대화</div>
+                    <div class="chat-container">
+                        <div id="chat-messages" class="chat-messages"></div>
+                        <div class="chat-input-box">
+                            <input type="text" id="chat-input" class="chat-input" placeholder="메시지..." onkeydown="if(event.key==='Enter') sendChat()">
+                            <button class="chat-send-btn" onclick="sendChat()">전송</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="gostop-decision-modal" class="gostop-modal-overlay" style="display:none;">
+        <div class="gostop-modal-box">
+            <h2 style="color:#2eaadc; margin-bottom:6px;">🎴 점수 달성!</h2>
+            <p style="font-size:0.9rem; color:var(--text-secondary); margin-bottom:12px;">
+                현재 <b id="modal-score-text" style="color:#e53935; font-size:1.2rem;">0</b>점을 얻었습니다.
+            </p>
+            <div class="gostop-btn-group">
+                <button class="btn-go" onclick="makeGoStopDecision('GO')">🚀 GO (고)</button>
+                <button class="btn-stop" onclick="makeGoStopDecision('STOP')">🛑 STOP (스톱)</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="captured-detail-modal" class="modal-overlay">
+        <div class="modal-box" style="width: 480px;">
+            <div class="modal-header">
+                <h3 id="captured-modal-title">📥 획득한 패 상세보기</h3>
+                <button class="modal-close" onclick="closeModal('captured-detail-modal')">&times;</button>
+            </div>
+            <div class="modal-body-scroll" style="max-height:400px; padding:12px;">
+                <div id="captured-modal-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="help-modal" class="modal-overlay">
+        <div class="modal-box notion-help-modal" style="max-width: 520px;">
+            <div class="modal-header">
+                <h3>🎴 고스톱(맞고) 규칙 & 점수 안내</h3>
+                <button class="modal-close" onclick="closeModal('help-modal')">&times;</button>
+            </div>
+            <div class="modal-body-scroll notion-help-body">
+                
+                <!-- 1단계: 진행 방식 -->
+                <div class="notion-callout">
+                    <span class="callout-icon">1️⃣</span>
+                    <div class="callout-content">
+                        <strong>기본 진행 방식</strong>
+                        <p>내 손패 1장을 내어 바닥 패와 월(달)을 맞추고, 중앙 덱에서 카드를 1장 오픈하여 2차 매칭을 진행합니다.</p>
+                        <div class="notion-tip">💡 2인 3점 이상, 3인 7점 이상 달성 시 <strong>GO / STOP</strong> 선택 권한이 주어집니다.</div>
+                    </div>
+                </div>
+
+                <!-- 2단계: 패 종류별 점수 -->
+                <div class="notion-callout">
+                    <span class="callout-icon">2️⃣</span>
+                    <div class="callout-content">
+                        <strong>패 종류별 기본 점수</strong>
+                        <p>획득한 패 종류별 수량에 따라 점수가 합산됩니다.</p>
+                    </div>
+                </div>
+
+                <div class="notion-card-group">
+                    <div class="notion-card">
+                        <h4>☀ 광 (KWANG)</h4>
+                        <p>• 3광: 3점 (비광 포함 시 2점)<br>• 4광: 4점 / 5광: 15점</p>
+                    </div>
+                    <div class="notion-card">
+                        <h4>🦅 열끗 & 고도리</h4>
+                        <p>• 5장부터 1점 (+1장당 +1점)<br>• <b>고도리</b>(2·4·8월 새 3장): +5점<br>• 7장 이상 획득 시 <b>멍따(2배)</b></p>
+                    </div>
+                    <div class="notion-card">
+                        <h4>🎗 띠 (RIBBON)</h4>
+                        <p>• 5장부터 1점 (+1장당 +1점)<br>• <b>홍단/청단/초단</b> 세트 완성 시 각 +3점</p>
+                    </div>
+                    <div class="notion-card">
+                        <h4>🍃 피 & 쌍피</h4>
+                        <p>• 10장부터 1점 (+1장당 +1점)<br>• 쌍피(💎)는 피 2장으로 계산</p>
+                    </div>
+                </div>
+
+                <!-- 3단계: 특수 피 뺏기 규칙 -->
+                <div class="notion-callout">
+                    <span class="callout-icon">3️⃣</span>
+                    <div class="callout-content">
+                        <strong>상대 피 뺏어오기 (특수 연출)</strong>
+                        <p>특정 상황을 달성하면 상대방의 피 1장을 즉시 빼앗아옵니다.</p>
+                    </div>
+                </div>
+
+                <div class="notion-info-box">
+                    <p><strong>✨ 쪽:</strong> 내낸 패가 안 맞고 덱에서 뽑은 카드가 바닥 패와 맞았을 때</p>
+                    <p><strong>⚡ 따닥:</strong> 바닥에 2장 있는 월을 손패+덱 카드로 동시에 다 먹었을 때</p>
+                    <p><strong>🧹 쓸:</strong> 바닥에 있는 모든 카드를 싹 쓸어 모았을 때</p>
+                    <p><strong>💣 폭탄:</strong> 같은 월 3장을 한 번에 내어 바닥 1장을 먹었을 때 (+2배 승수)</p>
+                </div>
+
+                <!-- 4단계: 박(벌칙) 배수 -->
+                <div class="notion-callout">
+                    <span class="callout-icon">4️⃣</span>
+                    <div class="callout-content">
+                        <strong>패자 벌칙 배수 (박)</strong>
+                        <p>승리 조건에 따라 패자에게 2배 벌칙 칩 차감이 적용됩니다.</p>
+                    </div>
+                </div>
+
+                <div class="notion-card-group">
+                    <div class="notion-card">
+                        <h4>🛡 피박</h4>
+                        <p>승자가 피로 점수를 냈을 때, 내 피가 1~5장 이하인 경우 (2배)</p>
+                    </div>
+                    <div class="notion-card">
+                        <h4>🛡 광박</h4>
+                        <p>승자가 광으로 점수를 냈을 때, 내가 광을 1장도 못 먹은 경우 (2배)</p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div id="qr-modal" class="modal-overlay">
+        <div class="modal-box" style="text-align:center;">
+            <div class="modal-header">
+                <h3>QR 코드로 모바일 접속</h3>
+                <button class="modal-close" onclick="closeModal('qr-modal')">&times;</button>
+            </div>
+            <div style="padding:20px;">
+                <img id="qr-image" src="" alt="QR Code" style="width:200px; height:200px; border:1px solid #ccc; border-radius:8px;">
+            </div>
+        </div>
+    </div>
+
+    <script src="app_gostop.js"></script>
+</body>
+</html>
