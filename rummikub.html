@@ -190,14 +190,19 @@
                     <button class="mobile-sidebar-close" id="mobile-sidebar-close">▼ 창 닫기</button>
                     
                     <div class="sidebar-players-fixed">
+                        <!-- ★ 1. 오늘의 루미왕 배너를 sidebar-section-title 바깥으로 이동 ★ -->
+                        <div class="today-king-banner" id="today-king-banner">
+                            <span class="king-title">👑 오늘의 루미왕</span>
+                            <span class="king-name" id="today-king-name-text">오늘 0승</span>
+                        </div>
+
+                        <!-- ★ 2. 참가자 목록 제목 상자 ★ -->
                         <div class="sidebar-section-title">
-						<div class="today-king-banner" id="today-king-banner">
-							<span class="king-title">👑 오늘의 루미왕</span>
-							<span class="king-name" id="today-king-name-text">오늘 0승</span>
-						</div>
-                            <span>참가자 목록</span>
+                            <span>👥 참가자 목록</span>
                             <span class="player-count-badge">(<span id="player-count">0</span>명)</span>
                         </div>
+
+                        <!-- ★ 3. 참가자 명단 스크롤 영역 ★ -->
                         <div id="panel-players" class="player-list-scroll"></div>
                     </div>
 

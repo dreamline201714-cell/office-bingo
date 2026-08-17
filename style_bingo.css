@@ -566,3 +566,22 @@
     height: auto !important;
     overflow-y: visible !important;
 }
+
+/* ==========================================
+   📱 모바일(아이폰 등) 화면 전용 빙고판 잘림 방지
+   ========================================== */
+@media screen and (max-width: 768px) {
+    .bingo-board-grid,
+    .board-grid {
+        gap: 4px !important;          /* 셀 간격 축소 */
+        padding: 4px !important;      /* 테두리 여백 축소 */
+        max-width: 100% !important;   /* 화면 폭을 넘지 않도록 제한 */
+        box-sizing: border-box !important;
+    }
+
+    .bingo-cell {
+        padding: 1px 2px !important;
+        font-size: clamp(0.62rem, 2.8vw, 0.75rem) !important; /* 모바일 폭에 맞춰 폰트 자동 축소 */
+        word-break: break-all !important;
+    }
+}

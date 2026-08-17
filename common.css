@@ -1,4 +1,4 @@
-/* common.css - Office Stealth & Notion Minimal Theme (Host Controls Display Fixed) */
+/* common.css - Office Stealth & Notion Minimal Theme (Sidebar Layout Fixed) */
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
 
 :root {
@@ -18,20 +18,11 @@
 
 html[data-theme="dark"],
 [data-theme="dark"] {
-    /* 1단계: 가장 깊은 브라우저 바탕 배경 (완전 어두운 톤) */
     --bg-primary: #141414; 
-    
-    /* 2단계: 메인 게임 보드판 및 상단 배너 (중간 차콜 톤) */
     --bg-surface: #1e1e20; 
-    
-    /* 3단계: 클릭 가능한 타일, 버튼, 입력창 (가장 앞으로 튀어나오는 밝은 차콜 톤) */
     --bg-card: #2a2a2e; 
-    
-    /* 구분을 명확히 해주는 선명한 테두리 색상 */
     --border-block: #3f3f46; 
     --border-accent: #2563eb; 
-    
-    /* 글자 가시성 대폭 향상 */
     --text-primary: #f4f4f5; 
     --text-secondary: #a1a1aa; 
     --text-muted: #71717a; 
@@ -51,6 +42,8 @@ body {
     background-color: var(--bg-primary); 
     color: var(--text-primary); 
     min-height: 100vh; 
+    min-height: 100dvh;
+    padding-bottom: env(safe-area-inset-bottom);
     display: flex; flex-direction: column; 
     transition: background-color 0.2s, color 0.2s;
 }
@@ -99,7 +92,11 @@ body {
 }
 .icon-btn:hover { background: var(--bg-surface); color: var(--text-primary); }
 
-.container { max-width: 960px; width: 100%; margin: 0 auto; padding: 20px 16px; flex: 1; }
+.container { 
+    max-width: 960px; width: 100%; margin: 0 auto; 
+    padding: 20px 16px calc(16px + env(safe-area-inset-bottom)) 16px; 
+    flex: 1; 
+}
 .glass-card { 
     background: var(--bg-surface); border: 1px solid var(--border-block); 
     border-radius: 8px; padding: 20px; box-shadow: var(--shadow-block); margin-bottom: 18px; 
@@ -147,7 +144,6 @@ body {
 .start-game-btn:disabled { background: var(--bg-surface) !important; color: var(--text-muted) !important; border: 1px solid var(--border-block) !important; cursor: not-allowed; }
 .start-game-btn:not(:disabled) { background: var(--border-accent) !important; color: var(--text-on-accent) !important; border: none !important; cursor: pointer; border-radius: 5px; font-weight: 600; padding: 6px 14px; font-size: 0.85rem; }
 
-/* ★ [핵심 교정] 방장 및 선 컨트롤 상자 (JS 스타일 활성화 시 우측 정렬 강제 적용) ★ */
 #host-controls,
 #dealer-controls,
 .host-controls-box { 
@@ -160,7 +156,6 @@ body {
     width: 100%;
 }
 
-/* JS에서 display: block 또는 display: flex를 넣었을 때 내부 요소 우측 정렬 보장 */
 #host-controls[style*="display: block"],
 #host-controls[style*="display: flex"],
 #dealer-controls[style*="display: block"],
@@ -268,13 +263,59 @@ body {
 .arena-main { display: grid; grid-template-columns: 1fr 290px; gap: 16px; }
 .board-container { width: 100%; display: flex; flex-direction: column; gap: 14px; }
 
-.sidebar-panel { background: var(--bg-surface); border: 1px solid var(--border-block); border-radius: 8px; display: flex; flex-direction: column; min-height: 520px; height: auto; padding: 12px; gap: 10px; }
-/* 높이 제한(max-height)을 없애서 참가자가 다 보이도록 수정 */
-.sidebar-players-fixed { display: flex; flex-direction: column; max-height: none !important; border: 1px solid var(--border-block); border-radius: 6px; background: var(--bg-card); padding: 8px; }
-.player-list-scroll { overflow-y: visible !important; display: flex; flex-direction: column; gap: 4px; max-height: none !important; }
-.player-list-scroll { overflow-y: auto; display: flex; flex-direction: column; gap: 4px; max-height: 100px; }
+/* ==========================================
+   🧩 사이드바 구조 최종 통합 (중복/충돌 제거)
+   ========================================== */
+.sidebar-panel { 
+    background: var(--bg-surface); 
+    border: 1px solid var(--border-block); 
+    border-radius: 8px; 
+    display: flex; 
+    flex-direction: column; 
+    min-height: 520px; 
+    padding: 12px; 
+    gap: 10px; 
+    box-sizing: border-box;
+}
 
-.sidebar-tabbed-area { display: flex; flex-direction: column; flex: 1; min-height: 0; border: 1px solid var(--border-block); border-radius: 6px; background: var(--bg-card); }
+.sidebar-players-fixed { 
+    display: flex; 
+    flex-direction: column; 
+    border: 1px solid var(--border-block); 
+    border-radius: 6px; 
+    background: var(--bg-card); 
+    padding: 8px; 
+}
+
+.sidebar-section-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+}
+
+.player-list-scroll { 
+    display: flex; 
+    flex-direction: column; 
+    gap: 4px; 
+    max-height: 200px; 
+    overflow-y: auto; 
+}
+
+.sidebar-tabbed-area { 
+    display: flex; 
+    flex-direction: column; 
+    flex: 1; 
+    min-height: 220px; 
+    border: 1px solid var(--border-block); 
+    border-radius: 6px; 
+    background: var(--bg-card); 
+    overflow: hidden;
+}
+
 .sidebar-tabs { display: flex; border-bottom: 1px solid var(--border-block); }
 .sidebar-tab-btn { flex: 1; padding: 6px; border: none; background: var(--bg-surface); color: var(--text-secondary); font-size: 0.78rem; font-weight: 600; }
 .sidebar-tab-btn.active { background: var(--bg-card); color: var(--text-primary); }
@@ -332,7 +373,7 @@ body {
 .ready-tag.waiting { background: rgba(229, 57, 53, 0.18); color: #c62828; }
 
 .chat-container { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-.chat-messages { flex: 1; min-height: 0; overflow-y: auto !important; border: 1px solid var(--border-block); border-radius: 4px; background: var(--bg-card); padding: 6px; margin-bottom: 6px; font-size: 0.78rem; display: flex; flex-direction: column; gap: 4px; }
+.chat-messages { flex: 1; min-height: 120px; overflow-y: auto !important; border: 1px solid var(--border-block); border-radius: 4px; background: var(--bg-primary); padding: 6px; margin-bottom: 6px; font-size: 0.78rem; display: flex; flex-direction: column; gap: 4px; }
 .chat-input-box { display: flex; gap: 4px; width: 100%; }
 .chat-input { flex: 1; border: 1px solid var(--border-block); border-radius: 4px; padding: 6px; background: var(--bg-card); color: var(--text-primary); font-size: 0.78rem; outline: none; }
 .chat-send-btn { border: 1px solid var(--border-block); background: var(--bg-surface); color: var(--text-primary); border-radius: 4px; padding: 0 10px; font-size: 0.78rem; font-weight: 600; cursor: pointer; }
@@ -369,42 +410,51 @@ body {
     .topic-banner { padding: 12px; }
     .room-share-box { margin-top: 6px; width: 100%; justify-content: space-between; }
 
-    .sidebar-panel {
-        position: fixed; bottom: 0; left: 0; width: 100vw; height: 80vh;
-        z-index: 2500; transform: translateY(100%);
-        transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-        border: none; border-top: 1px solid var(--border-block);
-        border-radius: 12px 12px 0 0; background: var(--bg-card);
-        box-shadow: 0 -8px 24px rgba(0,0,0,0.25);
-    }
-    .sidebar-panel.active { transform: translateY(0); }
-
-    .mobile-sidebar-close {
-        display: block !important; width: 100%; padding: 8px;
-        background: var(--bg-surface); color: var(--text-primary);
-        border: none; border-bottom: 1px solid var(--border-block);
-        font-size: 0.85rem; font-weight: 600; cursor: pointer;
-    }
-
-    .mobile-fab {
-        display: flex !important; position: fixed; bottom: 20px; right: 20px;
+    .mobile-fab,
+    #mobile-fab-btn {
+        position: fixed !important;
+        bottom: calc(16px + env(safe-area-inset-bottom)) !important;
+        right: 16px !important;
+        z-index: 2500 !important;
+        display: flex !important;
         background: var(--border-accent); color: var(--text-on-accent);
         border: none; border-radius: 20px; padding: 10px 16px;
         font-size: 0.85rem; font-weight: 600; cursor: pointer;
-        z-index: 2000; box-shadow: 0 4px 12px rgba(0,0,0,0.3); align-items: center; gap: 6px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3); align-items: center; gap: 6px;
+    }
+
+    .sidebar-panel,
+    #mobile-sidebar {
+        position: fixed !important; 
+        bottom: -100% !important; 
+        left: 0 !important; 
+        width: 100vw !important; 
+        height: 75vh !important;
+        z-index: 10000 !important;
+        transition: bottom 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+        border: none !important; 
+        border-top: 1px solid var(--border-block) !important;
+        border-radius: 16px 16px 0 0 !important; 
+        background: var(--bg-card) !important;
+        box-shadow: 0 -8px 24px rgba(0,0,0,0.25) !important;
+    }
+    
+    .sidebar-panel.active,
+    #mobile-sidebar.active { bottom: 0 !important; }
+
+    .mobile-sidebar-close,
+    #mobile-sidebar-close {
+        display: block !important; width: 100% !important; padding: 10px !important;
+        text-align: center !important; background: var(--bg-surface) !important; color: var(--text-primary) !important;
+        border: none !important; border-bottom: 1px solid var(--border-block) !important;
+        font-size: 0.85rem !important; font-weight: 800 !important; cursor: pointer !important;
+        border-radius: 16px 16px 0 0 !important;
     }
 }
 
 @media screen and (max-width: 600px) {
-    .turn-banner-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
-    }
-    .turn-banner-right {
-        width: 100%;
-        max-width: 100%;
-    }
+    .turn-banner-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .turn-banner-right { width: 100%; max-width: 100%; }
 }
 
 body.excel-stealth-mode, body.excel-stealth-mode * { font-family: '굴림', 'Gulim', sans-serif !important; }
@@ -419,121 +469,57 @@ body.excel-stealth-mode .icon-btn { background: #ffffff !important; color: #107c
 .excel-formula-input { flex: 1; border: none; outline: none; font-size: 11px; color: #333; background: transparent; }
 body.excel-stealth-mode .glass-card, body.excel-stealth-mode .topic-banner, body.excel-stealth-mode .turn-banner, body.excel-stealth-mode .sidebar-panel { background: #ffffff !important; border: 1px solid #d4d4d4 !important; box-shadow: none !important; border-radius: 0px !important; }
 body.excel-stealth-mode .primary-btn, body.excel-stealth-mode .start-game-btn:not(:disabled) { background: #107c41 !important; border: 1px solid #0b582e !important; border-radius: 2px !important; }
-/* ==========================================
-   도움말 모달 여백 밀도 최적화 (여백 제거)
-   ========================================== */
 
-/* 1. 불필요한 공백 렌더링 제거 및 여백 축소 */
 #help-modal .modal-body-scroll {
     padding: 12px 6px !important;
     max-height: 65vh;
     overflow-y: auto;
     font-size: 0.88rem;
-    line-height: 1.45 !important; /* 과도한 행간 축소 */
+    line-height: 1.45 !important;
     color: var(--text-primary, #37352f);
     word-break: keep-all;
-    white-space: normal !important; /* HTML 공백 여백 현상 완전 차단 */
+    white-space: normal !important;
 }
 
-/* 2. 요소 간 과도한 여백(Gap) 원천 차단 */
-#help-modal .notion-help-body {
-    display: flex;
-    flex-direction: column;
-    gap: 8px !important; /* 요소 간 간격을 8px로 대폭 축소 */
-}
+#help-modal .notion-help-body { display: flex; flex-direction: column; gap: 8px !important; }
 
-/* 3. 소제목 및 텍스트 상하 마진 완전 밀착 */
 #help-modal .modal-body-scroll strong,
 #help-modal .modal-body-scroll h4,
 #help-modal .modal-body-scroll b {
     display: block;
-    margin-top: 6px !important; /* 위 여백 6px로 축소 */
-    margin-bottom: 2px !important; /* 아래 여백 2px로 축소 */
+    margin-top: 6px !important;
+    margin-bottom: 2px !important;
     font-size: 0.92rem;
     font-weight: 700;
     color: var(--text-primary, #111111);
 }
 
 #help-modal .modal-body-scroll p {
-    margin: 0 0 4px 0 !important; /* 본문 아래 여백 4px로 축소 */
+    margin: 0 0 4px 0 !important;
     color: var(--text-secondary, #555555);
     line-height: 1.4 !important;
 }
 
-/* 4. 노션 콜아웃 박스 내부 패딩 축소 */
-.notion-callout {
-    padding: 8px 10px !important; /* 박스 내부 썰렁함 방지 */
-    margin-bottom: 4px !important;
-}
-/* 누적 승수(1등) 뱃지 디자인 */
+.notion-callout { padding: 8px 10px !important; margin-bottom: 4px !important; }
+
 .win-count-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 2px;
-    padding: 1px 5px;
-    background: rgba(255, 193, 7, 0.15);
-    color: #b78103;
-    border: 1px solid rgba(255, 193, 7, 0.4);
-    border-radius: 4px;
-    font-size: 0.7rem;
-    font-weight: 700;
-    margin-left: 4px;
-    vertical-align: middle;
+    display: inline-flex; align-items: center; gap: 2px;
+    padding: 1px 5px; background: rgba(255, 193, 7, 0.15);
+    color: #b78103; border: 1px solid rgba(255, 193, 7, 0.4);
+    border-radius: 4px; font-size: 0.7rem; font-weight: 700;
+    margin-left: 4px; vertical-align: middle;
 }
-/* ==========================================
-   📱 모바일 화면 전용: 대화/목록 버튼 타일 가림 방지
-   ========================================== */
-@media (max-width: 768px) {
-    /* 모바일 대화/목록 플로팅 버튼을 하단 거치대(Rack) 위쪽으로 위치 이동 */
-    #mobile-fab-btn,
-    .mobile-fab-btn,
-    .mobile-fab-container {
-        bottom: 120px !important; /* 하단 바닥 고정 거치대 박스 위로 띄움 */
-        right: 16px !important;
-        z-index: 1001 !important; /* 클릭 및 시각적 우선순위 유지 */
-    }
 
-    /* 거치대(Rack) 영역의 하단 여백 추가 보정 */
-    .my-rack-container {
-        padding-bottom: 16px !important;
-    }
-}
-/* ==========================================
-   🌙 관전 버튼 다크모드 전용 보정
-   ========================================== */
 .spectate-btn {
-    padding: 2px 8px;
-    font-size: 0.72rem;
-    border-radius: 4px;
-    background: var(--bg-surface);
-    border: 1px solid var(--border-block);
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: all 0.15s;
+    padding: 2px 8px; font-size: 0.72rem; border-radius: 4px;
+    background: var(--bg-surface); border: 1px solid var(--border-block);
+    color: var(--text-secondary); cursor: pointer; transition: all 0.15s;
 }
+.spectate-btn:hover { border-color: var(--border-accent); color: var(--text-primary); }
 
-.spectate-btn:hover {
-    border-color: var(--border-accent);
-    color: var(--text-primary);
-}
+[data-theme="dark"] .spectate-btn { background: #2b2b2b !important; border-color: #3a3a3a !important; color: #b0b0b0 !important; }
+[data-theme="dark"] .spectate-btn:hover { background: #383838 !important; color: #ffffff !important; border-color: var(--border-accent) !important; }
 
-/* 다크모드일 때 관전 버튼 차콜톤 매칭 */
-[data-theme="dark"] .spectate-btn {
-    background: #2b2b2b !important;
-    border-color: #3a3a3a !important;
-    color: #b0b0b0 !important;
-}
-
-[data-theme="dark"] .spectate-btn:hover {
-    background: #383838 !important;
-    color: #ffffff !important;
-    border-color: var(--border-accent) !important;
-}
-/* ==========================================
-   🌙 로비 입력창 자동완성 & Textarea 스크롤바 다크모드 보정
-   ========================================== */
-
-/* 1. 크롬/OS 자동 완성(Autofill) 시 강제로 배경이 하얗게 변하는 현상 방지 */
 [data-theme="dark"] input:-webkit-autofill,
 [data-theme="dark"] input:-webkit-autofill:hover, 
 [data-theme="dark"] input:-webkit-autofill:focus,
@@ -543,214 +529,35 @@ body.excel-stealth-mode .primary-btn, body.excel-stealth-mode .start-game-btn:no
     transition: background-color 5000s ease-in-out 0s;
 }
 
-/* 2. 주제 단어 참고 리스트 (textarea) 다크모드 스크롤바 디자인 */
-.form-textarea::-webkit-scrollbar {
-    width: 6px;
-}
+.form-textarea::-webkit-scrollbar { width: 6px; }
+.form-textarea::-webkit-scrollbar-track { background: transparent; }
+.form-textarea::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.2); border-radius: 3px; }
+[data-theme="dark"] .form-textarea::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2) !important; }
+[data-theme="dark"] .form-textarea { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.2) transparent; }
 
-.form-textarea::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.form-textarea::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: 3px;
-}
-
-[data-theme="dark"] .form-textarea::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2) !important; /* 다크모드 시 은은한 스크롤바 */
-}
-
-/* Firefox 전용 스크롤바 트랙 보정 */
-[data-theme="dark"] .form-textarea {
-    scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
-}
-
-/* ==========================================
-   🎮 노션 스타일 도움말 모달 가독성 대폭 강화
-   ========================================== */
-
-/* 1. 단계별 콜아웃 박스 (Section Box) */
 .notion-help-body .notion-callout {
     background: var(--bg-surface, #f8f9fa);
     border: 1px solid var(--border-block, #e9ecef);
     border-left: 4px solid var(--primary-color, #2563eb);
-    border-radius: 8px;
-    padding: 12px 16px;
-    margin-bottom: 18px;
-    display: flex;
-    gap: 12px;
-    align-items: flex-start;
+    border-radius: 8px; padding: 12px 16px; margin-bottom: 18px;
+    display: flex; gap: 12px; align-items: flex-start;
 }
+.notion-help-body .callout-icon { font-size: 1.2rem; line-height: 1; margin-top: 2px; }
+.notion-help-body .callout-content { flex: 1; }
+.notion-help-body .callout-content strong { display: block; font-size: 0.95rem; color: var(--text-primary, #111827); margin-bottom: 4px; }
+.notion-help-body .callout-content p { margin: 0; font-size: 0.85rem; color: var(--text-secondary, #4b5563); line-height: 1.5; }
+.notion-help-body .notion-tip { margin-top: 8px; padding: 6px 10px; background: rgba(37, 99, 235, 0.08); border-radius: 6px; font-size: 0.78rem; color: var(--primary-color, #2563eb); font-weight: 600; }
 
-.notion-help-body .callout-icon {
-    font-size: 1.2rem;
-    line-height: 1;
-    margin-top: 2px;
-}
+.notion-help-body .notion-card-group { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px; }
+.notion-help-body .notion-card { background: var(--bg-card, #ffffff); border: 1px solid var(--border-block, #e5e7eb); border-radius: 8px; padding: 10px 12px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); }
+.notion-help-body .notion-card h4 { margin: 0 0 6px 0; font-size: 0.85rem; color: var(--text-primary, #111827); font-weight: 700; border-bottom: 1px solid var(--border-block, #f3f4f6); padding-bottom: 4px; }
+.notion-help-body .notion-card p { margin: 0; font-size: 0.78rem; color: var(--text-secondary, #4b5563); line-height: 1.5; }
 
-.notion-help-body .callout-content {
-    flex: 1;
-}
+.notion-help-body .notion-info-box { background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 12px 14px; margin-bottom: 20px; }
+.notion-help-body .notion-info-box p { margin: 0 0 6px 0; font-size: 0.8rem; color: var(--text-primary, #1f2937); line-height: 1.4; }
+.notion-help-body .notion-info-box p:last-child { margin-bottom: 0; }
 
-.notion-help-body .callout-content strong {
-    display: block;
-    font-size: 0.95rem;
-    color: var(--text-primary, #111827);
-    margin-bottom: 4px;
-}
-
-.notion-help-body .callout-content p {
-    margin: 0;
-    font-size: 0.85rem;
-    color: var(--text-secondary, #4b5563);
-    line-height: 1.5;
-}
-
-/* 팁 상자 (Callout 내부 팁) */
-.notion-help-body .notion-tip {
-    margin-top: 8px;
-    padding: 6px 10px;
-    background: rgba(37, 99, 235, 0.08);
-    border-radius: 6px;
-    font-size: 0.78rem;
-    color: var(--primary-color, #2563eb);
-    font-weight: 600;
-}
-
-/* 2. 2열/4열 카드 그리드 배치 (Card Group) */
-.notion-help-body .notion-card-group {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-    margin-bottom: 20px;
-}
-
-.notion-help-body .notion-card {
-    background: var(--bg-card, #ffffff);
-    border: 1px solid var(--border-block, #e5e7eb);
-    border-radius: 8px;
-    padding: 10px 12px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-.notion-help-body .notion-card h4 {
-    margin: 0 0 6px 0;
-    font-size: 0.85rem;
-    color: var(--text-primary, #111827);
-    font-weight: 700;
-    border-bottom: 1px solid var(--border-block, #f3f4f6);
-    padding-bottom: 4px;
-}
-
-.notion-help-body .notion-card p {
-    margin: 0;
-    font-size: 0.78rem;
-    color: var(--text-secondary, #4b5563);
-    line-height: 1.5;
-}
-
-/* 3. 하단 안내 상자 (Info Box) */
-.notion-help-body .notion-info-box {
-    background: rgba(245, 158, 11, 0.08);
-    border: 1px solid rgba(245, 158, 11, 0.3);
-    border-radius: 8px;
-    padding: 12px 14px;
-    margin-bottom: 20px;
-}
-
-.notion-help-body .notion-info-box p {
-    margin: 0 0 6px 0;
-    font-size: 0.8rem;
-    color: var(--text-primary, #1f2937);
-    line-height: 1.4;
-}
-
-.notion-help-body .notion-info-box p:last-child {
-    margin-bottom: 0;
-}
-
-/* 🌙 다크모드 적용 시 모달 스타일 보정 */
-[data-theme="dark"] .notion-help-body .notion-callout {
-    background: #1f2937 !important;
-    border-color: #374151 !important;
-    border-left-color: #3b82f6 !important;
-}
-
-[data-theme="dark"] .notion-help-body .notion-card {
-    background: #111827 !important;
-    border-color: #374151 !important;
-}
-
-[data-theme="dark"] .notion-help-body .notion-card h4 {
-    border-bottom-color: #374151 !important;
-    color: #f3f4f6 !important;
-}
-
-[data-theme="dark"] .notion-help-body .notion-info-box {
-    background: rgba(245, 158, 11, 0.15) !important;
-    border-color: rgba(245, 158, 11, 0.4) !important;
-}
-
-/* ==========================================
-   📱 모바일 대화/목록 플로팅 버튼(FAB) & 서랍 보정
-   ========================================== */
-@media screen and (max-width: 768px) {
-    /* 플로팅 버튼을 우측 하단 구석으로 이동 (게임판 방해 방지) */
-    .mobile-fab,
-    #mobile-fab-btn {
-        position: fixed !important;
-        bottom: 20px !important;
-        right: 16px !important;
-        top: auto !important;
-        left: auto !important;
-        z-index: 9999 !important;
-        background: var(--primary-color, #2563eb) !important;
-        color: #ffffff !important;
-        border: none !important;
-        border-radius: 24px !important;
-        padding: 10px 16px !important;
-        font-size: 0.82rem !important;
-        font-weight: 700 !important;
-        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3) !important;
-        cursor: pointer !important;
-    }
-
-    /* 사이드바 패널을 모바일 하단 서랍(Bottom Sheet) 형태로 전환 */
-    .sidebar-panel,
-    #mobile-sidebar {
-        position: fixed !important;
-        top: auto !important;
-        bottom: -100% !important;
-        left: 0 !important;
-        width: 100% !important;
-        height: 75vh !important;
-        z-index: 10000 !important;
-        transition: bottom 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
-        border-radius: 16px 16px 0 0 !important;
-        box-shadow: 0 -6px 25px rgba(0,0,0,0.3) !important;
-        background: var(--bg-card, #ffffff) !important;
-    }
-
-    .sidebar-panel.active,
-    #mobile-sidebar.active {
-        bottom: 0 !important;
-    }
-
-    /* 서랍 닫기 버튼 상단 노출 */
-    .mobile-sidebar-close,
-    #mobile-sidebar-close {
-        display: block !important;
-        width: 100% !important;
-        padding: 10px !important;
-        text-align: center !important;
-        background: var(--bg-surface, #f3f4f6) !important;
-        border: none !important;
-        font-weight: 800 !important;
-        font-size: 0.85rem !important;
-        color: var(--text-secondary, #4b5563) !important;
-        cursor: pointer !important;
-        border-radius: 16px 16px 0 0 !important;
-    }
-}
+[data-theme="dark"] .notion-help-body .notion-callout { background: #1f2937 !important; border-color: #374151 !important; border-left-color: #3b82f6 !important; }
+[data-theme="dark"] .notion-help-body .notion-card { background: #111827 !important; border-color: #374151 !important; }
+[data-theme="dark"] .notion-help-body .notion-card h4 { border-bottom-color: #374151 !important; color: #f3f4f6 !important; }
+[data-theme="dark"] .notion-help-body .notion-info-box { background: rgba(245, 158, 11, 0.15) !important; border-color: rgba(245, 158, 11, 0.4) !important; }

@@ -18,7 +18,11 @@
     <link rel="stylesheet" href="style_gostop.css?v=20260816_v14">
 </head>
 <body>
-    <header class="navbar-slim" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 12px;">
+    <button class="mobile-fab" id="mobile-fab-btn">
+        💬 대화 / 목록 (<span id="mobile-player-count">0</span>명)
+    </button>
+	
+	<header class="navbar-slim" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 12px;">
 		<div class="status-badge">
 			<span class="status-dot" id="status-dot"></span>
 			<span id="status-text">연결 대기 중</span>
@@ -198,23 +202,35 @@
                 </div>
             </div>
 
-            <div class="sidebar-panel">
-                <div class="sidebar-title">👥 참가자 목록</div>
-                <div class="sidebar-players-fixed" style="margin-bottom: 12px;">
+            <div class="sidebar-panel glass-card" id="mobile-sidebar">
+                <button class="mobile-sidebar-close" id="mobile-sidebar-close">▼ 창 닫기</button>
+                
+                <!-- 참가자 목록 상자 -->
+                <div class="sidebar-players-fixed">
+                    <div class="sidebar-section-title" style="font-size:0.82rem; font-weight:700; color:var(--text-primary); margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+                        <span>👥 참가자 목록</span>
+                        <span class="player-count-badge" style="font-size:0.75rem; color:var(--text-secondary);">(<span id="player-count">0</span>명)</span>
+                    </div>
                     <div id="player-list" class="player-list-scroll"></div>
                 </div>
+
+                <!-- 실시간 대화 상자 -->
                 <div class="sidebar-tabbed-area">
-                    <div class="sidebar-title" style="padding: 6px 8px 0 8px;">💬 실시간 대화</div>
-                    <div class="chat-container">
-                        <div id="chat-messages" class="chat-messages"></div>
-                        <div class="chat-input-box">
-                            <input type="text" id="chat-input" class="chat-input" placeholder="메시지..." onkeydown="if(event.key==='Enter') sendChat()">
-                            <button class="chat-send-btn" onclick="sendChat()">전송</button>
+                    <div class="sidebar-tabs" style="border-bottom: 1px solid var(--border-block);">
+                        <button class="sidebar-tab-btn active" style="width:100%; padding:8px; font-weight:700;">💬 실시간 대화</button>
+                    </div>
+
+                    <div class="sidebar-content">
+                        <div class="chat-container">
+                            <div id="chat-messages" class="chat-messages"></div>
+                            <div class="chat-input-box">
+                                <input type="text" id="chat-input" class="chat-input" placeholder="메시지 입력..." onkeydown="if(event.key==='Enter') sendChat()">
+                                <button class="chat-send-btn" onclick="sendChat()">전송</button>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
     </main>
 
     <div id="gostop-decision-modal" class="gostop-modal-overlay" style="display:none;">
