@@ -18,16 +18,18 @@
     <link rel="stylesheet" href="style_gostop.css?v=20260816_v14">
 </head>
 <body>
-    <button class="mobile-fab" id="mobile-fab-btn">
-        💬 대화 / 목록 (<span id="mobile-player-count">0</span>명)
-    </button>
+    
 	
 	<header class="navbar-slim" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 12px;">
 		<div class="status-badge">
 			<span class="status-dot" id="status-dot"></span>
 			<span id="status-text">연결 대기 중</span>
 		</div>
-		<div class="nav-controls">
+		<div class="nav-controls" style="display: flex; align-items: center; gap: 6px;">
+			<!-- ★ 모바일/좁은 화면 전용 대화 버튼 추가 ★ -->
+			<button class="icon-btn mobile-header-chat-btn" id="mobile-fab-btn" title="대화 / 참가자 목록">
+				💬 <span id="mobile-player-count">0</span>
+			</button>
 			<button class="icon-btn" id="btn-help" title="게임 방법" onclick="openHelpModal()">❓</button>
 		</div>
 	</header>

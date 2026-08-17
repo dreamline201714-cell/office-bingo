@@ -260,7 +260,12 @@ body {
     transition: width 0.3s linear; 
 }
 
-.arena-main { display: grid; grid-template-columns: 1fr 290px; gap: 16px; }
+..arena-main { 
+    display: grid; 
+    grid-template-columns: 1fr 290px; 
+    gap: 16px; 
+    width: 100%;
+}
 .board-container { width: 100%; display: flex; flex-direction: column; gap: 14px; }
 
 /* ==========================================
@@ -405,22 +410,30 @@ body {
 .mobile-sidebar-close { display: none; }
 
 @media screen and (max-width: 768px) {
-    .container { padding: 8px; }
-    .arena-main { grid-template-columns: 1fr; gap: 14px; }
-    .topic-banner { padding: 12px; }
-    .room-share-box { margin-top: 6px; width: 100%; justify-content: space-between; }
-
+    /* ✅ 1. 하단 바닥 버튼 완전 차단 */
     .mobile-fab,
-    #mobile-fab-btn {
-        position: fixed !important;
-        bottom: calc(16px + env(safe-area-inset-bottom)) !important;
-        right: 16px !important;
-        z-index: 2500 !important;
-        display: flex !important;
-        background: var(--border-accent); color: var(--text-on-accent);
-        border: none; border-radius: 20px; padding: 10px 16px;
-        font-size: 0.85rem; font-weight: 600; cursor: pointer;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3); align-items: center; gap: 6px;
+    button.mobile-fab {
+        display: none !important;
+        visibility: hidden !important;
+    }
+
+    /* ✅ 2. 768px 이하 모바일 환경에서만 상단 헤더 ❓ 옆 💬 버튼 표시 */
+    .mobile-header-chat-btn,
+    button.mobile-header-chat-btn {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 3px !important;
+        width: auto !important;
+        padding: 0 6px !important;
+        height: 28px !important;
+        font-size: 0.78rem !important;
+        font-weight: 700 !important;
+        background: var(--border-accent, #2eaadc) !important;
+        color: var(--text-on-accent, #ffffff) !important;
+        border: none !important;
+        border-radius: 4px !important;
+        cursor: pointer !important;
     }
 
     .sidebar-panel,
@@ -561,3 +574,92 @@ body.excel-stealth-mode .primary-btn, body.excel-stealth-mode .start-game-btn:no
 [data-theme="dark"] .notion-help-body .notion-card { background: #111827 !important; border-color: #374151 !important; }
 [data-theme="dark"] .notion-help-body .notion-card h4 { border-bottom-color: #374151 !important; color: #f3f4f6 !important; }
 [data-theme="dark"] .notion-help-body .notion-info-box { background: rgba(245, 158, 11, 0.15) !important; border-color: rgba(245, 158, 11, 0.4) !important; }
+
+/* ==========================================
+   🧹 중복 완전 제거 및 레이아웃 최종 통합 정제구문
+   ========================================== */
+
+/* 1. 바닥 플로팅 버튼 차단 (모든 상태 공통) */
+.mobile-fab,
+button.mobile-fab {
+    display: none !important;
+    visibility: hidden !important;
+}
+
+/* 2. 숨김 지정된 레이어(대기실 로비 상태의 아레나 등) 보호 */
+.arena-main[style*="display: none"],
+.arena-main[style*="display:none"],
+#arena[style*="display: none"],
+#arena[style*="display:none"] {
+    display: none !important;
+}
+
+/* 3. PC / 넓은 화면 환경 (769px 이상) */
+@media screen and (min-width: 769px) {
+    /* 노출 상태일 때만 2열 그리드(게임판 + 우측 290px 사이드바) 적용 */
+    .arena-main:not([style*="display: none"]):not([style*="display:none"]) {
+        display: grid !important;
+        grid-template-columns: 1fr 290px !important;
+        gap: 16px !important;
+        width: 100% !important;
+    }
+
+    /* 사이드바 우측 정위치 배치 */
+    .sidebar-panel,
+    #mobile-sidebar {
+        position: static !important;
+        width: 100% !important;
+        height: auto !important;
+        min-height: 520px !important;
+        box-shadow: var(--shadow-block) !important;
+        border-radius: 8px !important;
+        border: 1px solid var(--border-block) !important;
+    }
+
+    /* PC에서는 모바일 전용 버튼들 노출 차단 */
+    .mobile-sidebar-close,
+    #mobile-sidebar-close,
+    .mobile-header-chat-btn {
+        display: none !important;
+    }
+}
+
+/* 4. 모바일 / 좁은 화면 환경 (768px 이하) */
+@media screen and (max-width: 768px) {
+    .arena-main:not([style*="display: none"]):not([style*="display:none"]) {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: 14px !important;
+    }
+
+    /* 하단 서랍 슬라이드 배치 */
+    .sidebar-panel,
+    #mobile-sidebar {
+        position: fixed !important; 
+        bottom: -100% !important; 
+        left: 0 !important; 
+        width: 100vw !important; 
+        height: 75vh !important;
+        z-index: 10000 !important;
+        transition: bottom 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+        border-radius: 16px 16px 0 0 !important;
+    }
+    
+    .sidebar-panel.active,
+    #mobile-sidebar.active { 
+        bottom: 0 !important; 
+    }
+
+    /* 상단 서브 헤더 ❓ 옆 💬 버튼 활성화 */
+    .mobile-header-chat-btn,
+    button.mobile-header-chat-btn {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 3px !important;
+        width: auto !important;
+        padding: 0 6px !important;
+        height: 28px !important;
+        font-weight: 700 !important;
+    }
+}

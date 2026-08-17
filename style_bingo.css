@@ -1,8 +1,13 @@
-/* style_bingo.css - Office Bingo Fixed Stylesheet */
+/* style_bingo.css - Office Bingo Full Restored Stylesheet */
 
+/* ==========================================
+   🧩 1. 빙고 보드 그리드 (유동 5열 축소 보장)
+   ========================================== */
 .bingo-board-grid,
-.board-grid {
-    display: grid;
+.board-grid,
+#bingo-board-grid {
+    display: grid !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important; /* 무조건 5열 유동 축소 */
     gap: 6px;
     width: 100%;
     max-width: 500px;
@@ -16,15 +21,20 @@
     box-sizing: border-box;
 }
 
-/* ★ [핵심 고정] 긴 단어로 인해 열 폭이 밀려나는 현상 방지 ★ */
+/* 그리드 자식 요소 최소 폭 제약 해제 */
 .bingo-board-grid > *,
-.board-grid > * {
-    min-width: 0;
-    min-height: 0;
+.board-grid > *,
+#bingo-board-grid > * {
+    min-width: 0 !important;
+    min-height: 0 !important;
 }
 
-/* 빙고 타일 셀 스타일 */
+/* ==========================================
+   🧩 2. 빙고 타일 셀 스타일
+   ========================================== */
 .bingo-cell {
+    min-width: 0 !important;
+    width: 100%;
     background: var(--bg-card);
     border: 1px solid var(--border-block);
     border-radius: 6px;
@@ -33,16 +43,17 @@
     justify-content: center;
     text-align: center;
     padding: 2px 4px;
-    font-size: 0.78rem;
+    font-size: clamp(0.55rem, 2.5vw, 0.78rem);
     font-weight: 600;
     color: var(--text-primary);
     cursor: pointer;
     user-select: none;
-    word-break: break-all; /* 긴 단어 강제 줄바꿈 */
+    word-break: break-all;
     line-height: 1.15;
     transition: background-color 0.15s, border-color 0.15s, transform 0.1s;
     box-shadow: var(--shadow-block-sm);
-    overflow: hidden; /* 영역 밖으로 튀어나감 방지 */
+    overflow: hidden;
+    box-sizing: border-box;
 }
 
 .bingo-cell:hover {
@@ -50,7 +61,6 @@
     transform: translateY(-2px);
 }
 
-/* 체크(마킹)된 단어 셀 */
 .bingo-cell.marked {
     background-color: var(--border-accent) !important;
     color: var(--text-on-accent) !important;
@@ -58,7 +68,9 @@
     font-weight: 700;
 }
 
-/* 하단 주제 참고 단어 칩 패널 */
+/* ==========================================
+   📝 3. 하단 주제 참고 단어 칩 패널 & 프리셋
+   ========================================== */
 .topic-words-panel {
     background: var(--bg-surface);
     border: 1px solid var(--border-block);
@@ -101,7 +113,6 @@
     cursor: default;
 }
 
-/* 프리셋 선택 칩 그룹 (로비 및 모달 공용) */
 .preset-chip-group {
     display: flex;
     flex-wrap: wrap;
@@ -128,7 +139,9 @@
     font-weight: 700;
 }
 
-/* 관전 모달 내 그리드 */
+/* ==========================================
+   👀 4. 관전 모달 내 그리드 & 뱃지
+   ========================================== */
 .spectate-grid {
     display: grid;
     gap: 6px;
@@ -140,7 +153,7 @@
     min-width: 0;
     min-height: 0;
 }
-/* 탈출 순위 뱃지 스타일 */
+
 .escape-rank-badge {
     display: inline-flex;
     align-items: center;
@@ -167,7 +180,10 @@
     opacity: 0.75;
     background: var(--bg-surface);
 }
-/* 턴 뱃지 시각적 구분 디자인 */
+
+/* ==========================================
+   🎲 5. 턴 뱃지 시각적 구분 디자인
+   ========================================== */
 .turn-badge.my-turn {
     background-color: var(--primary, #1E88E5);
     color: #ffffff;
@@ -184,17 +200,15 @@
     border: 1px solid #bdbdbd;
 }
 
-/* 내 턴일 때 살짝 반짝이는 애니메이션 효과 (선택사항) */
 @keyframes pulse-turn {
     0% { transform: scale(1); }
     50% { transform: scale(1.03); }
     100% { transform: scale(1); }
 }
-/* ==========================================
-   🌙 빙고 단어목록 패널 & 스크롤바 다크모드 보정
-   ========================================== */
 
-/* 웹킷 스크롤바 디자인 (다크모드 지원) */
+/* ==========================================
+   🌙 6. 빙고 단어목록 패널 & 다크모드 보정
+   ========================================== */
 .topic-words-chips::-webkit-scrollbar {
     width: 6px;
 }
@@ -209,10 +223,9 @@
 }
 
 [data-theme="dark"] .topic-words-chips::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2) !important; /* 다크모드 시 하얀 스크롤바 제거 및 은은한 반투명 스크롤바 적용 */
+    background: rgba(255, 255, 255, 0.2) !important;
 }
 
-/* 단어 칩 다크모드 시 이질감 제거 */
 [data-theme="dark"] .topic-word-chip {
     background: #252525;
     border-color: #333333;
@@ -229,7 +242,7 @@
     color: #555555;
     border-color: #2a2a2a;
 }
-/* 다크모드 빙고 셀 입체감 강조 */
+
 [data-theme="dark"] .bingo-cell {
     background: #2a2a2e !important;
     border: 1px solid #3f3f46 !important;
@@ -241,23 +254,18 @@
     background: #34343a !important;
     border-color: #60a5fa !important;
 }
-/* ==========================================
-   🌙 다크 모드 빙고 셀 마킹(선택) 표시 보정
-   ========================================== */
 
-/* 다크 모드에서 단어가 지워졌을 때(마킹) 파란색 포인트를 강제로 부여 */
 [data-theme="dark"] .bingo-cell.marked {
-    background-color: var(--border-accent, #2563eb) !important; /* 또렷한 파란색/시안색 배경 */
-    color: #ffffff !important;                                   /* 선명한 하얀색 글자 */
+    background-color: var(--border-accent, #2563eb) !important;
+    color: #ffffff !important;
     border-color: var(--border-accent, #2563eb) !important;
     font-weight: 800 !important;
-    box-shadow: 0 0 10px rgba(37, 99, 235, 0.5) !important;       /* 선택된 타일 살짝 발광 효과 */
+    box-shadow: 0 0 10px rgba(37, 99, 235, 0.5) !important;
 }
-/* ==========================================
-   🏢 오피스 결재 스탬프 연출 & 계급 뱃지
-   ========================================== */
 
-/* 결재 스탬프 레이어 */
+/* ==========================================
+   🏢 7. 오피스 결재 스탬프 연출 & 계급 뱃지
+   ========================================== */
 .office-stamp-overlay {
     position: absolute;
     top: 40%;
@@ -288,31 +296,30 @@
     letter-spacing: 1px;
 }
 
-/* 벌칙 당첨 스탬프 (붉은색) */
 .office-stamp-box.loser {
     border-color: #ef4444 !important;
     color: #ef4444 !important;
     box-shadow: 0 0 20px rgba(239, 68, 68, 0.4) !important;
 }
 
-/* 누적 승수 및 탕비실 제왕 뱃지 */
 .win-count-badge.king {
     background: rgba(245, 158, 11, 0.2) !important;
     color: #fbbf24 !important;
     border: 1px solid rgba(245, 158, 11, 0.5) !important;
 }
+
 /* ==========================================
-   📊 상단 헤더 전광판(Ticker) 랭킹 디자인
+   📊 8. 상단 헤더 전광판(Ticker) 랭킹 디자인
    ========================================== */
 .today-rank-ticker {
-    display: flex;
+    display: inline-flex !important;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     background: var(--bg-card);
     border: 1px solid var(--border-block);
-    padding: 6px 14px;
-    border-radius: 6px;
-    font-size: 0.8rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
     box-shadow: var(--shadow-block-sm);
 }
 
@@ -347,17 +354,6 @@
     background: var(--border-block);
 }
 
-/* 모바일 분기 반응형 보정 */
-@media screen and (max-width: 768px) {
-    .today-rank-ticker {
-        width: 100%;
-        justify-content: space-around;
-        margin-top: 6px;
-        padding: 4px 10px;
-    }
-}
-
-/* 다크모드 대응 */
 [data-theme="dark"] .today-rank-ticker {
     background: #252528 !important;
     border-color: #3f3f46 !important;
@@ -366,89 +362,25 @@
 [data-theme="dark"] .ticker-value.gold {
     color: #fbbf24 !important;
 }
-/* ==========================================
-   📐 하단 액션바 및 상단 전광판 레이아웃
-   ========================================== */
-.today-rank-ticker {
-    display: inline-flex !important;
-    align-items: center;
-    gap: 8px;
-    background: var(--bg-card);
-    border: 1px solid var(--border-block);
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 0.75rem;
-}
 
-/* 하단 방장 컨트롤 노출 스타일 */
-#host-controls[style*="display: flex"] {
-    display: flex !important;
-    align-items: center !important;
-    gap: 4px !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-}
 /* ==========================================
-   📐 하단 한 줄(Inline) 액션바 완전 통합
+   🧹 9. 하단 액션바 유동 줄바꿈 & 가로 폭 조절
    ========================================== */
 #board-footer #footer-waiting-controls {
     display: flex !important;
-    flex-wrap: nowrap !important; /* 줄바꿈 절대 금지 */
+    flex-wrap: wrap !important; /* 좁을 때 자연스럽게 줄바꿈 허용 */
     justify-content: space-between !important;
     align-items: center !important;
-    gap: 8px !important;
-    width: 100% !important;
-}
-
-/* 방장 버튼 상자의 큰 회색 박스/테두리 제거 및 인라인화 */
-#host-controls,
-#host-controls.host-controls-box {
-    display: flex !important;
-    align-items: center !important;
-    gap: 4px !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-    width: auto !important;
-    min-height: auto !important;
-}
-
-/* 방장 시작 버튼 크기 하단 버튼과 맞춤 */
-#host-controls .start-game-btn {
-    padding: 6px 12px !important;
-    font-size: 0.8rem !important;
-    white-space: nowrap !important;
-}
-
-#host-controls .secondary-btn {
-    padding: 6px 10px !important;
-    font-size: 0.8rem !important;
-    white-space: nowrap !important;
-}
-/* ==========================================
-   🧹 하단 액션바 일괄 높이/크기 통일 & 회색박스 완전 제거
-   ========================================== */
-
-/* 1. 하단 전체 컨테이너 일렬 정렬 보장 */
-#board-footer #footer-waiting-controls {
-    display: flex !important;
-    flex-wrap: nowrap !important;
-    justify-content: space-between !important;
-    align-items: center !important;
-    gap: 8px !important;
+    gap: 6px !important;
     width: 100% !important;
     margin-top: 10px !important;
+    box-sizing: border-box !important;
 }
 
-/* 2. 기존 common.css의 회색 방장 박스 완벽 제거 */
 #host-controls,
 #host-controls.host-controls-box {
     display: flex !important;
+    flex-wrap: wrap !important;
     align-items: center !important;
     gap: 4px !important;
     margin: 0 !important;
@@ -460,14 +392,20 @@
     min-height: auto !important;
 }
 
-/* 3. 하단 액션바 내 모든 버튼의 높이, 패딩, 폰트 크기 동일하게 강제 규격화 */
+#host-controls[style*="display: none"] {
+    display: none !important;
+}
+
+/* 하단 버튼들의 최소 고정 폭 해제 및 슬림화 */
 #footer-waiting-controls .primary-btn,
 #footer-waiting-controls .secondary-btn,
-#footer-waiting-controls .start-game-btn {
-    height: 36px !important;
+#footer-waiting-controls .start-game-btn,
+#host-controls .start-game-btn,
+#host-controls .secondary-btn {
+    height: 32px !important;
     line-height: 1 !important;
-    padding: 0 12px !important;
-    font-size: 0.82rem !important;
+    padding: 0 8px !important; /* 패딩 축소 */
+    font-size: 0.78rem !important; /* 폰트 살짝 슬림화 */
     font-weight: 600 !important;
     margin: 0 !important;
     box-sizing: border-box !important;
@@ -475,49 +413,20 @@
     align-items: center !important;
     justify-content: center !important;
     white-space: nowrap !important;
+    min-width: 0 !important; /* 최소 고정 너비 강제 해제 */
 }
 
-/* 4. '빈 칸: N개' 텍스트 레이블 높이 맞춤 */
 #footer-waiting-controls .empty-cell-counter {
-    height: 36px !important;
+    height: 32px !important;
     display: inline-flex !important;
     align-items: center !important;
-    font-size: 0.8rem !important;
+    font-size: 0.75rem !important;
     color: var(--text-secondary) !important;
     white-space: nowrap !important;
 }
+
 /* ==========================================
-   📐 방장/참가자 화면 상태별 레이아웃 보정
-   ========================================== */
-
-/* 기본 컨테이너 양끝 정렬 */
-#footer-waiting-controls {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    width: 100% !important;
-    gap: 8px !important;
-}
-
-/* 방장 버튼이 숨겨졌을 때 인라인 간격 차단 */
-#host-controls[style*="display: none"] {
-    display: none !important;
-}
-
-/* 방장 버튼이 표시될 때만 중앙 인라인 배치 */
-#host-controls[style*="display: inline-flex"],
-#host-controls[style*="display: flex"] {
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 4px !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-}
-/* ==========================================
-   👑 참가자 목록 상단 오늘 하루 전적 뱃지 (슬림 한 줄 정렬)
+   👑 10. 참가자 목록 상단 오늘 하루 전적 뱃지
    ========================================== */
 .today-king-banner {
     display: flex !important;
@@ -559,7 +468,7 @@
 [data-theme="dark"] .today-king-banner .king-name {
     color: #fef08a !important;
 }
-/* 참가자 목록 높이 제한 원천 해제 및 전체 노출 */
+
 #panel-players,
 .player-list-scroll {
     max-height: none !important;
@@ -568,20 +477,26 @@
 }
 
 /* ==========================================
-   📱 모바일(아이폰 등) 화면 전용 빙고판 잘림 방지
+   📱 11. 모바일/좁은 창 대응 반응형
    ========================================== */
 @media screen and (max-width: 768px) {
+    .today-rank-ticker {
+        width: 100%;
+        justify-content: space-around;
+        margin-top: 6px;
+        padding: 4px 10px;
+    }
+
     .bingo-board-grid,
-    .board-grid {
-        gap: 4px !important;          /* 셀 간격 축소 */
-        padding: 4px !important;      /* 테두리 여백 축소 */
-        max-width: 100% !important;   /* 화면 폭을 넘지 않도록 제한 */
-        box-sizing: border-box !important;
+    .board-grid,
+    #bingo-board-grid {
+        gap: 3px !important;
+        padding: 4px !important;
+        max-width: 100% !important;
     }
 
     .bingo-cell {
-        padding: 1px 2px !important;
-        font-size: clamp(0.62rem, 2.8vw, 0.75rem) !important; /* 모바일 폭에 맞춰 폰트 자동 축소 */
-        word-break: break-all !important;
+        padding: 1px !important;
+        font-size: clamp(0.5rem, 2.8vw, 0.72rem) !important;
     }
 }
