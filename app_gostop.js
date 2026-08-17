@@ -577,7 +577,11 @@ function updateUI(state) {
         renderMyCategorizedCapturedStacked(myInfo.captured || []);
     }
 
-    const playerListEl = document.getElementById('player-list');
+    const mobileCountSpan = document.getElementById('mobile-player-count');
+	if (mobileCountSpan && state.players) {
+		mobileCountSpan.innerText = state.players.length;
+	}
+	const playerListEl = document.getElementById('player-list');
     if (playerListEl) {
         playerListEl.innerHTML = '';
         state.players.forEach(p => {
@@ -716,6 +720,11 @@ function openCapturedDetailModal(targetPlayerId) {
 function appendChat(chat) {
     const container = document.getElementById('chat-messages');
     if (!container) return;
+	// 인원수 관련 시스템 메시지 감지 시 상단 숫자 보정
+    if (chat.system && gameState && gameState.players) {
+        const mobileCountSpan = document.getElementById('mobile-player-count');
+        if (mobileCountSpan) mobileCountSpan.innerText = gameState.players.length;
+    }
     const msgDiv = document.createElement('div');
     msgDiv.style.marginBottom = '4px';
     
@@ -817,3 +826,26 @@ function renderKukjinMoveUI(myInfo) {
         moveBtn.remove();
     }
 }
+
+/* ==========================================
+   📱 모바일 헤더 💬 버튼 클릭 시 사이드바 서랍 열기/닫기
+   ========================================== */
+window.addEventListener('DOMContentLoaded', () => {
+    const mobileFabBtn = document.getElementById('mobile-fab-btn');
+    const mobileSidebar = document.getElementById('mobile-sidebar');
+    const mobileSidebarClose = document.getElementById('mobile-sidebar-close');
+
+    if (mobileFabBtn && mobileSidebar) {
+        mobileFabBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            mobileSidebar.classList.add('active'); // 모바일 서랍 열기
+        });
+    }
+
+    if (mobileSidebarClose && mobileSidebar) {
+        mobileSidebarClose.addEventListener('click', (e) => {
+            e.stopPropagation();
+            mobileSidebar.classList.remove('active'); // 모바일 서랍 닫기
+        });
+    }
+});
