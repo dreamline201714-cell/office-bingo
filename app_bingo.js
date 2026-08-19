@@ -572,7 +572,25 @@
         spectatingPlayerId = playerId;
         renderSpectateBoard(playerId);
         const spectateModal = document.getElementById('spectate-modal');
-        if (spectateModal) spectateModal.classList.add('active');
+        if (spectateModal) {
+            spectateModal.classList.add('active');
+            
+            // 모달 바깥 어두운 배경 클릭 시 모달 닫기 처리 추가
+            spectateModal.onclick = (e) => {
+                if (e.target === spectateModal) {
+                    closeSpectateModal();
+                }
+            };
+        }
+    }
+
+    function closeSpectateModal() {
+        const spectateModal = document.getElementById('spectate-modal');
+        if (spectateModal) {
+            spectateModal.classList.remove('active');
+            spectateModal.onclick = null;
+        }
+        spectatingPlayerId = null;
     }
 
     function renderSpectateBoard(playerId) {
@@ -955,8 +973,16 @@
 
         if (btnConfigCancel) btnConfigCancel.onclick = () => { if (configModal) configModal.classList.remove('active'); };
         if (configModalClose) configModalClose.onclick = () => { if (configModal) configModal.classList.remove('active'); };
-        if (spectateModalClose) spectateModalClose.onclick = () => { if (spectateModal) spectateModal.classList.remove('active'); spectatingPlayerId = null; };
-
+        
+        // X 버튼 클릭 이벤트
+        if (spectateModalClose) {
+            spectateModalClose.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                closeSpectateModal();
+            };
+        }
+		
         if (btnCopyLink) {
             btnCopyLink.onclick = () => {
                 const shareUrl = `${window.location.origin}${window.location.pathname}?room=${currentRoomId}`;

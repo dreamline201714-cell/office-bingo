@@ -197,9 +197,13 @@
 
                     <div class="my-seotda-hand-panel">
                         <div class="my-hand-header">
-                            <span>내 화투패</span>
-                            <span class="my-jokbo-badge" id="my-jokbo-badge">패 대기 중...</span>
-                        </div>
+							<div style="display:flex; align-items:center; gap:8px;">
+								<span>내 화투패</span>
+								<button class="theme-select-btn" onclick="setCardTheme('notion')">🎨 노션</button>
+								<button class="theme-select-btn" onclick="setCardTheme('classic')">🎴 레트로</button>
+							</div>
+							<span class="my-jokbo-badge" id="my-jokbo-badge">패 대기 중...</span>
+						</div>
                         
                         <div class="my-cards-container" id="my-cards-container">
                             <div class="hwatu-card card-back"></div>

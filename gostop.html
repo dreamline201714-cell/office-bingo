@@ -189,12 +189,15 @@
 
                 <div class="hand-tray-container">
                     <div class="hand-tray-header">
-                        <span class="hand-tray-title">🎴 내 손패 (Hand)</span>
-                        <div style="display:flex; gap:6px;">
-                            <button class="sort-btn active" id="sort-month-btn" onclick="setSortMode('month')">🔢 월순 정렬</button>
-                            <button class="sort-btn" id="sort-type-btn" onclick="setSortMode('type')">⭐ 종류순 정렬</button>
-                        </div>
-                    </div>
+						<span class="hand-tray-title">🎴 내 손패 (Hand)</span>
+						<div style="display:flex; gap:6px;">
+							<!-- 화투패 스타일 토글 버튼 추가 -->
+							<button class="theme-select-btn" data-card-theme="notion" onclick="setCardTheme('notion')">🎨 노션</button>
+							<button class="theme-select-btn" data-card-theme="classic" onclick="setCardTheme('classic')">🎴 레트로</button>
+							<button class="sort-btn active" id="sort-month-btn" onclick="setSortMode('month')">🔢 월순</button>
+							<button class="sort-btn" id="sort-type-btn" onclick="setSortMode('type')">⭐ 종류순</button>
+						</div>
+					</div>
                     <div id="my-hand" class="card-grid"></div>
                 </div>
 

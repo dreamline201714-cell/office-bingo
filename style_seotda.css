@@ -217,3 +217,96 @@
     color: #38bdf8 !important;
     background: #333338 !important;
 }
+
+/* ==========================================
+   🎴 화투패 카드 테마 (Classic 레트로 화투 스타일)
+   ========================================== */
+
+/* 레트로 전통 화투 테마 (classic) */
+.hwatu-card.theme-classic {
+    background: #fbf8eb !important;
+    border: 2px solid #8b0000 !important;
+    box-shadow: 0 2px 4px rgba(139, 0, 0, 0.3) !important;
+}
+
+.hwatu-card.theme-classic .card-month {
+    color: #8b0000 !important;
+    font-weight: 800 !important;
+}
+
+.hwatu-card.theme-classic.kwang {
+    background: #fff0f0 !important;
+    border: 2px solid #d32f2f !important;
+}
+
+.hwatu-card.theme-classic.kwang .card-badge {
+    background: #d32f2f !important;
+    color: #ffffff !important;
+}
+
+.hwatu-card.theme-classic.card-back {
+    background: linear-gradient(135deg, #a71d1d 0%, #630000 100%) !important;
+    border: 2px solid #ffffff !important;
+    box-shadow: inset 0 0 6px rgba(0,0,0,0.5) !important;
+}
+
+/* 카드 테마 토글 버튼 스타일 */
+.theme-select-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    border: 1px solid var(--border-block);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.theme-select-btn.active {
+    background: rgba(229, 57, 53, 0.12);
+    border-color: #e53935;
+    color: #e53935;
+}
+
+/* ==========================================
+   🎴 깃허브 실물 화투패 이미지 테마 처리
+   ========================================== */
+.hwatu-card.theme-classic {
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: #8b0000 !important;
+    border: 1px solid #5f092b !important;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3) !important;
+}
+
+.hwatu-card.theme-classic .card-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    border-radius: 4px;
+}
+
+/* 레트로 화투 테마 선택 버튼 스타일 */
+.theme-select-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    border: 1px solid var(--border-block);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.theme-select-btn.active {
+    background: rgba(229, 57, 53, 0.12);
+    border-color: #e53935;
+    color: #e53935;
+}

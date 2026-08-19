@@ -763,3 +763,130 @@
         min-height: 54px !important;
     }
 }
+
+/* ==========================================
+   🎴 화투패 카드 테마 (Classic 레트로 화투 스타일)
+   ========================================== */
+
+/* 레트로 전통 화투 테마 (classic) */
+.hwatu-card.theme-classic {
+    background: #fbf8eb !important;
+    border: 2px solid #8b0000 !important;
+    box-shadow: 0 2px 4px rgba(139, 0, 0, 0.3) !important;
+}
+
+.hwatu-card.theme-classic .card-month {
+    color: #8b0000 !important;
+    font-weight: 800 !important;
+}
+
+.hwatu-card.theme-classic.kwang {
+    background: #fff0f0 !important;
+    border: 2px solid #d32f2f !important;
+}
+
+.hwatu-card.theme-classic.kwang .card-badge {
+    background: #d32f2f !important;
+    color: #ffffff !important;
+}
+
+.hwatu-card.theme-classic.card-back {
+    background: linear-gradient(135deg, #a71d1d 0%, #630000 100%) !important;
+    border: 2px solid #ffffff !important;
+    box-shadow: inset 0 0 6px rgba(0,0,0,0.5) !important;
+}
+
+/* 카드 테마 토글 버튼 스타일 */
+.theme-select-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    border: 1px solid var(--border-block);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.theme-select-btn.active {
+    background: rgba(229, 57, 53, 0.12);
+    border-color: #e53935;
+    color: #e53935;
+}
+
+/* ==========================================
+   🎴 깃허브 실물 화투패 이미지 테마 처리
+   ========================================== */
+.hwatu-card.theme-classic {
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: #8b0000 !important;
+    border: 1px solid #5f092b !important;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3) !important;
+}
+
+.hwatu-card.theme-classic .card-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    border-radius: 4px;
+}
+
+/* 레트로 화투 테마 선택 버튼 스타일 */
+.theme-select-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    border: 1px solid var(--border-block);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.theme-select-btn.active {
+    background: rgba(229, 57, 53, 0.12);
+    border-color: #e53935;
+    color: #e53935;
+}
+
+/* 레트로 테마에서 폭탄 버튼을 카드 이미지 하단 위에 띄우기 */
+.hwatu-card.theme-classic {
+    position: relative !important;
+}
+
+.hwatu-card.theme-classic .bomb-badge-btn {
+    position: absolute !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    margin: 0 !important;
+    z-index: 10 !important;
+    background: rgba(229, 57, 53, 0.9) !important; /* 살짝 투명하게 처리하여 뒤의 화투패가 약간 보이도록 */
+    border-radius: 0 0 4px 4px !important;
+}
+
+/* 레트로 테마 전용 매칭 및 선택 상태 테두리 강제 적용 */
+.hwatu-card.theme-classic.match-hint {
+    border: 2px solid #2eaadc !important;
+    box-shadow: 0 0 12px rgba(46, 170, 220, 0.95) !important;
+}
+
+.hwatu-card.theme-classic.selectable,
+.hwatu-card.theme-classic:hover {
+    border: 2px solid #2eaadc !important;
+    box-shadow: 0 4px 12px rgba(46, 170, 220, 0.8) !important;
+    transform: translateY(-4px) !important;
+}
+
+.hwatu-card.theme-classic.selected {
+    border: 2px solid #2eaadc !important;
+    box-shadow: 0 6px 14px rgba(46, 170, 220, 0.9) !important;
+    transform: translateY(-8px) !important;
+}

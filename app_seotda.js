@@ -11,6 +11,33 @@
     let currentTheme = 'light';
     let previousTurnPlayerId = null;
     let previousStatus = null;
+	let currentCardTheme = localStorage.getItem('hwatu_card_theme') || 'notion';
+
+	function setCardTheme(themeName) {
+		currentCardTheme = themeName;
+		localStorage.setItem('hwatu_card_theme', themeName);
+		updateUI();
+		showToast(themeName === 'classic' ? '🎴 레트로 화투패로 변경되었습니다.' : '🎨 노션 모던 화투패로 변경되었습니다.');
+	}
+
+	// 깃허브 Raw URL 섯다 패 매핑 함수
+	function getSeotdaCardImgPath(card) {
+		if (!card) return '';
+		const baseUrl = "https://raw.githubusercontent.com/dreamline201714-cell/2026-02-15-hwatu-card-image-extraction/master/hwatu_cards";
+
+		const monthNames = {
+			1: '01_솔', 2: '02_매화', 3: '03_벚꽃', 4: '04_흑싸리',
+			5: '05_난초', 6: '06_모란', 7: '07_홍싸리', 8: '08_공산',
+			9: '09_국진', 10: '10_단풍', 11: '11_오동', 12: '12_비'
+		};
+		
+		const prefix = monthNames[card.month];
+		const suffix = card.is_kwang ? '광' : '피1';
+
+		const fileName = encodeURIComponent(`${prefix}_${suffix}.png`);
+		return `${baseUrl}/${fileName}`;
+	}
+
 
     function animateChipToss(fromBtnEl) {
         const potBox = document.getElementById('pot-center-box');
@@ -404,15 +431,21 @@
         hand.forEach((card) => {
             const div = document.createElement('div');
             const typeClass = card.is_kwang ? 'kwang' : 'pi';
-            div.className = `hwatu-card ${typeClass}`;
-            div.innerHTML = `
-                <div class="card-top">
-                    <span class="card-month">${card.month}월</span>
-                    <span class="card-badge">${card.is_kwang ? '광' : '피'}</span>
-                </div>
-                <div class="card-icon">${card.is_kwang ? '☀' : '🍃'}</div>
-                <div class="card-name-sub">${card.name || ''}</div>
-            `;
+            div.className = `hwatu-card theme-${currentCardTheme} ${typeClass}`;
+
+            if (currentCardTheme === 'classic') {
+                const imgPath = getSeotdaCardImgPath(card);
+                div.innerHTML = `<img src="${imgPath}" alt="${card.month}월" class="card-img">`;
+            } else {
+                div.innerHTML = `
+                    <div class="card-top">
+                        <span class="card-month">${card.month}월</span>
+                        <span class="card-badge">${card.is_kwang ? '광' : '피'}</span>
+                    </div>
+                    <div class="card-icon">${card.is_kwang ? '☀' : '🍃'}</div>
+                    <div class="card-name-sub">${card.name || ''}</div>
+                `;
+            }
             cardsBox.appendChild(div);
         });
     }

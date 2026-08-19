@@ -13,6 +13,81 @@ let selectedTurnTime = 15;
 let currentSortMode = 'month';
 
 let pendingPlayedCardId = null;
+let currentCardTheme = localStorage.getItem('hwatu_card_theme') || 'notion';
+
+function setCardTheme(themeName) {
+    currentCardTheme = themeName;
+    localStorage.setItem('hwatu_card_theme', themeName);
+
+    document.querySelectorAll('.theme-select-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-card-theme') === themeName);
+    });
+
+    if (gameState) updateUI(gameState);
+    showToast(themeName === 'classic' ? '🎴 레트로 화투패로 변경되었습니다.' : '🎨 노션 모던 화투패로 변경되었습니다.');
+}
+
+// 🎴 깃허브 실물 화투패 48장 1:1 명확 매핑 함수
+function getClassicHwatuImgPath(card) {
+    if (!card) return '';
+    const baseUrl = "https://raw.githubusercontent.com/dreamline201714-cell/2026-02-15-hwatu-card-image-extraction/master/hwatu_cards";
+
+    const month = card.month;
+    const type = String(card.type || '').toUpperCase();
+    const cardId = String(card.id || '').toLowerCase();
+    
+    let prefix = '';
+    let suffix = '';
+
+    // 1. 제멋대로인 파일명 앞부분(Prefix) 강제 매핑
+    switch (month) {
+        case 1: prefix = '01_솔'; break;
+        case 2: prefix = '02_매화'; break;
+        case 3: prefix = '03_벚꽃'; break;
+        case 4: prefix = '04_흑싸리'; break;
+        case 5: prefix = '05_난초'; break;
+        case 6: prefix = '06_모란'; break;
+        case 7: prefix = '07_홍싸리'; break;
+        case 8: prefix = '08_공산'; break;
+        case 9: prefix = '09_국화'; break;    // '국진' 대신 '국화'
+        case 10: prefix = '10_단풍'; break;
+        case 11: prefix = '12_오동'; break;   // 11월(똥)을 12_오동으로 저장함
+        case 12: prefix = '11_비'; break;     // 12월(비)를 11_비로 저장함
+    }
+
+    // 2. 엉망진창인 접미사(Suffix) 1:1 예외 처리 하드코딩
+    if (type === 'KWANG') {
+        if (month === 11) suffix = '열끗'; // 똥광을 '12_오동_열끗'으로 저장해놓은 대참사 대응
+        else suffix = '광';
+    } 
+    else if (type === 'ANIMAL') {
+        suffix = '열끗';
+    } 
+    else if (type === 'RIBBON') {
+        if (month === 7) suffix = '홍단'; // 7월 초단이 홍단으로 저장됨
+        else if (month === 12) suffix = '홍단'; // 12월 비 띠가 홍단으로 저장됨
+        else if (month === 1 || month === 2 || month === 3) suffix = '홍단';
+        else if (month === 6 || month === 9 || month === 10) suffix = '청단';
+        else suffix = '초단';
+    } 
+    else if (type === 'DOUBLE_PI') {
+        if (month === 9) suffix = '피2';       // 9월 쌍피는 피2
+        else if (month === 11) suffix = '피3'; // 똥 쌍피는 피3
+        else if (month === 12) suffix = '피';  // 비 쌍피는 피
+        else suffix = '쌍피';
+    } 
+    else {
+        // 일반 피 처리
+        if (cardId.includes('2') || cardId.includes('b')) {
+            suffix = '피2';
+        } else {
+            suffix = '피1';
+        }
+    }
+
+    const fileName = encodeURIComponent(`${prefix}_${suffix}.png`);
+    return `${baseUrl}/${fileName}`;
+}
 
 const wsUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
 
@@ -322,28 +397,36 @@ function renderHwatuCard(card, onClick, isSelectable = false, isBombable = false
     const cardEl = document.createElement('div');
     const typeClass = card.type ? card.type.toLowerCase().replace('_', '-') : 'pi';
     
-    cardEl.className = `hwatu-card ${typeClass} ${isSelectable ? 'selectable' : ''} ${isHandMatched ? 'match-hint' : ''}`;
+    cardEl.className = `hwatu-card theme-${currentCardTheme} ${typeClass} ${isSelectable ? 'selectable' : ''} ${isHandMatched ? 'match-hint' : ''}`;
     
     cardEl.setAttribute('data-card-id', card.id);
     cardEl.setAttribute('data-card-month', card.month);
-
-    const badgeText = { 'KWANG': '광', 'ANIMAL': '십', 'RIBBON': card.ribbon_type || '띠', 'PI': '피', 'DOUBLE_PI': '쌍피' }[card.type] || '피';
-    const iconText = { 'KWANG': '☀', 'ANIMAL': '🦅', 'RIBBON': '🎗', 'PI': '🍃', 'DOUBLE_PI': '💎' }[card.type] || '🍃';
 
     let bombBtnHtml = '';
     if (isBombable) {
         bombBtnHtml = `<button class="bomb-badge-btn" onclick="event.stopPropagation(); playCard('${card.id}', true)">💣 폭탄</button>`;
     }
 
-    cardEl.innerHTML = `
-        <div class="card-top">
-            <span class="card-month">${card.month || 0}월</span>
-            <span class="card-badge">${badgeText}</span>
-        </div>
-        <div class="card-icon">${iconText}</div>
-        <div class="card-name-sub">${card.name || ''}</div>
-        ${bombBtnHtml}
-    `;
+    if (currentCardTheme === 'classic') {
+        const imgPath = getClassicHwatuImgPath(card);
+        cardEl.innerHTML = `
+            <img src="${imgPath}" alt="${card.name || '화투'}" class="card-img" onerror="this.onerror=null; this.parentElement.classList.remove('theme-classic'); this.parentElement.classList.add('theme-notion'); this.parentElement.innerHTML='<div class=\\'card-top\\'><span class=\\'card-month\\'>${card.month || 0}월</span></div><div class=\\'card-icon\\'>🍃</div>';">
+            ${bombBtnHtml}
+        `;
+    } else {
+        const badgeText = { 'KWANG': '광', 'ANIMAL': '십', 'RIBBON': card.ribbon_type || '띠', 'PI': '피', 'DOUBLE_PI': '쌍피' }[card.type] || '피';
+        const iconText = { 'KWANG': '☀', 'ANIMAL': '🦅', 'RIBBON': '🎗', 'PI': '🍃', 'DOUBLE_PI': '💎' }[card.type] || '🍃';
+
+        cardEl.innerHTML = `
+            <div class="card-top">
+                <span class="card-month">${card.month || 0}월</span>
+                <span class="card-badge">${badgeText}</span>
+            </div>
+            <div class="card-icon">${iconText}</div>
+            <div class="card-name-sub">${card.name || ''}</div>
+            ${bombBtnHtml}
+        `;
+    }
 
     if (onClick) cardEl.onclick = (e) => { e.stopPropagation(); onClick(card); };
     return cardEl;
