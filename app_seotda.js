@@ -25,14 +25,50 @@
 		if (!card) return '';
 		const baseUrl = "https://raw.githubusercontent.com/dreamline201714-cell/2026-02-15-hwatu-card-image-extraction/master/hwatu_cards";
 
-		const monthNames = {
-			1: '01_솔', 2: '02_매화', 3: '03_벚꽃', 4: '04_흑싸리',
-			5: '05_난초', 6: '06_모란', 7: '07_홍싸리', 8: '08_공산',
-			9: '09_국진', 10: '10_단풍', 11: '11_오동', 12: '12_비'
-		};
+		const month = card.month;
+		const type = String(card.type || '').toUpperCase();
+		const cardId = String(card.id || '').toLowerCase();
 		
-		const prefix = monthNames[card.month];
-		const suffix = card.is_kwang ? '광' : '피1';
+		let prefix = '';
+		let suffix = '';
+
+		// 1. 월별 접두사 매핑 (9월 국화, 11월 오동 등 정상 반영)
+		switch (month) {
+			case 1: prefix = '01_솔'; break;
+			case 2: prefix = '02_매화'; break;
+			case 3: prefix = '03_벚꽃'; break;
+			case 4: prefix = '04_흑싸리'; break;
+			case 5: prefix = '05_난초'; break;
+			case 6: prefix = '06_모란'; break;
+			case 7: prefix = '07_홍싸리'; break;
+			case 8: prefix = '08_공산'; break;
+			case 9: prefix = '09_국화'; break; 
+			case 10: prefix = '10_단풍'; break;
+			case 11: prefix = '11_오동'; break; 
+			case 12: prefix = '12_비'; break;   
+		}
+
+		// 2. 섯다 덱 종류별 접미사 매핑
+		if (type === 'KWANG') {
+			suffix = '광'; 
+		} else if (type === 'ANIMAL') {
+			suffix = '열끗';
+		} else if (type === 'RIBBON') {
+			if (month === 7) suffix = '홍단'; 
+			else if (month === 12) suffix = '초단';
+			else if (month === 1 || month === 2 || month === 3) suffix = '홍단';
+			else if (month === 6 || month === 9 || month === 10) suffix = '청단';
+			else suffix = '초단';
+		} else if (type === 'DOUBLE_PI') {
+			if (month === 9) suffix = '피2';       
+			else if (month === 11) suffix = '쌍피'; 
+			else if (month === 12) suffix = '피';   
+			else suffix = '쌍피';
+		} else {
+			// 일반 피
+			if (cardId.includes('2') || cardId.includes('b')) suffix = '피2';
+			else suffix = '피1';
+		}
 
 		const fileName = encodeURIComponent(`${prefix}_${suffix}.png`);
 		return `${baseUrl}/${fileName}`;
@@ -451,57 +487,70 @@
     }
 
     function renderOtherPlayers() {
-        const container = document.getElementById('other-players-grid');
-        if (!container || !roomState) return;
-        container.innerHTML = '';
+		const container = document.getElementById('other-players-grid');
+		if (!container || !roomState) return;
+		container.innerHTML = '';
 
-        roomState.players.forEach(p => {
-            if (String(p.player_id) === String(myPlayerId)) return;
-            const div = document.createElement('div');
-            div.className = 'player-seat-card';
-            
-            let statusText = p.is_folded ? '😭 다이' : '배팅 중';
-            let cardsHtml = '';
+		roomState.players.forEach(p => {
+			if (String(p.player_id) === String(myPlayerId)) return;
+			const div = document.createElement('div');
+			div.className = 'player-seat-card';
+			
+			let statusText = p.is_folded ? '😭 다이' : '배팅 중';
+			let cardsHtml = '';
 
-            if (roomState.status === 'SHOWDOWN' && !p.is_folded) {
-                statusText = `<span style="color:var(--border-accent); font-weight:bold;">${p.jokbo_name}</span>`;
-                const hand = p.hand || [];
-                if (hand.length >= 2) {
-                    cardsHtml = `
-                        <div class="table-hwatu-container">
-                            <div class="hwatu-card ${hand[0].is_kwang ? 'kwang' : 'pi'}">
-                                <div class="card-top"><span class="card-month">${hand[0].month}월</span><span class="card-badge">${hand[0].is_kwang ? '광' : '피'}</span></div>
-                                <div class="card-icon">${hand[0].is_kwang ? '☀' : '🍃'}</div>
-                            </div>
-                            <div class="hwatu-card ${hand[1].is_kwang ? 'kwang' : 'pi'}">
-                                <div class="card-top"><span class="card-month">${hand[1].month}월</span><span class="card-badge">${hand[1].is_kwang ? '광' : '피'}</span></div>
-                                <div class="card-icon">${hand[1].is_kwang ? '☀' : '🍃'}</div>
-                            </div>
-                        </div>
-                    `;
-                }
-            } else if (roomState.status === 'PLAYING' && !p.is_folded) {
-                cardsHtml = `
-                    <div class="table-hwatu-container">
-                        <div class="hwatu-card card-back"></div>
-                        <div class="hwatu-card card-back"></div>
-                    </div>
-                `;
-            }
+			if (roomState.status === 'SHOWDOWN' && !p.is_folded) {
+				statusText = `<span style="color:var(--border-accent); font-weight:bold;">${p.jokbo_name}</span>`;
+				const hand = p.hand || [];
+				if (hand.length >= 2) {
+					let card1Html = '';
+					let card2Html = '';
 
-            const isWinner = (roomState.status === 'SHOWDOWN' && String(p.player_id) === String(roomState.dealer_player_id));
+					// 테마에 맞추어 카드 2장을 렌더링
+					[hand[0], hand[1]].forEach((card, idx) => {
+						const typeClass = card.is_kwang ? 'kwang' : 'pi';
+						let inner = '';
+						
+						if (currentCardTheme === 'classic') {
+							const imgPath = getSeotdaCardImgPath(card);
+							inner = `<img src="${imgPath}" alt="${card.month}월" class="card-img" onerror="this.onerror=null; this.parentElement.classList.remove('theme-classic'); this.parentElement.classList.add('theme-notion'); this.parentElement.innerHTML='<div class=\\'card-top\\'><span class=\\'card-month\\'>${card.month}월</span></div><div class=\\'card-icon\\'>🍃</div>';">`;
+						} else {
+							inner = `
+								<div class="card-top"><span class="card-month">${card.month}월</span><span class="card-badge">${card.is_kwang ? '광' : '피'}</span></div>
+								<div class="card-icon">${card.is_kwang ? '☀' : '🍃'}</div>
+							`;
+						}
+						
+						const fullCardHtml = `<div class="hwatu-card theme-${currentCardTheme} ${typeClass}">${inner}</div>`;
+						if(idx === 0) card1Html = fullCardHtml;
+						if(idx === 1) card2Html = fullCardHtml;
+					});
 
-            div.innerHTML = `
-                <div class="seat-player-name">
-                    ${isWinner ? '👑 ' : ''}${escapeHtml(p.nickname)}
-                </div>
-                <div class="seat-player-chips">${(p.chips || 0).toLocaleString()} 칩</div>
-                ${cardsHtml}
-                <div class="seat-player-status">${statusText}</div>
-            `;
-            container.appendChild(div);
-        });
-    }
+					cardsHtml = `<div class="table-hwatu-container">${card1Html}${card2Html}</div>`;
+				}
+			} else if (roomState.status === 'PLAYING' && !p.is_folded) {
+				// 게임 진행 중일 때는 덮어둔 뒷면 카드 표시 (테마 연동)
+				cardsHtml = `
+					<div class="table-hwatu-container">
+						<div class="hwatu-card theme-${currentCardTheme} card-back"></div>
+						<div class="hwatu-card theme-${currentCardTheme} card-back"></div>
+					</div>
+				`;
+			}
+
+			const isWinner = (roomState.status === 'SHOWDOWN' && String(p.player_id) === String(roomState.dealer_player_id));
+
+			div.innerHTML = `
+				<div class="seat-player-name">
+					${isWinner ? '👑 ' : ''}${escapeHtml(p.nickname)}
+				</div>
+				<div class="seat-player-chips">${(p.chips || 0).toLocaleString()} 칩</div>
+				${cardsHtml}
+				<div class="seat-player-status">${statusText}</div>
+			`;
+			container.appendChild(div);
+		});
+	}
 
     function renderPlayers() {
         const panel = document.getElementById('panel-players');
