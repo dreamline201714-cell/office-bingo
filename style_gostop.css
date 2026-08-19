@@ -890,3 +890,8 @@
     box-shadow: 0 6px 14px rgba(46, 170, 220, 0.9) !important;
     transform: translateY(-8px) !important;
 }
+
+/* 레트로 테마 획득한 패 겹치기 강제 복구 */
+.captured-group-cards-stack .hwatu-card.theme-classic {
+    position: absolute !important;
+}

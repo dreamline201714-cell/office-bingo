@@ -39,7 +39,7 @@ function getClassicHwatuImgPath(card) {
     let prefix = '';
     let suffix = '';
 
-    // 1. 제멋대로인 파일명 앞부분(Prefix) 강제 매핑
+    // 1. 월별 접두사(Prefix) 매핑
     switch (month) {
         case 1: prefix = '01_솔'; break;
         case 2: prefix = '02_매화'; break;
@@ -49,35 +49,34 @@ function getClassicHwatuImgPath(card) {
         case 6: prefix = '06_모란'; break;
         case 7: prefix = '07_홍싸리'; break;
         case 8: prefix = '08_공산'; break;
-        case 9: prefix = '09_국화'; break;    // '국진' 대신 '국화'
+        case 9: prefix = '09_국화'; break; 
         case 10: prefix = '10_단풍'; break;
-        case 11: prefix = '12_오동'; break;   // 11월(똥)을 12_오동으로 저장함
-        case 12: prefix = '11_비'; break;     // 12월(비)를 11_비로 저장함
+        case 11: prefix = '11_오동'; break; 
+        case 12: prefix = '12_비'; break;   
     }
 
-    // 2. 엉망진창인 접미사(Suffix) 1:1 예외 처리 하드코딩
+    // 2. 종류별 접미사(Suffix) 매핑
     if (type === 'KWANG') {
-        if (month === 11) suffix = '열끗'; // 똥광을 '12_오동_열끗'으로 저장해놓은 대참사 대응
-        else suffix = '광';
+        suffix = '광'; 
     } 
     else if (type === 'ANIMAL') {
         suffix = '열끗';
     } 
     else if (type === 'RIBBON') {
-        if (month === 7) suffix = '홍단'; // 7월 초단이 홍단으로 저장됨
-        else if (month === 12) suffix = '홍단'; // 12월 비 띠가 홍단으로 저장됨
+        if (month === 7) suffix = '홍단'; 
+        else if (month === 12) suffix = '초단'; // 12월 비 띠가 '초단'으로 저장됨
         else if (month === 1 || month === 2 || month === 3) suffix = '홍단';
         else if (month === 6 || month === 9 || month === 10) suffix = '청단';
         else suffix = '초단';
     } 
     else if (type === 'DOUBLE_PI') {
-        if (month === 9) suffix = '피2';       // 9월 쌍피는 피2
-        else if (month === 11) suffix = '피3'; // 똥 쌍피는 피3
-        else if (month === 12) suffix = '피';  // 비 쌍피는 피
+        if (month === 9) suffix = '피2';       
+        else if (month === 11) suffix = '쌍피'; 
+        else if (month === 12) suffix = '피';   // 12월 비 쌍피가 '피'로 저장됨
         else suffix = '쌍피';
     } 
     else {
-        // 일반 피 처리
+        // 일반 피 (1, 2 구분)
         if (cardId.includes('2') || cardId.includes('b')) {
             suffix = '피2';
         } else {
