@@ -44,8 +44,8 @@
 					method: 'POST',
 					headers: {
 						'Content-Type': 'application/json',
-						'apikey': 'YOUR_SUPABASE_ANON_KEY',
-						'Authorization': 'Bearer YOUR_SUPABASE_ANON_KEY',
+						'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsc2F2b3VwYXB6eGV5ZnliZXZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3NjcyOTUsImV4cCI6MjEwMjM0MzI5NX0.EYVZ2y0BnN4of-6KhFemarxZFFwBeTvAX-k-1gTCWbI',
+						'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsc2F2b3VwYXB6eGV5ZnliZXZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3NjcyOTUsImV4cCI6MjEwMjM0MzI5NX0.EYVZ2y0BnN4of-6KhFemarxZFFwBeTvAX-k-1gTCWbI',
 						'Prefer': 'return=minimal'
 					},
 					body: JSON.stringify({
@@ -695,7 +695,7 @@
 
 		const isLoserMode = roomState?.config?.game_mode === 'LOSER';
 
-		// DB에서 읽어온 오늘 하루 최다 승자 실시간 전광판 렌더링
+		// 오늘의 빙고왕 전광판 렌더링
 		const todayKingEl = document.getElementById('today-king-name-text');
 		if (todayKingEl) {
 			const todayKing = roomState ? roomState.today_king : null;
@@ -709,16 +709,21 @@
 		playersList.forEach(p => {
 			let statusHtml = '';
 
-			// 대기실 상태일 때는 무조건 준비 완료 여부를 최우선 표시
 			if (status === 'WAITING') {
-				statusHtml = p.is_ready 
-					? '<span class="ready-tag ready">준비 완료</span>' 
-					: '<span class="ready-tag waiting">작성 중...</span>';
-			} else if (isLoserMode && p.is_escaped) {
-				// 게임 진행 중 탈출했을 때만 탈출 뱃지 표시
-				statusHtml = `<span class="escape-rank-badge escaped">${p.escape_rank || 1}등 탈출 🏃‍♂️</span>`;
+				// 💡 [핵심 변경]: 대기실 상태에서 다시 '준비 완료'를 눌렀거나 방장이 리셋하여 준비 해제된 경우
+				if (p.is_ready) {
+					statusHtml = '<span class="ready-tag ready">준비 완료</span>';
+				} else if (p.is_escaped) {
+					// 아직 준비완료/리셋을 안 누른 이전 판 탈출자 상태 유지
+					statusHtml = `<span class="escape-rank-badge escaped">${p.escape_rank || 1}등 탈출 🏃‍♂️</span>`;
+				} else {
+					statusHtml = '<span class="ready-tag waiting">작성 중...</span>';
+				}
 			} else {
-				if (isLoserMode) {
+				// 게임 진행 중 (PLAYING)
+				if (isLoserMode && p.is_escaped) {
+					statusHtml = `<span class="escape-rank-badge escaped">${p.escape_rank || 1}등 탈출 🏃‍♂️</span>`;
+				} else if (isLoserMode) {
 					statusHtml = `<span class="escape-rank-badge playing">${p.score || 0}줄 달성 중</span>`;
 				} else {
 					statusHtml = `<span style="font-size:0.75rem; font-weight:bold; color:var(--accent);">${p.score || 0}줄 완성</span>`;
@@ -734,7 +739,7 @@
 			}
 
 			const card = document.createElement('div');
-			card.className = 'player-card' + (p.is_escaped ? ' player-escaped' : '');
+			card.className = 'player-card' + (p.is_escaped && status !== 'WAITING' ? ' player-escaped' : '');
 			card.innerHTML = `
 				<div class="player-info">
 					<div class="player-avatar" style="background-color: ${p.color};">${p.nickname.charAt(0)}</div>
