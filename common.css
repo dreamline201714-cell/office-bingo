@@ -277,7 +277,8 @@ body {
     border-radius: 8px; 
     display: flex; 
     flex-direction: column; 
-    min-height: 520px; 
+    height: 520px; /* min-height 대신 height로 고정 */
+    max-height: 520px; /* 최대 높이 고정 */
     padding: 12px; 
     gap: 10px; 
     box-sizing: border-box;
@@ -314,7 +315,7 @@ body {
     display: flex; 
     flex-direction: column; 
     flex: 1; 
-    min-height: 220px; 
+    min-height: 0; /* flex 자식 요소 높이 늘어남 방지 필수 속성 */
     border: 1px solid var(--border-block); 
     border-radius: 6px; 
     background: var(--bg-card); 
@@ -377,8 +378,27 @@ body {
 .ready-tag.ready { background: rgba(67, 160, 71, 0.18); color: #2e7d32; }
 .ready-tag.waiting { background: rgba(229, 57, 53, 0.18); color: #c62828; }
 
-.chat-container { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-.chat-messages { flex: 1; min-height: 120px; overflow-y: auto !important; border: 1px solid var(--border-block); border-radius: 4px; background: var(--bg-primary); padding: 6px; margin-bottom: 6px; font-size: 0.78rem; display: flex; flex-direction: column; gap: 4px; }
+.chat-container { 
+    display: flex; 
+    flex-direction: column; 
+    flex: 1; 
+    min-height: 0; 
+    height: 100%;
+}
+.chat-messages { 
+    flex: 1; 
+    min-height: 0; /* 내용이 많아져도 상자가 늘어나지 않고 스크롤 생성 */
+    overflow-y: auto !important; 
+    border: 1px solid var(--border-block); 
+    border-radius: 4px; 
+    background: var(--bg-primary); 
+    padding: 6px; 
+    margin-bottom: 6px; 
+    font-size: 0.78rem; 
+    display: flex; 
+    flex-direction: column; 
+    gap: 4px; 
+}}
 .chat-input-box { display: flex; gap: 4px; width: 100%; }
 .chat-input { flex: 1; border: 1px solid var(--border-block); border-radius: 4px; padding: 6px; background: var(--bg-card); color: var(--text-primary); font-size: 0.78rem; outline: none; }
 .chat-send-btn { border: 1px solid var(--border-block); background: var(--bg-surface); color: var(--text-primary); border-radius: 4px; padding: 0 10px; font-size: 0.78rem; font-weight: 600; cursor: pointer; }

@@ -26,16 +26,36 @@
         return { date: getTodayString(), wins: 0, loses: 0 };
     }
 
-    function recordTodayResult(isWin, isLoser) {
+    async function recordTodayResult(isWin, isLoser) {
         try {
-            var stats = getTodayStats();
-            if (isWin) stats.wins += 1;
-            if (isLoser) stats.loses += 1;
-            localStorage.setItem(TODAY_STATS_KEY, JSON.stringify(stats));
-        } catch (e) {
-            console.warn("로컬스토리지 쓰기 에러:", e);
-        }
+        var stats = getTodayStats();
+        if (isWin) stats.wins += 1;
+        if (isLoser) stats.loses += 1;
+        localStorage.setItem(TODAY_STATS_KEY, JSON.stringify(stats));
+
+        // Supabase DB 저장 요청 추가
+        const nickname = localStorage.getItem('office_bingo_last_nickname') || '참여자';
+        const today = getTodayString();
+
+        await fetch('https://clsavoupapzxeyfybevr.supabase.co/rest/v1/daily_stats', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': 'YOUR_SUPABASE_ANON_KEY',
+                'Authorization': 'Bearer YOUR_SUPABASE_ANON_KEY',
+                'Prefer': 'return=minimal'
+            },
+            body: JSON.stringify({
+                game_type: 'BINGO',
+                nickname: nickname,
+                play_date: today,
+                wins: stats.wins
+            })
+        });
+    } catch (e) {
+        console.warn("데이터베이스 전송 오류:", e);
     }
+}
 
     let socket = null;
     let currentRoomId = null;
@@ -682,6 +702,18 @@
                 todayKingEl.innerText = "왕좌 비어있음";
             }
         }
+		
+		if (status === 'WAITING') {
+			// 대기실 상태일 때는 무조건 준비 완료 여부를 최우선 표시
+			statusHtml = p.is_ready 
+				? '<span class="ready-tag ready">준비 완료</span>' 
+				: '<span class="ready-tag waiting">작성 중...</span>';
+		} else if (isLoserMode && p.is_escaped) {
+			// 게임 진행 중 탈출했을 때만 탈출 뱃지 표시
+			statusHtml = `<span class="escape-rank-badge escaped">${p.escape_rank || 1}등 탈출 🏃‍♂️</span>`;
+		} else {
+			statusHtml = `<span class="escape-rank-badge playing">${p.score || 0}줄 달성 중</span>`;
+		}
 
         playersList.forEach(p => {
             let statusHtml = '';
