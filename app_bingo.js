@@ -41,8 +41,8 @@
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'apikey': 'YOUR_SUPABASE_ANON_KEY',
-                'Authorization': 'Bearer YOUR_SUPABASE_ANON_KEY',
+                'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsc2F2b3VwYXB6eGV5ZnliZXZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3NjcyOTUsImV4cCI6MjEwMjM0MzI5NX0.EYVZ2y0BnN4of-6KhFemarxZFFwBeTvAX-k-1gTCWbI',
+                'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsc2F2b3VwYXB6eGV5ZnliZXZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3NjcyOTUsImV4cCI6MjEwMjM0MzI5NX0.EYVZ2y0BnN4of-6KhFemarxZFFwBeTvAX-k-1gTCWbI',
                 'Prefer': 'return=minimal'
             },
             body: JSON.stringify({
@@ -679,124 +679,113 @@
     }
 
     function renderPlayersRoster(status) {
-        const panelPlayers = document.getElementById('panel-players');
-        const playerCountSpan = document.getElementById('player-count');
-        const mobilePlayerCount = document.getElementById('mobile-player-count');
-        if (!panelPlayers) return;
+		const panelPlayers = document.getElementById('panel-players');
+		const playerCountSpan = document.getElementById('player-count');
+		const mobilePlayerCount = document.getElementById('mobile-player-count');
+		if (!panelPlayers) return;
 
-        panelPlayers.innerHTML = '';
-        const playersList = roomState ? roomState.players : [];
-        if (playerCountSpan) playerCountSpan.innerText = playersList.length;
-        if (mobilePlayerCount) mobilePlayerCount.innerText = playersList.length;
+		panelPlayers.innerHTML = '';
+		const playersList = roomState ? roomState.players : [];
+		if (playerCountSpan) playerCountSpan.innerText = playersList.length;
+		if (mobilePlayerCount) mobilePlayerCount.innerText = playersList.length;
 
-        const isLoserMode = roomState?.config?.game_mode === 'LOSER';
-        const myPlayer = playersList.find(p => p.player_id === myPlayerId);
+		const isLoserMode = roomState?.config?.game_mode === 'LOSER';
 
-        // ★ DB에서 읽어온 오늘 하루 최다 승자(오늘의 빙고대왕) 실시간 전광판 렌더링 ★
-        const todayKingEl = document.getElementById('today-king-name-text');
-        if (todayKingEl) {
-            const todayKing = roomState ? roomState.today_king : null;
-            if (todayKing && todayKing.wins > 0) {
-                todayKingEl.innerText = `${todayKing.nickname} (🏆 ${todayKing.wins}승)`;
-            } else {
-                todayKingEl.innerText = "왕좌 비어있음";
-            }
-        }
-		
-		if (status === 'WAITING') {
-			// 대기실 상태일 때는 무조건 준비 완료 여부를 최우선 표시
-			statusHtml = p.is_ready 
-				? '<span class="ready-tag ready">준비 완료</span>' 
-				: '<span class="ready-tag waiting">작성 중...</span>';
-		} else if (isLoserMode && p.is_escaped) {
-			// 게임 진행 중 탈출했을 때만 탈출 뱃지 표시
-			statusHtml = `<span class="escape-rank-badge escaped">${p.escape_rank || 1}등 탈출 🏃‍♂️</span>`;
-		} else {
-			statusHtml = `<span class="escape-rank-badge playing">${p.score || 0}줄 달성 중</span>`;
+		// DB에서 읽어온 오늘 하루 최다 승자 실시간 전광판 렌더링
+		const todayKingEl = document.getElementById('today-king-name-text');
+		if (todayKingEl) {
+			const todayKing = roomState ? roomState.today_king : null;
+			if (todayKing && todayKing.wins > 0) {
+				todayKingEl.innerText = `${todayKing.nickname} (🏆 ${todayKing.wins}승)`;
+			} else {
+				todayKingEl.innerText = "왕좌 비어있음";
+			}
 		}
 
-        playersList.forEach(p => {
-            let statusHtml = '';
+		playersList.forEach(p => {
+			let statusHtml = '';
 
-            if (isLoserMode && p.is_escaped) {
-                statusHtml = `<span class="escape-rank-badge escaped">${p.escape_rank || 1}등 탈출 🏃‍♂️</span>`;
-            } else if (status === 'WAITING') {
-                statusHtml = p.is_ready 
-                    ? '<span class="ready-tag ready">준비 완료</span>' 
-                    : '<span class="ready-tag waiting">작성 중...</span>';
-            } else {
-                if (isLoserMode) {
-                    statusHtml = `<span class="escape-rank-badge playing">${p.score || 0}줄 달성 중</span>`;
-                } else {
-                    statusHtml = `<span style="font-size:0.75rem; font-weight:bold; color:var(--accent);">${p.score || 0}줄 완성</span>`;
-                }
-            }
+			// 대기실 상태일 때는 무조건 준비 완료 여부를 최우선 표시
+			if (status === 'WAITING') {
+				statusHtml = p.is_ready 
+					? '<span class="ready-tag ready">준비 완료</span>' 
+					: '<span class="ready-tag waiting">작성 중...</span>';
+			} else if (isLoserMode && p.is_escaped) {
+				// 게임 진행 중 탈출했을 때만 탈출 뱃지 표시
+				statusHtml = `<span class="escape-rank-badge escaped">${p.escape_rank || 1}등 탈출 🏃‍♂️</span>`;
+			} else {
+				if (isLoserMode) {
+					statusHtml = `<span class="escape-rank-badge playing">${p.score || 0}줄 달성 중</span>`;
+				} else {
+					statusHtml = `<span style="font-size:0.75rem; font-weight:bold; color:var(--accent);">${p.score || 0}줄 완성</span>`;
+				}
+			}
 
-            const winCount = p.wins || 0;
-            let winBadgeHtml = '';
-            if (winCount >= 3) {
-                winBadgeHtml = `<span class="win-count-badge king">👑 ${winCount}승 (빙고왕)</span>`;
-            } else if (winCount > 0) {
-                winBadgeHtml = `<span class="win-count-badge">${winCount}승</span>`;
-            }
+			const winCount = p.wins || 0;
+			let winBadgeHtml = '';
+			if (winCount >= 3) {
+				winBadgeHtml = `<span class="win-count-badge king">👑 ${winCount}승 (빙고왕)</span>`;
+			} else if (winCount > 0) {
+				winBadgeHtml = `<span class="win-count-badge">${winCount}승</span>`;
+			}
 
-            const card = document.createElement('div');
-            card.className = 'player-card' + (p.is_escaped ? ' player-escaped' : '');
-            card.innerHTML = `
-                <div class="player-info">
-                    <div class="player-avatar" style="background-color: ${p.color};">${p.nickname.charAt(0)}</div>
-                    <div class="player-name">${escapeHtml(p.nickname)} ${p.is_host ? '<span class="host-tag">방장</span>' : ''} ${winBadgeHtml}</div>
-                </div>
-                <div style="display:flex; align-items:center; gap:4px;">
-                    ${statusHtml}
-                    <button class="spectate-btn" data-pid="${p.player_id}">관전</button>
-                </div>
-            `;
+			const card = document.createElement('div');
+			card.className = 'player-card' + (p.is_escaped ? ' player-escaped' : '');
+			card.innerHTML = `
+				<div class="player-info">
+					<div class="player-avatar" style="background-color: ${p.color};">${p.nickname.charAt(0)}</div>
+					<div class="player-name">${escapeHtml(p.nickname)} ${p.is_host ? '<span class="host-tag">방장</span>' : ''} ${winBadgeHtml}</div>
+				</div>
+				<div style="display:flex; align-items:center; gap:4px;">
+					${statusHtml}
+					<button class="spectate-btn" data-pid="${p.player_id}">관전</button>
+				</div>
+			`;
 
-            const specBtn = card.querySelector('.spectate-btn');
-            if (specBtn) {
-                specBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    openSpectateModal(p.player_id);
-                };
-            }
-            panelPlayers.appendChild(card);
-        });
+			const specBtn = card.querySelector('.spectate-btn');
+			if (specBtn) {
+				specBtn.onclick = (e) => {
+					e.stopPropagation();
+					openSpectateModal(p.player_id);
+				};
+			}
+			panelPlayers.appendChild(card);
+		});
 
-        // ★ 상단 전광판 랭킹 실시간 계산 ★
-        const mvpEl = document.getElementById('rank-mvp-text');
-        const loserEl = document.getElementById('rank-loser-text');
+		// 상단 전광판 랭킹 실시간 계산
+		const mvpEl = document.getElementById('rank-mvp-text');
+		const loserEl = document.getElementById('rank-loser-text');
 
-        if (mvpEl && loserEl && playersList.length > 0) {
-            const sortedByWins = [...playersList].sort((a, b) => (b.wins || 0) - (a.wins || 0));
-            const maxWins = sortedByWins[0]?.wins || 0;
+		if (mvpEl && loserEl && playersList.length > 0) {
+			const sortedByWins = [...playersList].sort((a, b) => (b.wins || 0) - (a.wins || 0));
+			const maxWins = sortedByWins[0]?.wins || 0;
 
-            if (maxWins > 0) {
-                const topWinners = sortedByWins.filter(p => (p.wins || 0) === maxWins);
-                if (topWinners.length === 1) {
-                    mvpEl.innerText = `${topWinners[0].nickname} (${maxWins}승)`;
-                } else {
-                    mvpEl.innerText = `${topWinners[0].nickname} 외 ${topWinners.length - 1}명 (${maxWins}승)`;
-                }
-            } else {
-                mvpEl.innerText = '집계 중...';
-            }
+			if (maxWins > 0) {
+				const topWinners = sortedByWins.filter(p => (p.wins || 0) === maxWins);
+				if (topWinners.length === 1) {
+					mvpEl.innerText = `${topWinners[0].nickname} (${maxWins}승)`;
+				} else {
+					mvpEl.innerText = `${topWinners[0].nickname} 외 ${topWinners.length - 1}명 (${maxWins}승)`;
+				}
+			} else {
+				mvpEl.innerText = '집계 중...';
+			}
 
-            const sortedByWinsAsc = [...playersList].sort((a, b) => (a.wins || 0) - (b.wins || 0));
-            const minWins = sortedByWinsAsc[0]?.wins || 0;
+			const sortedByWinsAsc = [...playersList].sort((a, b) => (a.wins || 0) - (b.wins || 0));
+			const minWins = sortedByWinsAsc[0]?.wins || 0;
 
-            if (maxWins > 0) {
-                const bottomPlayers = sortedByWinsAsc.filter(p => (p.wins || 0) === minWins);
-                if (bottomPlayers.length === 1) {
-                    loserEl.innerText = `${bottomPlayers[0].nickname} (${minWins}승)`;
-                } else {
-                    loserEl.innerText = `${bottomPlayers[0].nickname} 외 ${bottomPlayers.length - 1}명 (${minWins}승)`;
-                }
-            } else {
-                loserEl.innerText = '집계 중...';
-            }
-        }
-    }
+			if (maxWins > 0) {
+				const bottomPlayers = sortedByWinsAsc.filter(p => (p.wins || 0) === minWins);
+				if (bottomPlayers.length === 1) {
+					loserEl.innerText = `${bottomPlayers[0].nickname} (${minWins}승)`;
+				} else {
+					loserEl.innerText = `${bottomPlayers[0].nickname} 외 ${bottomPlayers.length - 1}명 (${minWins}승)`;
+				}
+			} else {
+				loserEl.innerText = '집계 중...';
+			}
+		}
+	}
 
     function renderChatLogs() {
         const chatMessagesBox = document.getElementById('chat-messages');
