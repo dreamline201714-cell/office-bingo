@@ -27,35 +27,39 @@
     }
 
     async function recordTodayResult(isWin, isLoser) {
-        try {
-        var stats = getTodayStats();
-        if (isWin) stats.wins += 1;
-        if (isLoser) stats.loses += 1;
-        localStorage.setItem(TODAY_STATS_KEY, JSON.stringify(stats));
+		try {
+			var stats = getTodayStats();
+			if (isWin) stats.wins += 1;
+			if (isLoser) stats.loses += 1;
+			
+			// 1. 로컬스토리지에 최신 승수 저장
+			localStorage.setItem(TODAY_STATS_KEY, JSON.stringify(stats));
 
-        // Supabase DB 저장 요청 추가
-        const nickname = localStorage.getItem('office_bingo_last_nickname') || '참여자';
-        const today = getTodayString();
+			const nickname = localStorage.getItem('office_bingo_last_nickname') || '참여자';
+			const today = getTodayString();
 
-        await fetch('https://clsavoupapzxeyfybevr.supabase.co/rest/v1/daily_stats', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsc2F2b3VwYXB6eGV5ZnliZXZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3NjcyOTUsImV4cCI6MjEwMjM0MzI5NX0.EYVZ2y0BnN4of-6KhFemarxZFFwBeTvAX-k-1gTCWbI',
-                'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNsc2F2b3VwYXB6eGV5ZnliZXZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY3NjcyOTUsImV4cCI6MjEwMjM0MzI5NX0.EYVZ2y0BnN4of-6KhFemarxZFFwBeTvAX-k-1gTCWbI',
-                'Prefer': 'return=minimal'
-            },
-            body: JSON.stringify({
-                game_type: 'BINGO',
-                nickname: nickname,
-                play_date: today,
-                wins: stats.wins
-            })
-        });
-    } catch (e) {
-        console.warn("데이터베이스 전송 오류:", e);
-    }
-}
+			// 2. 승리했을 때만 DB에 기록 전송 (또는 최신 stats.wins 값 반영)
+			if (isWin) {
+				await fetch('https://clsavoupapzxeyfybevr.supabase.co/rest/v1/daily_stats', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'apikey': 'YOUR_SUPABASE_ANON_KEY',
+						'Authorization': 'Bearer YOUR_SUPABASE_ANON_KEY',
+						'Prefer': 'return=minimal'
+					},
+					body: JSON.stringify({
+						game_type: 'BINGO',
+						nickname: nickname,
+						play_date: today,
+						wins: stats.wins // ★ 계산이 완료된 최신 stats.wins 전송
+					})
+				});
+			}
+		} catch (e) {
+			console.warn("데이터베이스 전송 오류:", e);
+		}
+	}
 
     let socket = null;
     let currentRoomId = null;
