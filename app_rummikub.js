@@ -183,7 +183,18 @@
         socket.onopen = () => { 
             const statusEl = document.getElementById('status-text');
             if(statusEl) statusEl.innerText = '연결됨'; 
-            checkUrlQueryParams();
+            
+            // 이미 방에 들어가 있던 상태에서 소켓이 재연결된 경우 자동 재입장 요청
+            const savedNick = localStorage.getItem('office_rummikub_last_nickname');
+            if (currentRoomId && savedNick) {
+                sendMessage({
+                    type: 'JOIN_ROOM',
+                    nickname: savedNick,
+                    room_id: currentRoomId
+                });
+            } else {
+                checkUrlQueryParams();
+            }
         };
         socket.onmessage = (e) => {
             try { handleServerMessage(JSON.parse(e.data)); } catch (err) { console.error(err); }
