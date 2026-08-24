@@ -387,14 +387,15 @@
                 if (myPlayer) readyBtn.innerText = myPlayer.is_ready ? '준비 완료됨 (해제)' : '준비 완료';
             }
 
-            if (myPlayer && myPlayer.is_host) {
+           if (myPlayer && myPlayer.is_host) {
                 if (hostControls) hostControls.style.display = 'flex';
                 if (hostStartBtn) {
+                    // 대기실 상태로 돌아왔을 때 로딩 상태 강제 해제
+                    hostStartBtn.removeAttribute('data-loading');
+                    
                     const allReady = roomState.players.every(p => p.is_ready);
-                    if (!hostStartBtn.getAttribute('data-loading')) {
-                        hostStartBtn.disabled = !allReady;
-                        hostStartBtn.innerText = allReady ? '게임 시작하기!' : '준비 대기 중...';
-                    }
+                    hostStartBtn.disabled = !allReady;
+                    hostStartBtn.innerText = allReady ? '게임 시작하기!' : '준비 대기 중...';
                 }
             } else {
                 if (hostControls) hostControls.style.display = 'none';
