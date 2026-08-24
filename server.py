@@ -68,13 +68,15 @@ def record_daily_win(game_type: str, nickname: str):
         with conn.cursor() as cur:
             sql = """
                 INSERT INTO daily_stats (game_type, nickname, play_date, wins)
-                VALUES (UPPER(%s), %s, CURRENT_DATE, 1)
+                VALUES (UPPER(%s), %s, (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul')::date, 1)
                 ON CONFLICT (game_type, nickname, play_date)
-                DO SET wins = daily_stats.wins + 1;
+                DO UPDATE SET wins = daily_stats.wins + 1;
             """
             cur.execute(sql, (game_type, nickname))
             conn.commit()
-    except Exception: conn.rollback()
+    except Exception as e:
+        print(f"[DB ERROR] record_daily_win: {e}")
+        conn.rollback()
     finally: conn.close()
 
 def get_today_top_winner(game_type: str):
@@ -88,13 +90,15 @@ def get_today_top_winner(game_type: str):
                 WHERE UPPER(game_type) = UPPER(%s) 
                   AND play_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Seoul')::date
                   AND wins > 0
-                ORDER BY wins DESC, id DESC LIMIT 1;
+                ORDER BY wins DESC, nickname ASC LIMIT 1;
             """
             cur.execute(sql, (game_type,))
             row = cur.fetchone()
             if row: return dict(row)
             return None
-    except Exception: return None
+    except Exception as e:
+        print(f"[DB ERROR] get_today_top_winner: {e}")
+        return None
     finally: conn.close()
 
 ROOMS = {}
