@@ -1047,14 +1047,16 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
         if not room: return current_room_id
 
         current_player = room['players'].get(ws)
+        actual_ws = ws
         if not current_player:
             for p_ws, p in room['players'].items():
                 if p['id'] == current_player_id:
                     current_player = p
-                    ws = p_ws
+                    actual_ws = p_ws
                     break
 
         if not current_player or not current_player.get('is_host'): return current_room_id
+        ws = actual_ws
 
         room['status'] = 'PLAYING'
         player_sockets = list(room['players'].keys())
