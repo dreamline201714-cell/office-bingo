@@ -1162,16 +1162,19 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
                     player['wins'] = player.get('wins', 0) + 1
                     winner_name = str(player['nickname']).strip()
                     
-                    # 1. DB에 루미큐브 승수 즉시 기록
-                    await asyncio.to_thread(record_daily_win, 'RUMMIKUB', winner_name)
-                    
-                    # 2. 루미큐브 오늘의 루미왕 캐시 즉시 갱신 (10초 대기 없이 즉시 반영)
-                    top_winner = await asyncio.to_thread(get_today_top_winner, 'RUMMIKUB')
-                    if top_winner:
-                        TODAY_KING_CACHE['RUMMIKUB'] = top_winner
-
                     room['chat_logs'].append({'system': True, 'text': f"🏆 축하합니다! [{winner_name}]님이 모든 타일을 털어 최종 우승하셨습니다!"})
+                    
+                    # 1. 승리 알림을 클라이언트에 지연 없이 즉시 전송
                     await broadcast_to_room(current_room_id, {'type': 'GAME_OVER', 'winner_name': winner_name, 'winner_id': player['id'], 'state': None})
+
+                    # 2. DB 기록 및 캐시 갱신은 백그라운드 태스크로 연동 (응답 속도 향상)
+                    async def save_win_async(name):
+                        await asyncio.to_thread(record_daily_win, 'RUMMIKUB', name)
+                        top_winner = await asyncio.to_thread(get_today_top_winner, 'RUMMIKUB')
+                        if top_winner:
+                            TODAY_KING_CACHE['RUMMIKUB'] = top_winner
+
+                    asyncio.create_task(save_win_async(winner_name))
 
                     async def reset_to_waiting_after_delay():
                         await asyncio.sleep(4)
