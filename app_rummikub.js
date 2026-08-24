@@ -879,7 +879,7 @@
         }
 
         // ★ [통합] 단일 제출 / 패스 버튼 이벤트 ★
-        if (btnSubmitTurn) {
+       if (btnSubmitTurn) {
             btnSubmitTurn.onclick = () => {
                 if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) {
                     showToast("내 턴일 때만 조작할 수 있습니다!");
@@ -916,10 +916,11 @@
                     }
                 }
 
-                // 제출 완료 시 버튼 강조 클래스 제거
+                // 제출 완료 시 타이머 정지 및 버튼 중복 연타 방지
+                clearInterval(timerInterval);
+                btnSubmitTurn.disabled = true;
                 btnSubmitTurn.classList.remove('highlight-submit');
 
-                // 플레이어 동작 방식에 맞춘 토스트 안내
                 if (isTilePlaced) {
                     showToast("타일 배치를 완료하고 턴을 마칩니다.");
                 } else {
@@ -927,6 +928,9 @@
                 }
 
                 sendMessage({ type: 'SUBMIT_TURN', room_id: currentRoomId, table_sets: localTableSets, rack: localRack });
+
+                // 1초 후 버튼 다시 활성화 (다음 턴 대기)
+                setTimeout(() => { if (btnSubmitTurn) btnSubmitTurn.disabled = false; }, 1000);
             };
         }
 
