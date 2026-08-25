@@ -436,6 +436,7 @@ def serialize_room_state(room_id, requester_ws=None):
         state['config'] = room.get('config', {})
     elif game_type == 'RUMMIKUB':
         state['table_sets'] = room.get('table_sets', [])
+        state['rule_type'] = room.get('rule_type', 'official')
     elif game_type == 'SEOTDA':
         state['pot'] = room.get('pot', 0)
         state['last_bet_amount'] = room.get('last_raise_amount', 100)
@@ -581,8 +582,10 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
                 'turn_order': [], 'current_turn_index': 0, 'chat_logs': []
             }
         elif game_type == 'RUMMIKUB':
+            rule_type = data.get('rule_type', 'official')
             ROOMS[room_id] = {
                 'room_id': room_id, 'game_type': 'RUMMIKUB', 'status': 'WAITING', 'turn_time_limit': int(data.get('turn_time_limit', 60)), 'title': title,
+                'rule_type': rule_type,
                 'deck': [], 'table_sets': [],
                 'players': {ws: {'id': current_player_id, 'nickname': nickname, 'is_host': True, 'is_ready': False, 'rack': [], 'color': assigned_color, 'wins': 0}},
                 'turn_order': [], 'current_turn_index': 0, 'chat_logs': []
@@ -1164,9 +1167,13 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
                     
                     room['chat_logs'].append({'system': True, 'text': f"🏆 축하합니다! [{winner_name}]님이 모든 타일을 털어 최종 우승하셨습니다!"})
                     
-                    # 1. 승리 알림을 클라이언트에 지연 없이 즉시 전송
-                    await broadcast_to_room(current_room_id, {'type': 'GAME_OVER', 'winner_name': winner_name, 'winner_id': player['id'], 'state': None})
-
+                    # 1. 우승자의 닉네임을 명확히 보장하여 GAME_OVER 이벤트 브로드캐스트
+                    await broadcast_to_room(current_room_id, {
+                        'type': 'GAME_OVER', 
+                        'winner_name': winner_name, 
+                        'winner_id': str(player['id']), 
+                        'state': serialize_room_state(current_room_id)
+                    })
                     # 2. DB 기록 및 캐시 갱신은 백그라운드 태스크로 연동 (응답 속도 향상)
                     async def save_win_async(name):
                         await asyncio.to_thread(record_daily_win, 'RUMMIKUB', name)

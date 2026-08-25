@@ -376,7 +376,8 @@
         const gridInfoEl = document.getElementById('display-grid-info');
         if (gridInfoEl) {
             const poolCount = roomState.tile_pool_count !== undefined ? roomState.tile_pool_count : '-';
-            gridInfoEl.innerText = `턴 제한: ${roomState.turn_time_limit || 60}초 | 남은 타일 더미: ${poolCount}개`;
+            const ruleText = roomState.rule_type === 'jaehee' ? '재히룰(단일세트 30점)' : '공식룰(합산 30점)';
+            gridInfoEl.innerText = `룰: ${ruleText} | 턴 제한: ${roomState.turn_time_limit || 60}초 | 남은 타일 더미: ${poolCount}개`;
         }
 
         if (status === 'WAITING') {
@@ -902,17 +903,29 @@
                 const currentTableCount = localTableSets.flat().length;
                 const isTilePlaced = currentTableCount > originalTableCount;
 
-                // 첫 등록(Initial Meld) 30점 이상 검증
+                // 첫 등록(Initial Meld) 30점 이상 검증 (공식 룰 vs 재히룰 분기)
                 const myPlayer = roomState.players.find(p => String(p.player_id) === String(myPlayerId));
                 if (myPlayer && !myPlayer.has_opened && isTilePlaced) {
-                    let newlyPlacedScore = 0;
-                    localTableSets.forEach(set => {
-                        newlyPlacedScore += calculateSetScore(set);
-                    });
+                    const ruleType = roomState.rule_type || 'official';
+                    
+                    if (ruleType === 'jaehee') {
+                        // 재히룰: 단 한 세트의 점수가 30점 이상이어야 함
+                        const hasSetOver30 = localTableSets.some(set => calculateSetScore(set) >= 30);
+                        if (!hasSetOver30) {
+                            showToast(`⚠️ [재히룰] 첫 등록은 한 세트의 합이 30점 이상이어야 합니다!`);
+                            return;
+                        }
+                    } else {
+                        // 공식 룰: 제출한 모든 세트의 점수 합산이 30점 이상이어야 함
+                        let newlyPlacedScore = 0;
+                        localTableSets.forEach(set => {
+                            newlyPlacedScore += calculateSetScore(set);
+                        });
 
-                    if (newlyPlacedScore < 30) {
-                        showToast(`⚠️ 첫 등록 점수 합계가 30점 이상이어야 합니다! (현재: ${newlyPlacedScore}점)`);
-                        return;
+                        if (newlyPlacedScore < 30) {
+                            showToast(`⚠️ 첫 등록 점수 합계가 30점 이상이어야 합니다! (현재: ${newlyPlacedScore}점)`);
+                            return;
+                        }
                     }
                 }
 
@@ -986,12 +999,14 @@
                 const nick = nickEl ? (nickEl.value.trim() || '루미마스터') : '루미마스터';
                 saveMyNickname(nick);
 
+                const selectedRule = document.querySelector('input[name="rule_type"]:checked')?.value || 'official';
                 sendMessage({
                     type: 'CREATE_ROOM', 
                     game_type: 'RUMMIKUB',
                     title: document.getElementById('create-title') ? document.getElementById('create-title').value.trim() : '사내 실시간 루미큐브',
                     nickname: nick,
-                    turn_time_limit: selectedTimeLimit
+                    turn_time_limit: selectedTimeLimit,
+                    rule_type: selectedRule
                 });
             };
         }

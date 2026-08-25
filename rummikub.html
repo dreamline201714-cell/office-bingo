@@ -85,6 +85,18 @@
                             <button type="button" class="time-btn" data-time="90">90초</button>
                         </div>
                     </div>
+					<!-- ★ 등록 룰 선택 옵션 추가 ★ -->
+                    <div class="form-group">
+                        <label class="form-label">첫 등록 룰 선택</label>
+                        <div style="display: flex; gap: 12px; margin-top: 6px;">
+                            <label style="font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                                <input type="radio" name="rule_type" value="official" checked> 공식룰 (여러 세트 합 30점 이상)
+                            </label>
+                            <label style="font-size: 0.85rem; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                                <input type="radio" name="rule_type" value="jaehee"> 재히룰 (단일 세트 합 30점 이상)
+                            </label>
+                        </div>
+                    </div>
 
                     <button type="submit" class="primary-btn" id="btn-create-submit">
                         <span>게임 방 생성하기</span>
