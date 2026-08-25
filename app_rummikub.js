@@ -468,7 +468,7 @@
                     const isTilePlaced = currentTableCount > originalTableCount;
                     const invalidSet = localTableSets.find(s => !isValidRummikubSet(s));
 
-                    // 첫 등록 자격 검증 (시간 초과 시 적용)
+                    // 1. 등록 자격 검증 (시간 초과 시 적용)
                     const myPlayer = roomState?.players?.find(p => String(p.player_id) === String(myPlayerId));
                     let isMeldValid = true;
 
@@ -485,20 +485,20 @@
                         }
                     }
 
-                    // 배치 세트가 올바르고 첫 등록 조건까지 만족할 때만 자동 제출
+                    // 2. 세트가 올바르고 첫 등록 조건도 충족할 때만 제출
                     if (isTilePlaced && !invalidSet && isMeldValid) {
-                        showToast("⏱️ 제한 시간이 초과되어 현재 배치가 자동으로 제출되었습니다!");
+                        showToast("⏱️ 제한 시간이 초과되어 배치가 자동으로 제출되었습니다.");
                         sendMessage({ type: 'SUBMIT_TURN', room_id: currentRoomId, table_sets: localTableSets, rack: localRack });
                     } else {
-                        // 첫 등록 미달 또는 유효하지 않은 배치인 경우 원위치 후 타일 1장 패스 처리
-                        showToast("⏱️ 첫 등록 점수 미달 또는 올바르지 않은 배치로 인해 이번 턴 변경 사항이 취소되고 타일을 가져옵니다.");
+                        // 3. 점수 미달이나 올바르지 않은 세트인 경우, 내 거치대/테이블 상태를 원래대로 롤백하고 드로우(패스) 요청
+                        showToast("⏱️ 제한 시간 초과! (등록 조건 미달로 이번 턴 배치가 취소되고 타일 1장을 드로우합니다)");
                         localRack = JSON.parse(JSON.stringify(initialTurnRack));
                         localTableSets = JSON.parse(JSON.stringify(initialTurnTableSets));
                         selectedTiles = [];
                         applyRackSort();
-                        renderRack();
-                        renderTable();
-                        sendMessage({ type: 'SUBMIT_TURN', room_id: currentRoomId, table_sets: localTableSets, rack: localRack });
+                        
+                        // 서버의 원래 거치대(rack) 정보로 턴 패스 요청전송
+                        sendMessage({ type: 'SUBMIT_TURN', room_id: currentRoomId, table_sets: initialTurnTableSets, rack: initialTurnRack });
                     }
                 }
             }

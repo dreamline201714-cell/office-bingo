@@ -481,13 +481,17 @@ async def check_turn_timeouts():
                     
                     if player:
                         if room['game_type'] == 'RUMMIKUB':
+                            # 타임아웃 발생 시 첫 등록 미달된 바닥 타일이 있다면 무효화 후 드로우 처리
                             if room.get('deck'):
                                 drawn_tile = room['deck'].pop()
                                 player['rack'].append(drawn_tile)
-                                room['chat_logs'].append({'system': True, 'text': f"⏱️ [{player['nickname']}]님의 시간이 초과되어 타일 1장을 자동 드로우하고 턴이 넘어가셨습니다."})
+                                room['chat_logs'].append({'system': True, 'text': f"⏱️ [{player['nickname']}]님의 시간이 초과되어 타일 1장을 가져오고 턴이 넘어가셨습니다."})
                             else:
                                 room['chat_logs'].append({'system': True, 'text': f"⏱️ [{player['nickname']}]님의 시간이 초과되어 턴이 넘어가셨습니다."})
+                            
+                            # 턴 강제 전환
                             room['current_turn_index'] = (room['current_turn_index'] + 1) % len(room['turn_order'])
+                            room['turn_start_time'] = time.time()
 
                         elif room['game_type'] == 'BINGO':
                             room['chat_logs'].append({'system': True, 'text': f"⏱️ [{player['nickname']}]님의 제한 시간이 초과되어 턴이 넘어가셨습니다."})
