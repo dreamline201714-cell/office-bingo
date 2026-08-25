@@ -474,14 +474,23 @@
 
                     if (myPlayer && !myPlayer.has_opened && isTilePlaced) {
                         const ruleType = roomState.rule_type || 'official';
-                        const validPlacedSets = localTableSets.filter(set => isValidRummikubSet(set));
+                        
+                        // ★ [수정] 이전 턴 테이블에 있던 타일 ID 집합 추출
+                        const initialTileIds = new Set((initialTurnTableSets || []).flat().map(t => t.id));
+
+                        // ★ [수정] 이번 턴에 내가 순수하게 새로 내놓은 타일이 1장이라도 포함된 유효 세트만 추출
+                        const newlyPlacedSets = localTableSets.filter(set => 
+                            isValidRummikubSet(set) && set.some(t => !initialTileIds.has(t.id))
+                        );
 
                         if (ruleType === 'jaehee') {
-                            isMeldValid = validPlacedSets.some(set => calculateSetScore(set) >= 30);
+                            // 재히룰: 내가 새로 만든 세트 중 단일 세트 점수가 30점 이상인 것이 존재해야 함
+                            isMeldValid = newlyPlacedSets.some(set => calculateSetScore(set) >= 30);
                         } else {
-                            let totalScore = 0;
-                            validPlacedSets.forEach(set => { totalScore += calculateSetScore(set); });
-                            isMeldValid = (totalScore >= 30);
+                            // 공식 룰: 내가 새로 만든 세트들의 점수 합산이 30점 이상이어야 함
+                            let newPlacedScore = 0;
+                            newlyPlacedSets.forEach(set => { newPlacedScore += calculateSetScore(set); });
+                            isMeldValid = (newPlacedScore >= 30);
                         }
                     }
 
