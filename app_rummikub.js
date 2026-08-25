@@ -785,7 +785,9 @@
     }
 
     function showWinnerModal(winnerName) {
+        const finalWinner = String(winnerName || '우승자').trim();
         let modal = document.getElementById('winner-modal');
+        
         if (!modal) {
             modal = document.createElement('div');
             modal.id = 'winner-modal';
@@ -794,14 +796,18 @@
                 <div class="modal-box" style="text-align: center; padding: 24px;">
                     <div style="font-size: 3.5rem; margin-bottom: 10px;">🏆</div>
                     <h2 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 8px;">최종 우승!</h2>
-                    <p style="font-size: 1rem; color: var(--border-accent); font-weight: bold; margin-bottom: 16px;">
-                        [${escapeHtml(winnerName)}] 님이 승리하셨습니다!
+                    <p id="winner-modal-text" style="font-size: 1rem; color: var(--border-accent); font-weight: bold; margin-bottom: 16px;">
+                        [${escapeHtml(finalWinner)}] 님이 승리하셨습니다!
                     </p>
                     <p style="font-size: 0.8rem; color: var(--text-muted);">잠시 후 대기실로 자동 이동합니다...</p>
                 </div>
             `;
             document.body.appendChild(modal);
         } else {
+            const modalText = document.getElementById('winner-modal-text');
+            if (modalText) {
+                modalText.innerHTML = `[${escapeHtml(finalWinner)}] 님이 승리하셨습니다!`;
+            }
             modal.classList.add('active');
         }
 
@@ -903,27 +909,25 @@
                 const currentTableCount = localTableSets.flat().length;
                 const isTilePlaced = currentTableCount > originalTableCount;
 
-                // 첫 등록(Initial Meld) 30점 이상 검증 (공식 룰 vs 재히룰 분기)
+                // 첫 등록(Initial Meld) 검증
                 const myPlayer = roomState.players.find(p => String(p.player_id) === String(myPlayerId));
                 if (myPlayer && !myPlayer.has_opened && isTilePlaced) {
                     const ruleType = roomState.rule_type || 'official';
-                    
+                    const validPlacedSets = localTableSets.filter(set => isValidRummikubSet(set));
+
                     if (ruleType === 'jaehee') {
-                        // 재히룰: 단 한 세트의 점수가 30점 이상이어야 함
-                        const hasSetOver30 = localTableSets.some(set => calculateSetScore(set) >= 30);
-                        if (!hasSetOver30) {
-                            showToast(`⚠️ [재히룰] 첫 등록은 한 세트의 합이 30점 이상이어야 합니다!`);
+                        // [재히룰] 단일 세트의 점수가 30을 '초과(> 30)'하는 세트가 1개 이상 필수
+                        const hasSingleSetOver30 = validPlacedSets.some(set => calculateSetScore(set) > 30);
+                        if (!hasSingleSetOver30) {
+                            showToast(`⚠️ [재히룰] 첫 등록은 단일 세트의 합이 30을 넘어야(31점 이상) 합니다!`);
                             return;
                         }
                     } else {
-                        // 공식 룰: 제출한 모든 세트의 점수 합산이 30점 이상이어야 함
-                        let newlyPlacedScore = 0;
-                        localTableSets.forEach(set => {
-                            newlyPlacedScore += calculateSetScore(set);
-                        });
-
-                        if (newlyPlacedScore < 30) {
-                            showToast(`⚠️ 첫 등록 점수 합계가 30점 이상이어야 합니다! (현재: ${newlyPlacedScore}점)`);
+                        // [공식 룰] 제출 세트들의 점수 합산이 30점 이상(>= 30)
+                        let totalScore = 0;
+                        validPlacedSets.forEach(set => { totalScore += calculateSetScore(set); });
+                        if (totalScore < 30) {
+                            showToast(`⚠️ [공식룰] 첫 등록 점수 합계가 30점 이상이어야 합니다! (현재: ${totalScore}점)`);
                             return;
                         }
                     }

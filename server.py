@@ -1151,6 +1151,31 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
                 new_rack = data.get('rack', [])
                 new_table = data.get('table_sets', [])
 
+                # 타일을 내려놓았는지 판단
+                is_tile_placed = len(new_rack) < len(player.get('rack', []))
+
+                # 첫 등록 검증 (서버 차단 로직)
+                if not player.get('has_opened', False) and is_tile_placed:
+                    rule_type = room.get('rule_type', 'official')
+
+                    def get_set_score(s):
+                        non_jokers = [t for t in s if not t.get('is_joker')]
+                        if not non_jokers: return 0
+                        is_group = all(t['number'] == non_jokers[0]['number'] for t in non_jokers)
+                        if is_group: return non_jokers[0]['number'] * len(s)
+                        return sum(t['number'] for t in non_jokers)
+
+                    if rule_type == 'jaehee':
+                        # 단일 세트 합이 30을 초과(> 30)하는지 확인
+                        has_valid_single_set = any(get_set_score(s) > 30 for s in new_table)
+                        if not has_valid_single_set:
+                            err_msg = {'type': 'ERROR', 'message': '[재히룰] 첫 등록은 한 세트의 합이 30을 넘어야 합니다.'}
+                            if hasattr(ws, 'send_json'): await ws.send_json(err_msg)
+                            else: await ws.send(json.dumps(err_msg, ensure_ascii=False))
+                            return current_room_id
+                    
+                    player['has_opened'] = True
+
                 if len(new_rack) >= len(player.get('rack', [])) and room['deck']:
                     drawn_tile = room['deck'].pop()
                     new_rack.append(drawn_tile)
