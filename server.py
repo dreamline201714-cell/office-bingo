@@ -1227,6 +1227,29 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
                     room['turn_start_time'] = time.time()
                     await broadcast_to_room(current_room_id, {'type': 'ROOM_UPDATED', 'state': None})
 
+    
+    elif msg_type == 'TIMEOUT_PASS':
+        room = ROOMS.get(current_room_id)
+        if room and room['game_type'] == 'RUMMIKUB' and room['status'] == 'PLAYING':
+            current_ws = room['turn_order'][room['current_turn_index']]
+            if ws == current_ws:
+                player = room['players'][ws]
+                
+                # 타일 더미에서 벌칙 타일 1장 드로우
+                if room.get('deck'):
+                    drawn_tile = room['deck'].pop()
+                    player['rack'].append(drawn_tile)
+                    room['chat_logs'].append({'system': True, 'text': f"⏱️ [{player['nickname']}]님이 시간 초과로 타일 1장을 가져왔습니다."})
+                else:
+                    room['chat_logs'].append({'system': True, 'text': f"⏱️ [{player['nickname']}]님의 시간이 초과되었습니다."})
+
+                # 턴을 다음 사람으로 변경하고 턴 시작 시간 갱신
+                room['current_turn_index'] = (room['current_turn_index'] + 1) % len(room['turn_order'])
+                room['turn_start_time'] = time.time()
+                
+                # 전체 방에 최신 상태 브로드캐스트
+                await broadcast_to_room(current_room_id, {'type': 'ROOM_UPDATED', 'state': None})
+                
     elif msg_type == 'START_ROUND':
         room = ROOMS.get(current_room_id)
         if room and room['game_type'] == 'SEOTDA' and room['status'] == 'SHOWDOWN':
