@@ -917,7 +917,7 @@
 
                     if (ruleType === 'jaehee') {
                         // [재히룰] 단일 세트의 점수가 30을 '초과(> 30)'하는 세트가 1개 이상 필수
-                        const hasSingleSetOver30 = validPlacedSets.some(set => calculateSetScore(set) > 30);
+                        const hasSingleSetOver30 = validPlacedSets.some(set => calculateSetScore(set) >= 30);
                         if (!hasSingleSetOver30) {
                             showToast(`⚠️ [재히룰] 첫 등록은 단일 세트의 합이 30을 넘어야(31점 이상) 합니다!`);
                             return;

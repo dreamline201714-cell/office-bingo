@@ -1166,8 +1166,8 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
                         return sum(t['number'] for t in non_jokers)
 
                     if rule_type == 'jaehee':
-                        # 단일 세트 합이 30을 초과(> 30)하는지 확인
-                        has_valid_single_set = any(get_set_score(s) > 30 for s in new_table)
+                        # 단일 세트 합이 30을 이상(>= 30)하는지 확인
+                        has_valid_single_set = any(get_set_score(s) >= 30 for s in new_table)
                         if not has_valid_single_set:
                             err_msg = {'type': 'ERROR', 'message': '[재히룰] 첫 등록은 한 세트의 합이 30을 넘어야 합니다.'}
                             if hasattr(ws, 'send_json'): await ws.send_json(err_msg)
