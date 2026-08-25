@@ -485,20 +485,15 @@
                         }
                     }
 
-                    // 2. 세트가 올바르고 첫 등록 조건도 충족할 때만 제출
+                    // 2. 제출 가능한 올바른 수인 경우
                     if (isTilePlaced && !invalidSet && isMeldValid) {
                         showToast("⏱️ 제한 시간이 초과되어 배치가 자동으로 제출되었습니다.");
                         sendMessage({ type: 'SUBMIT_TURN', room_id: currentRoomId, table_sets: localTableSets, rack: localRack });
                     } else {
-                        // 3. 점수 미달이나 올바르지 않은 세트인 경우, 내 거치대/테이블 상태를 원래대로 롤백하고 드로우(패스) 요청
-                        showToast("⏱️ 제한 시간 초과! (등록 조건 미달로 이번 턴 배치가 취소되고 타일 1장을 드로우합니다)");
-                        localRack = JSON.parse(JSON.stringify(initialTurnRack));
-                        localTableSets = JSON.parse(JSON.stringify(initialTurnTableSets));
+                        // 3. 미달 또는 오류 배치는 서버에 'TIMEOUT_PASS'를 전송하여 깔끔하게 패스 처리
+                        showToast("⏱️ 제한 시간 초과! (배치가 무효화되고 타일 1장을 가져옵니다)");
                         selectedTiles = [];
-                        applyRackSort();
-                        
-                        // 서버의 원래 거치대(rack) 정보로 턴 패스 요청전송
-                        sendMessage({ type: 'SUBMIT_TURN', room_id: currentRoomId, table_sets: initialTurnTableSets, rack: initialTurnRack });
+                        sendMessage({ type: 'TIMEOUT_PASS', room_id: currentRoomId });
                     }
                 }
             }
