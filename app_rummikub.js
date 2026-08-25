@@ -938,25 +938,32 @@
                 const currentTableCount = localTableSets.flat().length;
                 const isTilePlaced = currentTableCount > originalTableCount;
 
-                // 첫 등록(Initial Meld) 검증
+                // 첫 등록(Initial Meld) 검증 (내가 새로 낸 세트만 추출)
                 const myPlayer = roomState.players.find(p => String(p.player_id) === String(myPlayerId));
                 if (myPlayer && !myPlayer.has_opened && isTilePlaced) {
                     const ruleType = roomState.rule_type || 'official';
-                    const validPlacedSets = localTableSets.filter(set => isValidRummikubSet(set));
+
+                    // 이전 턴 테이블에 존재했던 기존 타일 ID 목록
+                    const initialTileIds = new Set((initialTurnTableSets || []).flat().map(t => t.id));
+
+                    // 이번 턴에 내 거치대에서 새로 꺼내놓은 타일이 1장이라도 포함된 유효 세트만 추출
+                    const newlyPlacedSets = localTableSets.filter(set => 
+                        isValidRummikubSet(set) && set.some(t => !initialTileIds.has(t.id))
+                    );
 
                     if (ruleType === 'jaehee') {
-                        // [재히룰] 단일 세트의 점수가 30을 '초과(> 30)'하는 세트가 1개 이상 필수
-                        const hasSingleSetOver30 = validPlacedSets.some(set => calculateSetScore(set) >= 30);
+                        // [재히룰] 내가 새로 내놓은 세트 중 '단일 세트' 점수가 30점 이상인 세트가 존재해야 함
+                        const hasSingleSetOver30 = newlyPlacedSets.some(set => calculateSetScore(set) >= 30);
                         if (!hasSingleSetOver30) {
-                            showToast(`⚠️ [재히룰] 첫 등록은 단일 세트의 합이 30점 이상이어야 합니다!`);
+                            showToast(`⚠️ [재히룰] 첫 등록은 내가 내놓은 한 세트의 합이 30점 이상이어야 합니다!`);
                             return;
                         }
                     } else {
-                        // [공식 룰] 제출 세트들의 점수 합산이 30점 이상(>= 30)
-                        let totalScore = 0;
-                        validPlacedSets.forEach(set => { totalScore += calculateSetScore(set); });
-                        if (totalScore < 30) {
-                            showToast(`⚠️ [공식룰] 첫 등록 점수 합계가 30점 이상이어야 합니다! (현재: ${totalScore}점)`);
+                        // [공식 룰] 내가 새로 내놓은 세트들의 점수 총합이 30점 이상이어야 함
+                        let newlyPlacedScore = 0;
+                        newlyPlacedSets.forEach(set => { newlyPlacedScore += calculateSetScore(set); });
+                        if (newlyPlacedScore < 30) {
+                            showToast(`⚠️ [공식 룰] 첫 등록 점수 합계가 30점 이상이어야 합니다! (현재 내가 낸 점수: ${newlyPlacedScore}점)`);
                             return;
                         }
                     }
