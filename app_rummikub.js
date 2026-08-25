@@ -468,12 +468,37 @@
                     const isTilePlaced = currentTableCount > originalTableCount;
                     const invalidSet = localTableSets.find(s => !isValidRummikubSet(s));
 
-                    if (isTilePlaced && !invalidSet) {
-                        const submitBtn = document.getElementById('btn-submit-turn');
-                        if (submitBtn) {
-                            showToast("⏱️ 제한 시간이 초과되어 현재 배치가 자동으로 제출되었습니다!");
-                            submitBtn.click();
+                    // 첫 등록 자격 검증 (시간 초과 시 적용)
+                    const myPlayer = roomState?.players?.find(p => String(p.player_id) === String(myPlayerId));
+                    let isMeldValid = true;
+
+                    if (myPlayer && !myPlayer.has_opened && isTilePlaced) {
+                        const ruleType = roomState.rule_type || 'official';
+                        const validPlacedSets = localTableSets.filter(set => isValidRummikubSet(set));
+
+                        if (ruleType === 'jaehee') {
+                            isMeldValid = validPlacedSets.some(set => calculateSetScore(set) >= 30);
+                        } else {
+                            let totalScore = 0;
+                            validPlacedSets.forEach(set => { totalScore += calculateSetScore(set); });
+                            isMeldValid = (totalScore >= 30);
                         }
+                    }
+
+                    // 배치 세트가 올바르고 첫 등록 조건까지 만족할 때만 자동 제출
+                    if (isTilePlaced && !invalidSet && isMeldValid) {
+                        showToast("⏱️ 제한 시간이 초과되어 현재 배치가 자동으로 제출되었습니다!");
+                        sendMessage({ type: 'SUBMIT_TURN', room_id: currentRoomId, table_sets: localTableSets, rack: localRack });
+                    } else {
+                        // 첫 등록 미달 또는 유효하지 않은 배치인 경우 원위치 후 타일 1장 패스 처리
+                        showToast("⏱️ 첫 등록 점수 미달 또는 올바르지 않은 배치로 인해 이번 턴 변경 사항이 취소되고 타일을 가져옵니다.");
+                        localRack = JSON.parse(JSON.stringify(initialTurnRack));
+                        localTableSets = JSON.parse(JSON.stringify(initialTurnTableSets));
+                        selectedTiles = [];
+                        applyRackSort();
+                        renderRack();
+                        renderTable();
+                        sendMessage({ type: 'SUBMIT_TURN', room_id: currentRoomId, table_sets: localTableSets, rack: localRack });
                     }
                 }
             }
@@ -919,7 +944,7 @@
                         // [재히룰] 단일 세트의 점수가 30을 '초과(> 30)'하는 세트가 1개 이상 필수
                         const hasSingleSetOver30 = validPlacedSets.some(set => calculateSetScore(set) >= 30);
                         if (!hasSingleSetOver30) {
-                            showToast(`⚠️ [재히룰] 첫 등록은 단일 세트의 합이 30을 넘어야(31점 이상) 합니다!`);
+                            showToast(`⚠️ [재히룰] 첫 등록은 단일 세트의 합이 30점 이상이어야 합니다!`);
                             return;
                         }
                     } else {
