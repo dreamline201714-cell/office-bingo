@@ -398,7 +398,11 @@ def serialize_room_state(room_id, requester_ws=None):
                 'marked': list(player.get('marked', []))
             })
         elif game_type == 'RUMMIKUB':
-            p_info.update({'tile_count': len(player.get('rack', [])), 'rack': player.get('rack', []) if requester_ws == ws else []})
+            p_info.update({
+                'tile_count': len(player.get('rack', [])), 
+                'rack': player.get('rack', []) if requester_ws == ws else [],
+                'has_opened': player.get('has_opened', False)  # ★ 이 줄을 추가합니다!
+            })
         elif game_type == 'SEOTDA':
             hand = player.get('hand', [])
             visible_hand = hand if requester_ws == ws or room['status'] == 'SHOWDOWN' else [{'month': 0, 'is_kwang': False, 'name': '비공개'} for _ in hand]

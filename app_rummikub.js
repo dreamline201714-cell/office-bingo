@@ -938,8 +938,10 @@
                 const currentTableCount = localTableSets.flat().length;
                 const isTilePlaced = currentTableCount > originalTableCount;
 
+          
                 // 첫 등록(Initial Meld) 검증 (내가 새로 낸 세트만 추출)
                 const myPlayer = roomState.players.find(p => String(p.player_id) === String(myPlayerId));
+                // myPlayer.has_opened가 true이면 첫 등록 조건 검사를 통과함
                 if (myPlayer && !myPlayer.has_opened && isTilePlaced) {
                     const ruleType = roomState.rule_type || 'official';
 
