@@ -1155,10 +1155,15 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
                 new_rack = data.get('rack', [])
                 new_table = data.get('table_sets', [])
 
-                # 타일을 내려놓았는지 판단
-                is_tile_placed = len(new_rack) < len(player.get('rack', []))
+                # 기존 거치대의 타일 ID 집합 및 테이블 타일 ID 집합 추출
+                old_rack_ids = set(t['id'] for t in player.get('rack', []))
+                old_table_ids = set(t['id'] for set_elem in room.get('table_sets', []) for t in set_elem)
 
-                # 첫 등록 검증 (서버 차단 로직)
+                # 이번 턴에 내 거치대에서 새로 바닥으로 내려놓은 타일들
+                newly_placed_tiles = [t for set_elem in new_table for t in set_elem if t['id'] in old_rack_ids]
+                is_tile_placed = len(newly_placed_tiles) > 0
+
+                # 첫 등록(Initial Meld)을 아직 안 한 상태에서 타일을 낸 경우에만 검증
                 if not player.get('has_opened', False) and is_tile_placed:
                     rule_type = room.get('rule_type', 'official')
 
@@ -1169,18 +1174,34 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
                         if is_group: return non_jokers[0]['number'] * len(s)
                         return sum(t['number'] for t in non_jokers)
 
+                    # 내가 새로 내놓은 타일이 1장이라도 포함된 세트들만 추출 (남이 만든 세트 제외)
+                    my_new_sets = [
+                        s for s in new_table 
+                        if any(t['id'] in old_rack_ids for t in s)
+                    ]
+
                     if rule_type == 'jaehee':
-                        # 단일 세트 합이 30을 이상(>= 30)하는지 확인
-                        has_valid_single_set = any(get_set_score(s) >= 30 for s in new_table)
+                        # [재히룰] 내가 새로 만든 세트 중 "단일 세트" 점수가 30점 이상인 것이 존재하는지 확인
+                        has_valid_single_set = any(get_set_score(s) >= 30 for s in my_new_sets)
                         if not has_valid_single_set:
-                            err_msg = {'type': 'ERROR', 'message': '[재히룰] 첫 등록은 한 세트의 합이 30을 넘어야 합니다.'}
+                            err_msg = {'type': 'ERROR', 'message': '[재히룰] 첫 등록은 내가 직접 완성한 단일 세트의 합이 30점 이상이어야 합니다.'}
                             if hasattr(ws, 'send_json'): await ws.send_json(err_msg)
                             else: await ws.send(json.dumps(err_msg, ensure_ascii=False))
                             return current_room_id
-                    
+                    else:
+                        # [공식 룰] 내가 새로 내놓은 세트들의 점수 총합이 30점 이상인지 확인
+                        total_new_score = sum(get_set_score(s) for s in my_new_sets)
+                        if total_new_score < 30:
+                            err_msg = {'type': 'ERROR', 'message': f'[공식 룰] 첫 등록은 내가 낸 점수 합계가 30점 이상이어야 합니다. (현재: {total_new_score}점)'}
+                            if hasattr(ws, 'send_json'): await ws.send_json(err_msg)
+                            else: await ws.send(json.dumps(err_msg, ensure_ascii=False))
+                            return current_room_id
+
+                    # 30점 이상 등록 조건 통과 시 즉시 플래그 True 저장 (이후 턴부터 30점 조건 면제)
                     player['has_opened'] = True
 
-                if len(new_rack) >= len(player.get('rack', [])) and room['deck']:
+                # 타일을 내지 않고 턴을 마친 경우 타일 1장 드로우
+                if not is_tile_placed and room['deck']:
                     drawn_tile = room['deck'].pop()
                     new_rack.append(drawn_tile)
                     room['chat_logs'].append({'system': True, 'text': f"🃏 [{player['nickname']}]님이 타일 1장을 가져왔습니다."})
@@ -1190,20 +1211,20 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
                 player['rack'] = new_rack
                 room['table_sets'] = new_table
 
+                # 게임 승리 판정 및 다음 턴 진행 로직
                 if len(new_rack) == 0:
                     player['wins'] = player.get('wins', 0) + 1
                     winner_name = str(player['nickname']).strip()
                     
                     room['chat_logs'].append({'system': True, 'text': f"🏆 축하합니다! [{winner_name}]님이 모든 타일을 털어 최종 우승하셨습니다!"})
                     
-                    # 1. 우승자의 닉네임을 명확히 보장하여 GAME_OVER 이벤트 브로드캐스트
                     await broadcast_to_room(current_room_id, {
                         'type': 'GAME_OVER', 
                         'winner_name': winner_name, 
                         'winner_id': str(player['id']), 
                         'state': serialize_room_state(current_room_id)
                     })
-                    # 2. DB 기록 및 캐시 갱신은 백그라운드 태스크로 연동 (응답 속도 향상)
+
                     async def save_win_async(name):
                         await asyncio.to_thread(record_daily_win, 'RUMMIKUB', name)
                         top_winner = await asyncio.to_thread(get_today_top_winner, 'RUMMIKUB')
@@ -1219,6 +1240,7 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
                         for p in room['players'].values():
                             p['rack'] = []
                             p['is_ready'] = False
+                            p['has_opened'] = False  # 새 게임 시작을 위해 등록 상태 초기화
                         await broadcast_to_room(current_room_id, {'type': 'ROOM_UPDATED', 'state': None})
 
                     asyncio.create_task(reset_to_waiting_after_delay())
