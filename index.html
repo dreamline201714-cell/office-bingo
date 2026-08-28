@@ -6,7 +6,24 @@
     <title>Office Live Games Hub</title>
     <link rel="stylesheet" href="common.css?v=20260813_v1">
     <style>
-        body { margin: 0; padding: 0; }
+        body { margin: 0; padding: 0; overflow-x: hidden; }
+
+        /* 접히는 메뉴 영역 애니메이션 */
+        .collapsible-top-menu {
+            transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease, transform 0.3s ease;
+            max-height: 200px;
+            opacity: 1;
+            overflow: hidden;
+        }
+
+        /* 메뉴가 접혔을 때 (게임 진행 중 자동 또는 사용자 토글) */
+        body.top-menu-collapsed .collapsible-top-menu {
+            max-height: 0 !important;
+            opacity: 0 !important;
+            transform: translateY(-100%);
+            pointer-events: none;
+        }
+
         .game-tab-container { display: flex; gap: 8px; margin: 12px 16px; }
         .game-tab-btn {
             flex: 1; padding: 10px 14px; border: 1px solid var(--border-block, #e4e4e7);
@@ -17,13 +34,40 @@
         .game-tab-btn.active {
             background: var(--primary-color, #2563eb); color: #ffffff; border-color: var(--primary-color, #2563eb);
         }
+
+        /* 탭 펼치기/접기 토글 플로팅 버튼 */
+        .top-menu-toggle-btn {
+            position: fixed;
+            top: 6px;
+            right: 12px;
+            z-index: 999;
+            background: var(--bg-card, #2a2a2e);
+            color: var(--text-primary, #ffffff);
+            border: 1px solid var(--border-block, #3f3f46);
+            border-radius: 12px;
+            padding: 4px 10px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        .top-menu-toggle-btn:hover { opacity: 1; }
         
         .iframe-wrapper { 
             position: relative;
             width: 100%; 
-            height: calc(100vh - 120px); 
+            height: calc(100vh - 110px); 
             background-color: var(--bg-primary, #ffffff);
+            transition: height 0.3s ease;
         }
+
+        /* 메뉴가 접혔을 때 iframe 높이 최대로 확장 */
+        body.top-menu-collapsed .iframe-wrapper {
+            height: 100vh !important;
+        }
+
         .game-iframe { 
             position: absolute;
             top: 0; left: 0;
@@ -34,40 +78,36 @@
         .game-iframe.active {
             display: block;
         }
-		@media screen and (max-width: 768px) {
-			.game-tab-container {
-				margin: 6px 8px !important;
-				gap: 4px !important;
-			}
-			.game-tab-btn {
-				padding: 6px 8px !important;
-				font-size: 0.78rem !important;
-				border-radius: 6px !important;
-			}
-			.iframe-wrapper {
-				height: calc(100vh - 95px) !important; /* 상단바 줄어든 만큼 iFrame 높이 확보 */
-			}
-		}
+
+        @media screen and (max-width: 768px) {
+            .game-tab-container { margin: 6px 8px !important; gap: 4px !important; }
+            .game-tab-btn { padding: 6px 8px !important; font-size: 0.78rem !important; border-radius: 6px !important; }
+            .iframe-wrapper { height: calc(100vh - 85px) !important; }
+        }
     </style>
 </head>
 <body>
-    <header class="navbar">
-        <a href="index.html" class="brand">
-            <div class="brand-icon">🎮</div>
-            <span>Office Live Games <small style="font-size:0.65rem; color:var(--accent); vertical-align:super;">HUB</small></span>
-        </a>
-        <div class="nav-controls">
-            <button class="icon-btn" id="btn-global-stealth" title="스텔스 모드" onclick="toggleGlobalStealth()">📊</button>
-            <button class="icon-btn" id="btn-global-sound" title="사운드 설정" onclick="toggleGlobalSound()">🔊</button>
-            <button class="icon-btn" id="btn-global-theme" title="테마 변경" onclick="toggleGlobalTheme()">🌙</button>
-        </div>
-    </header>
+    <button class="top-menu-toggle-btn" id="btn-toggle-top-menu" onclick="toggleTopMenu()">▲ 상단 메뉴 접기</button>
 
-    <div class="game-tab-container">
-        <button class="game-tab-btn active" data-game="bingo" data-target="iframe-bingo" onclick="switchGameTab(this)">🎯 빙고</button>
-        <button class="game-tab-btn" data-game="rummikub" data-target="iframe-rummikub" onclick="switchGameTab(this)">🧩 루미큐브</button>
-        <button class="game-tab-btn" data-game="seotda" data-target="iframe-seotda" onclick="switchGameTab(this)">🃏 섯다</button>
-        <button class="game-tab-btn" data-game="gostop" data-target="iframe-gostop" onclick="switchGameTab(this)">🎴 고스톱</button>
+    <div class="collapsible-top-menu" id="top-menu-wrapper">
+        <header class="navbar">
+            <a href="index.html" class="brand">
+                <div class="brand-icon">🎮</div>
+                <span>Office Live Games <small style="font-size:0.65rem; color:var(--accent); vertical-align:super;">HUB</small></span>
+            </a>
+            <div class="nav-controls">
+                <button class="icon-btn" id="btn-global-stealth" title="스텔스 모드" onclick="toggleGlobalStealth()">📊</button>
+                <button class="icon-btn" id="btn-global-sound" title="사운드 설정" onclick="toggleGlobalSound()">🔊</button>
+                <button class="icon-btn" id="btn-global-theme" title="테마 변경" onclick="toggleGlobalTheme()">🌙</button>
+            </div>
+        </header>
+
+        <div class="game-tab-container">
+            <button class="game-tab-btn active" data-game="bingo" data-target="iframe-bingo" onclick="switchGameTab(this)">🎯 빙고</button>
+            <button class="game-tab-btn" data-game="rummikub" data-target="iframe-rummikub" onclick="switchGameTab(this)">🧩 루미큐브</button>
+            <button class="game-tab-btn" data-game="seotda" data-target="iframe-seotda" onclick="switchGameTab(this)">🃏 섯다</button>
+            <button class="game-tab-btn" data-game="gostop" data-target="iframe-gostop" onclick="switchGameTab(this)">🎴 고스톱</button>
+        </div>
     </div>
 
     <div class="iframe-wrapper">
@@ -78,13 +118,39 @@
     </div>
 
     <script>
+        // iFrame에서 게임 진행 상태(status) 수신
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'GAME_STATUS_CHANGE') {
+                if (event.data.status === 'PLAYING') {
+                    setTopMenuCollapsed(true);
+                } else if (event.data.status === 'WAITING') {
+                    setTopMenuCollapsed(false);
+                }
+            }
+        });
+
+        function toggleTopMenu() {
+            const isCollapsed = document.body.classList.contains('top-menu-collapsed');
+            setTopMenuCollapsed(!isCollapsed);
+        }
+
+        function setTopMenuCollapsed(collapsed) {
+            const btn = document.getElementById('btn-toggle-top-menu');
+            if (collapsed) {
+                document.body.classList.add('top-menu-collapsed');
+                if(btn) btn.innerText = '▼ 상단 메뉴 펼치기';
+            } else {
+                document.body.classList.remove('top-menu-collapsed');
+                if(btn) btn.innerText = '▲ 상단 메뉴 접기';
+            }
+        }
+
         window.addEventListener('DOMContentLoaded', () => {
             const iframes = document.querySelectorAll('.game-iframe');
             iframes.forEach(iframe => {
                 iframe.addEventListener('load', () => syncThemeToAllIframes());
             });
 
-            // 방 초대 링크 파라미터 감지 (?game=gostop&room=XXXXXX)
             const urlParams = new URLSearchParams(window.location.search);
             const gameParam = urlParams.get('game');
             const roomParam = urlParams.get('room');

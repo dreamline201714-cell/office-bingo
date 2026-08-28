@@ -363,6 +363,11 @@
         if (!roomState) return;
 
         const status = roomState.status;
+		// ★ [추가] 부모 창(index.html)에 현재 게임 상태 전달
+        if (window.parent && window.parent !== window) {
+            window.parent.postMessage({ type: 'GAME_STATUS_CHANGE', status: status }, '*');
+        }
+
         const myPlayer = roomState.players.find(p => String(p.player_id) === String(myPlayerId));
         const readyBtn = document.getElementById('btn-toggle-ready');
         const turnBanner = document.getElementById('turn-banner');
