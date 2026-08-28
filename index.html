@@ -35,38 +35,41 @@
             background: var(--primary-color, #2563eb); color: #ffffff; border-color: var(--primary-color, #2563eb);
         }
 
-        /* 접기/펴기 버튼 기본 스타일 (네비게이션 바 내부용) */
-		.top-menu-toggle-btn {
-			background: var(--bg-surface, #f7f6f3);
-			color: var(--text-primary, #37352f);
-			border: 1px solid var(--border-block, #e9e9e8);
-			border-radius: 4px;
-			padding: 0 8px;
-			height: 28px;
-			font-size: 0.75rem;
-			font-weight: 600;
-			cursor: pointer;
-			display: inline-flex;
-			align-items: center;
-			justify-content: center;
-			transition: all 0.2s;
-		}
+        /* 접기/펴기 버튼 위치 고정 및 스타일 지정 */
+        .top-menu-toggle-btn {
+            position: absolute;
+            top: 12px;
+            right: 140px; /* 오른쪽 컨트롤 버튼들(📊🔊🌙) 옆에 배치 */
+            z-index: 9999;
+            background: var(--bg-surface, #f7f6f3);
+            color: var(--text-primary, #37352f);
+            border: 1px solid var(--border-block, #e9e9e8);
+            border-radius: 4px;
+            padding: 0 8px;
+            height: 28px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
 
-		.top-menu-toggle-btn:hover {
-			background: var(--border-block, #e9e9e8);
-		}
+        .top-menu-toggle-btn:hover {
+            background: var(--border-block, #e9e9e8);
+        }
 
-		/* 메뉴가 접혔을 때만 화면 우측 상단 플로팅 버튼으로 전환 */
-		body.top-menu-collapsed .top-menu-toggle-btn {
-			position: fixed;
-			top: 6px;
-			right: 12px;
-			z-index: 9999;
-			background: var(--bg-card, #ffffff);
-			border: 1px solid var(--border-accent, #2563eb);
-			color: var(--border-accent, #2563eb);
-			box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-		}
+        /* 메뉴가 접혔을 때 오른쪽 상단에 '▼ 상단 메뉴 펼치기' 고정 표시 */
+        body.top-menu-collapsed .top-menu-toggle-btn {
+            position: fixed;
+            top: 6px;
+            right: 12px;
+            background: var(--bg-card, #ffffff);
+            border: 1px solid var(--border-accent, #2563eb);
+            color: var(--border-accent, #2563eb);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
         
         .iframe-wrapper { 
             position: relative;
@@ -100,6 +103,9 @@
     </style>
 </head>
 <body>
+    <!-- 1. 버튼을 collapsible-top-menu 밖(위)으로 이동 -->
+    <button class="top-menu-toggle-btn" id="btn-toggle-top-menu" onclick="toggleTopMenu()">▲ 접기</button>
+
     <div class="collapsible-top-menu" id="top-menu-wrapper">
         <header class="navbar">
             <a href="index.html" class="brand">
@@ -110,9 +116,6 @@
                 <button class="icon-btn" id="btn-global-stealth" title="스텔스 모드" onclick="toggleGlobalStealth()">📊</button>
                 <button class="icon-btn" id="btn-global-sound" title="사운드 설정" onclick="toggleGlobalSound()">🔊</button>
                 <button class="icon-btn" id="btn-global-theme" title="테마 변경" onclick="toggleGlobalTheme()">🌙</button>
-                
-                <!-- 접기 버튼을 nav-controls 안으로 배치 -->
-                <button class="top-menu-toggle-btn" id="btn-toggle-top-menu" onclick="toggleTopMenu()">▲ 접기</button>
             </div>
         </header>
 
