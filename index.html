@@ -35,25 +35,38 @@
             background: var(--primary-color, #2563eb); color: #ffffff; border-color: var(--primary-color, #2563eb);
         }
 
-        /* 탭 펼치기/접기 토글 플로팅 버튼 */
-        .top-menu-toggle-btn {
-            position: fixed;
-            top: 6px;
-            right: 12px;
-            z-index: 999;
-            background: var(--bg-card, #2a2a2e);
-            color: var(--text-primary, #ffffff);
-            border: 1px solid var(--border-block, #3f3f46);
-            border-radius: 12px;
-            padding: 4px 10px;
-            font-size: 0.72rem;
-            font-weight: 600;
-            cursor: pointer;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-            opacity: 0.7;
-            transition: opacity 0.2s;
-        }
-        .top-menu-toggle-btn:hover { opacity: 1; }
+        /* 접기/펴기 버튼 기본 스타일 (네비게이션 바 내부용) */
+		.top-menu-toggle-btn {
+			background: var(--bg-surface, #f7f6f3);
+			color: var(--text-primary, #37352f);
+			border: 1px solid var(--border-block, #e9e9e8);
+			border-radius: 4px;
+			padding: 0 8px;
+			height: 28px;
+			font-size: 0.75rem;
+			font-weight: 600;
+			cursor: pointer;
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			transition: all 0.2s;
+		}
+
+		.top-menu-toggle-btn:hover {
+			background: var(--border-block, #e9e9e8);
+		}
+
+		/* 메뉴가 접혔을 때만 화면 우측 상단 플로팅 버튼으로 전환 */
+		body.top-menu-collapsed .top-menu-toggle-btn {
+			position: fixed;
+			top: 6px;
+			right: 12px;
+			z-index: 9999;
+			background: var(--bg-card, #ffffff);
+			border: 1px solid var(--border-accent, #2563eb);
+			color: var(--border-accent, #2563eb);
+			box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+		}
         
         .iframe-wrapper { 
             position: relative;
@@ -87,8 +100,6 @@
     </style>
 </head>
 <body>
-    <button class="top-menu-toggle-btn" id="btn-toggle-top-menu" onclick="toggleTopMenu()">▲ 상단 메뉴 접기</button>
-
     <div class="collapsible-top-menu" id="top-menu-wrapper">
         <header class="navbar">
             <a href="index.html" class="brand">
@@ -99,6 +110,9 @@
                 <button class="icon-btn" id="btn-global-stealth" title="스텔스 모드" onclick="toggleGlobalStealth()">📊</button>
                 <button class="icon-btn" id="btn-global-sound" title="사운드 설정" onclick="toggleGlobalSound()">🔊</button>
                 <button class="icon-btn" id="btn-global-theme" title="테마 변경" onclick="toggleGlobalTheme()">🌙</button>
+                
+                <!-- 접기 버튼을 nav-controls 안으로 배치 -->
+                <button class="top-menu-toggle-btn" id="btn-toggle-top-menu" onclick="toggleTopMenu()">▲ 접기</button>
             </div>
         </header>
 
