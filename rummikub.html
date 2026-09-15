@@ -2,45 +2,39 @@
 <html lang="ko" data-theme="light">
 <head>
     <script>
-        // 단독 접속 시 index.html로 자동 리다이렉트
         if (window.self === window.top) {
             const urlParams = new URLSearchParams(window.location.search);
             const roomCode = urlParams.get('room');
             const currentGame = window.location.pathname.split('/').pop().replace('.html', '');
-            
             let targetUrl = `/index.html?game=${currentGame}`;
             if (roomCode) targetUrl += `&room=${roomCode}`;
-            
             window.location.href = targetUrl;
         }
     </script>
-	<meta charset="UTF-8">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>26년 재무상태표.xlsx - Excel</title>
     
     <link rel="stylesheet" href="common.css?v=20260814_v9">
-    <link rel="stylesheet" href="style_rummikub.css?v=20260814_v11">
+    <link rel="stylesheet" href="style_rummikub.css?v=20260915_v7">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
     <div id="toast-container" class="toast-container"></div>
 
-    
-
     <header class="navbar-slim" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 12px;">
-		<div class="status-badge">
-			<span class="status-dot" id="status-dot"></span>
-			<span id="status-text">연결 대기 중</span>
-		</div>
-		
-		<div class="nav-controls" style="display: flex; align-items: center; gap: 6px;">
-			<!-- ★ 모바일/좁은 화면 전용 대화 버튼 추가 ★ -->
-			<button class="icon-btn mobile-header-chat-btn" id="mobile-fab-btn" title="대화 / 참가자 목록">
-				💬 <span id="mobile-player-count">0</span>
-			</button>
-			<button class="icon-btn" id="btn-help" title="게임 방법" onclick="openHelpModal()">❓</button>
-		</div>
-	</header>
+        <div class="status-badge">
+            <span class="status-dot" id="status-dot"></span>
+            <span id="status-text">연결 대기 중</span>
+        </div>
+        
+        <div class="nav-controls" style="display: flex; align-items: center; gap: 6px;">
+            <button class="icon-btn mobile-header-chat-btn" id="mobile-fab-btn" title="대화 / 참가자 목록">
+                💬 <span id="mobile-player-count">0</span>
+            </button>
+            <button class="icon-btn" id="btn-help" title="게임 방법">❓</button>
+        </div>
+    </header>
 
     <div class="excel-formula-bar excel-only-bar">
         <div class="excel-cell-name">C3</div>
@@ -64,12 +58,12 @@
 
                 <form id="create-room-form">
                     <div class="form-group">
-						<label class="form-label" for="create-nickname">내 닉네임</label>
-						<input type="text" id="create-nickname" class="form-input" placeholder="예: 김사원 (회계팀)" maxlength="12">
-						<p style="font-size:0.75rem; color:#71717a; margin-top:5px; margin-bottom:0; line-height:1.3;">
-							💡 오늘 하루 동안 <strong>동일한 닉네임</strong>을 사용하셔야 승수가 전적에 유지됩니다.
-						</p>
-					</div>
+                        <label class="form-label" for="create-nickname">내 닉네임</label>
+                        <input type="text" id="create-nickname" class="form-input" placeholder="예: 김사원 (회계팀)" maxlength="12">
+                        <p style="font-size:0.75rem; color:#71717a; margin-top:5px; margin-bottom:0; line-height:1.3;">
+                            💡 오늘 하루 동안 <strong>동일한 닉네임</strong>을 사용하셔야 승수가 전적에 유지됩니다.
+                        </p>
+                    </div>
 
                     <div class="form-group">
                         <label class="form-label" for="create-title">게임 방 제목 설정</label>
@@ -85,7 +79,7 @@
                             <button type="button" class="time-btn" data-time="90">90초</button>
                         </div>
                     </div>
-					<!-- ★ 등록 룰 선택 옵션 추가 ★ -->
+
                     <div class="form-group">
                         <label class="form-label">첫 등록 룰 선택</label>
                         <div style="display: flex; gap: 12px; margin-top: 6px;">
@@ -105,12 +99,12 @@
 
                 <form id="join-room-form" style="display: none;">
                     <div class="form-group">
-						<label class="form-label" for="join-nickname">내 닉네임</label>
-						<input type="text" id="join-nickname" class="form-input" placeholder="예: 이대리 (회계팀)" maxlength="12">
-						<p style="font-size:0.75rem; color:#71717a; margin-top:5px; margin-bottom:0; line-height:1.3;">
-							💡 오늘 하루 동안 <strong>동일한 닉네임</strong>을 사용하셔야 승수가 전적에 유지됩니다.
-						</p>
-					</div>
+                        <label class="form-label" for="join-nickname">내 닉네임</label>
+                        <input type="text" id="join-nickname" class="form-input" placeholder="예: 이대리 (회계팀)" maxlength="12">
+                        <p style="font-size:0.75rem; color:#71717a; margin-top:5px; margin-bottom:0; line-height:1.3;">
+                            💡 오늘 하루 동안 <strong>동일한 닉네임</strong>을 사용하셔야 승수가 전적에 유지됩니다.
+                        </p>
+                    </div>
 
                     <div class="form-group">
                         <label class="form-label" for="join-room-code">방 코드 (6자리)</label>
@@ -124,7 +118,7 @@
             </div>
         </section>
 
-        <!-- 2. 게임 섹션 -->
+        <!-- 2. 게임 섹션 (상시 2열 고정형) -->
         <section id="arena-section" style="display: none;">
             <div class="arena-header">
                 <div class="topic-banner">
@@ -135,15 +129,14 @@
                         <span style="font-size: 0.78rem; color: var(--text-secondary);" id="display-grid-info">턴 제한 시간: 60초</span>
                     </div>
 
-                    <!-- 🏆 상단 방 실시간 전광판 -->
-					<div class="today-rank-ticker" id="today-rank-ticker">
-						<div class="ticker-item">
-							<span class="ticker-label">🏆 루미왕</span>
-							<span id="rank-mvp-text" class="ticker-value gold">집계 중...</span>
-						</div>
-					</div>
-					
-					<div class="room-share-box">
+                    <div class="today-rank-ticker" id="today-rank-ticker">
+                        <div class="ticker-item">
+                            <span class="ticker-label">🏆 루미왕</span>
+                            <span id="rank-mvp-text" class="ticker-value gold">집계 중...</span>
+                        </div>
+                    </div>
+                    
+                    <div class="room-share-box">
                         <div class="room-code-badge" id="display-room-code">------</div>
                         <button class="secondary-btn" id="btn-copy-link">링크 복사</button>
                         <button class="secondary-btn" id="btn-show-qr">QR 코드</button>
@@ -151,7 +144,6 @@
                 </div>
             </div>
 
-            <!-- ★ 방장 컨트롤 독립 박스 ★ -->
             <div id="host-controls" class="host-controls-box">
                 <button class="start-game-btn" id="btn-host-start">게임 시작하기!</button>
                 <button class="secondary-btn" id="btn-host-reset">대기실로 리셋</button>
@@ -172,66 +164,64 @@
                 </div>
             </div>
 
-            <div class="arena-main">
+            <div class="arena-main" id="arena-main">
+                <!-- 좌측 메인 보드 영역 -->
                 <div class="board-container">
                     <div class="rummikub-table-board" id="table-sets-container"></div>
 
                     <div class="board-footer" id="board-footer">
-						<div id="footer-waiting-controls">
-							<!-- 1. 좌측 영역 (준비 완료) -->
-							<div class="footer-left-zone">
-								<button class="primary-btn" id="btn-toggle-ready">준비 완료</button>
-							</div>
-							
-							<!-- 2. 우측 영역 (게임 조작 버튼 그룹 - 단일 제출/패스 버튼) -->
-							<div class="footer-right-zone">
-								<button class="secondary-btn" id="btn-sort-color">색상 정렬</button>
-								<button class="secondary-btn" id="btn-sort-number">숫자 정렬</button>
-								<button class="secondary-btn" id="btn-reset-turn">원래대로</button>
-								<button class="primary-btn" id="btn-submit-turn">제출 / 패스</button>
-							</div>
-						</div>
-					</div>
+                        <div id="footer-waiting-controls">
+                            <div class="footer-left-zone">
+                                <button class="primary-btn 3d-btn" id="btn-toggle-ready">준비 완료</button>
+                            </div>
+                            
+                            <div class="footer-right-zone">
+                                <button class="secondary-btn 3d-btn" id="btn-sort-color">색상 정렬</button>
+                                <button class="secondary-btn 3d-btn" id="btn-sort-number">숫자 정렬</button>
+                                <button class="secondary-btn 3d-btn" id="btn-reset-turn">원래대로</button>
+                                <button class="primary-btn 3d-btn" id="btn-submit-turn">제출 / 패스</button>
+                            </div>
+                        </div>
+                    </div>
 
-                    <div class="topic-words-panel" style="background: var(--bg-surface); border: 1px solid var(--border-block); border-radius: 8px; padding: 12px;">
-                        <h4 style="font-size:0.82rem; font-weight:600; color:var(--text-secondary); margin-bottom:8px;">내 거치대 (Rack) - 타일을 선택하여 공유 테이블로 내세요</h4>
+                    <div class="rack-wood-panel">
+                        <div class="rack-wood-top-bar">
+                            <span>내 거치대 (Rack) - 타일을 선택하여 테이블로 내세요</span>
+                            <span class="wood-brand">Rummikub</span>
+                        </div>
                         <div id="my-rack-container" class="my-rack-container"></div>
                     </div>
                 </div>
 
-                <div class="sidebar-panel glass-card" id="mobile-sidebar">
-                    <button class="mobile-sidebar-close" id="mobile-sidebar-close">▼ 창 닫기</button>
+                <!-- 우측 상시 고정 사이드바 (모바일은 팝업) -->
+                <div class="sidebar-panel glass-card" id="sidebar-panel">
+                    <button class="mobile-sidebar-close" id="mobile-sidebar-close">✕ 닫기</button>
                     
                     <div class="sidebar-players-fixed">
-                        <!-- ★ 1. 오늘의 루미왕 배너를 sidebar-section-title 바깥으로 이동 ★ -->
                         <div class="today-king-banner" id="today-king-banner">
                             <span class="king-title">👑 오늘의 루미왕</span>
-                            <span class="king-name" id="today-king-name-text">오늘 0승</span>
+                            <span class="king-name" id="today-king-name-text">왕좌 비어있음</span>
                         </div>
 
-                        <!-- ★ 2. 참가자 목록 제목 상자 ★ -->
                         <div class="sidebar-section-title">
                             <span>👥 참가자 목록</span>
                             <span class="player-count-badge">(<span id="player-count">0</span>명)</span>
                         </div>
 
-                        <!-- ★ 3. 참가자 명단 스크롤 영역 ★ -->
                         <div id="panel-players" class="player-list-scroll"></div>
                     </div>
 
                     <div class="sidebar-tabbed-area">
                         <div class="sidebar-tabs">
-                            <button class="sidebar-tab-btn active" style="width:100%;">실시간 대화</button>
+                            <span>💬 실시간 대화</span>
                         </div>
 
-                        <div class="sidebar-content">
-                            <div id="panel-chat" class="chat-container">
-                                <div class="chat-messages" id="chat-messages"></div>
-                                <form id="chat-form" class="chat-input-box">
-                                    <input type="text" id="chat-input" class="chat-input" placeholder="메세지를 입력하세요..." autocomplete="off">
-                                    <button type="submit" class="chat-send-btn">전송</button>
-                                </form>
-                            </div>
+                        <div class="chat-container">
+                            <div class="chat-messages" id="chat-messages"></div>
+                            <form id="chat-form" class="chat-input-box">
+                                <input type="text" id="chat-input" class="chat-input" placeholder="메시지를 입력하세요..." autocomplete="off">
+                                <button type="submit" class="chat-send-btn">전송</button>
+                            </form>
                         </div>
                     </div>
                 </div>
@@ -239,67 +229,42 @@
         </section>
     </main>
 
-   <!-- 도움말 모달 -->
-<div id="help-modal" class="modal-overlay">
-    <div class="modal-box notion-help-modal">
-        <div class="modal-header">
-            <h3>🧩 루미큐브 게임 규칙 & 방법</h3>
-            <button id="help-modal-close" class="modal-close">&times;</button>
-        </div>
-        <div class="modal-body-scroll notion-help-body">
-            
-            <div class="notion-callout">
-                <span class="callout-icon">1️⃣</span>
-                <div class="callout-content">
-                    <strong>기본 목표 & 등록 (Initial Registration)</strong>
-                    <p>자신의 대기열(Rack)에 있는 타일을 가장 먼저 모두 내놓는 사람이 승리합니다.</p>
-                    <div class="notion-tip">💡 첫 등록 시 내놓는 타일 조합의 숫자 합이 반드시 30 이상이어야 합니다.</div>
+    <!-- 도움말 모달 -->
+    <div id="help-modal" class="modal-overlay">
+        <div class="modal-box notion-help-modal">
+            <div class="modal-header">
+                <h3>🧩 루미큐브 게임 규칙 & 방법</h3>
+                <button id="help-modal-close" class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body-scroll notion-help-body">
+                <div class="notion-callout">
+                    <span class="callout-icon">1️⃣</span>
+                    <div class="callout-content">
+                        <strong>기본 목표 & 등록</strong>
+                        <p>자신의 대기열(Rack)에 있는 타일을 가장 먼저 모두 내놓는 사람이 승리합니다.</p>
+                        <div class="notion-tip">💡 첫 등록 시 내놓는 타일 조합의 숫자 합이 반드시 30 이상이어야 합니다.</div>
+                    </div>
+                </div>
+                <div class="notion-callout">
+                    <span class="callout-icon">2️⃣</span>
+                    <div class="callout-content">
+                        <strong>올바른 세트 조합 규칙</strong>
+                        <p>공유 테이블에 내놓는 타일 묶음은 항상 <strong>최소 3장 이상</strong>이어야 합니다.</p>
+                    </div>
+                </div>
+                <div class="notion-card-group">
+                    <div class="notion-card">
+                        <h4>🎨 그룹 (Group)</h4>
+                        <p>숫자는 같고, <strong>색상은 모두 다른</strong> 3장 또는 4장의 타일 조합</p>
+                    </div>
+                    <div class="notion-card">
+                        <h4>🔢 연속 (Run)</h4>
+                        <p><strong>같은 색상</strong>에 연속된 숫자로 이어지는 3장 이상의 타일 조합</p>
+                    </div>
                 </div>
             </div>
-
-            <div class="notion-callout">
-                <span class="callout-icon">2️⃣</span>
-                <div class="callout-content">
-                    <strong>올바른 세트 조합 규칙</strong>
-                    <p>공유 테이블에 내놓는 타일 묶음은 항상 <strong>최소 3장 이상</strong>이어야 합니다.</p>
-                </div>
-            </div>
-
-            <div class="notion-card-group">
-                <div class="notion-card">
-                    <h4>🎨 그룹 (Group)</h4>
-                    <p>숫자는 같고, <strong>색상은 모두 다른</strong> 3장 또는 4장의 타일 조합</p>
-                </div>
-                <div class="notion-card">
-                    <h4>🔢 연속 (Run)</h4>
-                    <p><strong>같은 색상</strong>에 연속된 숫자로 이어지는 3장 이상의 타일 조합</p>
-                </div>
-            </div>
-
-            <div class="notion-callout">
-                <span class="callout-icon">3️⃣</span>
-                <div class="callout-content">
-                    <strong>자유 재조합 (Manipulation)</strong>
-                    <p>이미 등록을 마쳤다면, 공유 테이블 위에 배치된 다른 타일들을 자유롭게 분해하고 재조합하여 내 타일을 붙일 수 있습니다.</p>
-                    <div class="notion-tip">⏰ 내놓을 타일이 없다면 '제출 / 패스' 버튼을 눌러 타일 1장을 가져옵니다.</div>
-                </div>
-            </div>
-
-            <div class="notion-callout">
-                <span class="callout-icon">4️⃣</span>
-                <div class="callout-content">
-                    <strong>조커 (Joker) 활용</strong>
-                    <p>조커 타일(★)은 어떤 색상, 어떤 숫자의 타일로도 대체하여 사용할 수 있습니다.</p>
-                </div>
-            </div>
-
-            <div class="notion-info-box">
-                <p><strong>💡 팁:</strong> 제한 시간 내에 유효하지 않은 세트가 테이블에 남아있으면 빨간색 테두리로 가이드되니 참고하세요!</p>
-            </div>
-
         </div>
     </div>
-</div>
 
     <!-- 대기실 리셋 모달 -->
     <div class="modal-overlay" id="reset-option-modal">
@@ -335,6 +300,6 @@
         </div>
     </div>
 
-    <script src="app_rummikub.js?v=20260814_v12"></script>
+    <script src="app_rummikub.js?v=20260915_v7"></script>
 </body>
 </html>

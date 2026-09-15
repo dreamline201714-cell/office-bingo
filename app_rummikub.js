@@ -1,5 +1,5 @@
 /**
- * Office Rummikub Live Client Application Logic - Fully Improved & Fixed
+ * Office Rummikub Live Client Application Logic - Permanent Sidebar & Snapshot Locking
  */
 (function () {
     let socket = null;
@@ -7,10 +7,13 @@
     let myPlayerId = null;
     let roomState = null;
     let previousTurnPlayerId = null;
+    let lastTurnNumber = -1;
 
-    // 턴 시작 시점의 복사본 (무르기/초기화용)
     let initialTurnRack = [];
     let initialTurnTableSets = [];
+
+    let newlyPlacedTileIds = new Set();
+    let highlightExpireTimeout = null;
 
     let selectedTiles = []; 
     let localRack = [];
@@ -21,9 +24,7 @@
     let timerInterval = null;
     let timerSecondsLeft = 60;
     let soundEnabled = true;
-    let currentTheme = 'light';
 
-    // Web Audio API 합성 오디오 효과음 시스템
     let audioCtx = null;
     function playSoundEffect(type) {
         if (!soundEnabled) return;
@@ -56,8 +57,8 @@
                 osc.stop(now + 0.08);
             } else if (type === 'turn') {
                 osc.type = 'sine';
-                osc.frequency.setValueAtTime(523.25, now); // C5
-                osc.frequency.setValueAtTime(659.25, now + 0.08); // E5
+                osc.frequency.setValueAtTime(523.25, now);
+                osc.frequency.setValueAtTime(659.25, now + 0.08);
                 gain.gain.setValueAtTime(0.2, now);
                 gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
                 osc.start(now);
@@ -71,87 +72,6 @@
     function saveMyNickname(nickname) {
         if (nickname) {
             localStorage.setItem('office_rummikub_last_nickname', nickname);
-        }
-    }
-
-    function initStealthMode() {
-        const btnStealthToggle = document.getElementById('btn-stealth-toggle');
-        const stealthOpacityBox = document.getElementById('stealth-opacity-box');
-        const stealthOpacityRange = document.getElementById('stealth-opacity-range');
-        const brandTitleEl = document.getElementById('brand-title-el');
-        const brandIconEl = document.getElementById('brand-icon-el');
-
-        if (btnStealthToggle) {
-            btnStealthToggle.onclick = function (e) {
-                e.preventDefault();
-                document.body.classList.toggle('excel-stealth-mode');
-                const isStealth = document.body.classList.contains('excel-stealth-mode');
-                if (stealthOpacityBox) stealthOpacityBox.style.display = isStealth ? 'flex' : 'none';
-
-                if (isStealth) {
-                    if (brandIconEl) brandIconEl.innerText = '📊';
-                    if (brandTitleEl) brandTitleEl.innerHTML = '26년 재무상태표.xlsx <small style="font-size:0.65rem; color:#fff; vertical-align:super;">- Excel</small>';
-                } else {
-                    document.body.style.opacity = '1';
-                    if (stealthOpacityRange) stealthOpacityRange.value = '100';
-                    if (brandIconEl) brandIconEl.innerText = '🧩';
-                    if (brandTitleEl) brandTitleEl.innerHTML = 'Office Rummikub <small style="font-size:0.65rem; color:var(--border-accent); vertical-align:super;">LIVE</small>';
-                }
-            };
-        }
-
-        if (stealthOpacityRange) {
-            stealthOpacityRange.oninput = function (e) {
-                document.body.style.opacity = (e.target.value / 100).toString();
-            };
-        }
-    }
-
-    function initMobileSidebar() {
-        const mobileFabBtn = document.getElementById('mobile-fab-btn');
-        const mobileSidebar = document.getElementById('mobile-sidebar');
-        const mobileSidebarClose = document.getElementById('mobile-sidebar-close');
-
-        if (mobileFabBtn && mobileSidebar) mobileFabBtn.onclick = () => mobileSidebar.classList.add('active');
-        if (mobileSidebarClose && mobileSidebar) mobileSidebarClose.onclick = () => mobileSidebar.classList.remove('active');
-    }
-
-    function initNavControls() {
-        const btnHelp = document.getElementById('btn-help');
-        const helpModal = document.getElementById('help-modal');
-        const helpModalClose = document.getElementById('help-modal-close');
-        const soundToggleBtn = document.getElementById('sound-toggle-btn');
-        const themeToggleBtn = document.getElementById('theme-toggle-btn');
-
-        if (btnHelp && helpModal) {
-            btnHelp.onclick = (e) => {
-                e.preventDefault();
-                helpModal.classList.add('active');
-            };
-        }
-        if (helpModalClose && helpModal) {
-            helpModalClose.onclick = (e) => {
-                e.preventDefault();
-                helpModal.classList.remove('active');
-            };
-        }
-
-        if (soundToggleBtn) {
-            soundToggleBtn.onclick = () => {
-                soundEnabled = !soundEnabled;
-                soundToggleBtn.innerText = soundEnabled ? '🔊' : '🔇';
-                showToast(soundEnabled ? '사운드가 켜졌습니다.' : '사운드가 꺼졌습니다.');
-            };
-        }
-
-        if (themeToggleBtn) {
-            themeToggleBtn.onclick = () => {
-                currentTheme = (currentTheme === 'light') ? 'dark' : 'light';
-                document.documentElement.setAttribute('data-theme', currentTheme);
-                document.body.setAttribute('data-theme', currentTheme);
-                themeToggleBtn.innerText = (currentTheme === 'dark') ? '☀️' : '🌙';
-                showToast(currentTheme === 'dark' ? '다크 모드로 변경되었습니다.' : '라이트 모드로 변경되었습니다.');
-            };
         }
     }
 
@@ -182,9 +102,8 @@
 
         socket.onopen = () => { 
             const statusEl = document.getElementById('status-text');
-            if(statusEl) statusEl.innerText = '연결됨'; 
+            if (statusEl) statusEl.innerText = '연결됨'; 
             
-            // 이미 방에 들어가 있던 상태에서 소켓이 재연결된 경우 자동 재입장 요청
             const savedNick = localStorage.getItem('office_rummikub_last_nickname');
             if (currentRoomId && savedNick) {
                 sendMessage({
@@ -196,12 +115,14 @@
                 checkUrlQueryParams();
             }
         };
+
         socket.onmessage = (e) => {
             try { handleServerMessage(JSON.parse(e.data)); } catch (err) { console.error(err); }
         };
+
         socket.onclose = () => {
             const statusEl = document.getElementById('status-text');
-            if(statusEl) statusEl.innerText = '연결 끊김';
+            if (statusEl) statusEl.innerText = '연결 끊김';
             setTimeout(connectNetwork, 2000);
         };
     }
@@ -209,6 +130,8 @@
     function sendMessage(msgDict) {
         if (socket && socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify(msgDict));
+        } else {
+            showToast("서버와 연결 중입니다. 잠시 후 다시 시도해주세요.");
         }
     }
 
@@ -231,6 +154,20 @@
         } else if (msg.type === 'GAME_OVER') {
             showWinnerModal(msg.winner_name);
         } else if (msg.type === 'ROOM_UPDATED') {
+            if (roomState && roomState.table_sets && msg.state && msg.state.table_sets) {
+                const oldIds = new Set(roomState.table_sets.flat().map(t => t.id));
+                const newIds = msg.state.table_sets.flat().map(t => t.id).filter(id => !oldIds.has(id));
+                
+                if (newIds.length > 0) {
+                    newlyPlacedTileIds = new Set(newIds);
+                    clearTimeout(highlightExpireTimeout);
+                    highlightExpireTimeout = setTimeout(() => {
+                        newlyPlacedTileIds.clear();
+                        renderTable();
+                    }, 4000);
+                }
+            }
+
             roomState = msg.state;
             updateUI(false);
         } else if (msg.type === 'CHAT_MESSAGE') {
@@ -277,11 +214,33 @@
         const isSameColor = nonJokers.every(t => t.color === nonJokers[0].color);
         if (isSameColor) {
             nonJokers.sort((a, b) => a.number - b.number);
-            const hasThirteen = nonJokers.some(t => t.number === 13);
-            if (hasThirteen && jokers.length > 0) {
-                return [...jokers, ...nonJokers];
+            let availableJokers = [...jokers];
+            let result = [];
+
+            for (let i = 0; i < nonJokers.length; i++) {
+                result.push(nonJokers[i]);
+                if (i < nonJokers.length - 1) {
+                    const diff = nonJokers[i + 1].number - nonJokers[i].number;
+                    if (diff > 1) {
+                        const needed = diff - 1;
+                        for (let k = 0; k < needed && availableJokers.length > 0; k++) {
+                            result.push(availableJokers.shift());
+                        }
+                    }
+                }
             }
-            return [...nonJokers, ...jokers];
+
+            while (availableJokers.length > 0) {
+                const j = availableJokers.shift();
+                const lastNum = nonJokers[nonJokers.length - 1].number;
+                if (lastNum >= 13) {
+                    result.unshift(j);
+                } else {
+                    result.push(j);
+                }
+            }
+
+            return result;
         }
 
         return set;
@@ -295,8 +254,7 @@
         const isGroup = nonJokers.every(t => t.number === nonJokers[0].number);
         if (isGroup) {
             const colors = nonJokers.map(t => t.color);
-            const uniqueColors = new Set(colors);
-            if (colors.length === uniqueColors.size && set.length <= 4) return true;
+            return (new Set(colors)).size === colors.length && set.length <= 4;
         }
 
         const isSameColor = nonJokers.every(t => t.color === nonJokers[0].color);
@@ -308,8 +266,7 @@
                 if (diff === 0) return false;
                 if (diff > 1) neededJokers += (diff - 1);
             }
-            const actualJokers = set.length - nonJokers.length;
-            if (actualJokers >= neededJokers) return true;
+            return (set.length - nonJokers.length) >= neededJokers;
         }
 
         return false;
@@ -322,32 +279,19 @@
         if (nonJokers.length === 0) return 0;
 
         const isGroup = nonJokers.every(t => t.number === nonJokers[0].number);
-        if (isGroup) {
-            return nonJokers[0].number * set.length;
-        }
+        if (isGroup) return nonJokers[0].number * set.length;
 
         const isSameColor = nonJokers.every(t => t.color === nonJokers[0].color);
         if (isSameColor) {
             const sorted = [...nonJokers].sort((a, b) => a.number - b.number);
             let scoreSum = sorted.reduce((acc, curr) => acc + curr.number, 0);
-
-            if (jokerCount > 0) {
-                let minNum = sorted[0].number;
-                let maxNum = sorted[sorted.length - 1].number;
-
-                for (let i = 0; i < jokerCount; i++) {
-                    if (maxNum >= 13) {
-                        minNum -= 1;
-                        scoreSum += minNum;
-                    } else {
-                        maxNum += 1;
-                        scoreSum += maxNum;
-                    }
-                }
+            let maxNum = sorted[sorted.length - 1].number;
+            for (let i = 0; i < jokerCount; i++) {
+                maxNum += 1;
+                scoreSum += maxNum;
             }
             return scoreSum;
         }
-
         return 0;
     }
 
@@ -363,7 +307,6 @@
         if (!roomState) return;
 
         const status = roomState.status;
-		// ★ [추가] 부모 창(index.html)에 현재 게임 상태 전달
         if (window.parent && window.parent !== window) {
             window.parent.postMessage({ type: 'GAME_STATUS_CHANGE', status: status }, '*');
         }
@@ -376,13 +319,14 @@
         const hostStartBtn = document.getElementById('btn-host-start');
         const roomBadge = document.getElementById('room-state-badge');
 
-        document.getElementById('display-room-code').innerText = roomState.room_id;
+        const roomCodeEl = document.getElementById('display-room-code');
+        if (roomCodeEl) roomCodeEl.innerText = roomState.room_id;
         
         const gridInfoEl = document.getElementById('display-grid-info');
         if (gridInfoEl) {
             const poolCount = roomState.tile_pool_count !== undefined ? roomState.tile_pool_count : '-';
-            const ruleText = roomState.rule_type === 'jaehee' ? '재히룰(단일세트 30점)' : '공식룰(합산 30점)';
-            gridInfoEl.innerText = `룰: ${ruleText} | 턴 제한: ${roomState.turn_time_limit || 60}초 | 남은 타일 더미: ${poolCount}개`;
+            const ruleText = roomState.rule_type === 'jaehee' ? '재히룰(단일 30점)' : '공식룰(합산 30점)';
+            gridInfoEl.innerText = `룰: ${ruleText} | 턴 제한: ${roomState.turn_time_limit || 60}초 | 남은 타일: ${poolCount}개`;
         }
 
         if (status === 'WAITING') {
@@ -390,15 +334,12 @@
             if (turnBanner) turnBanner.style.display = 'none';
             if (readyBtn) {
                 readyBtn.style.display = 'inline-block';
-                if (myPlayer) readyBtn.innerText = myPlayer.is_ready ? '준비 완료됨 (해제)' : '준비 완료';
+                readyBtn.innerText = myPlayer?.is_ready ? '준비 완료됨 (해제)' : '준비 완료';
             }
 
-           if (myPlayer && myPlayer.is_host) {
+            if (myPlayer && myPlayer.is_host) {
                 if (hostControls) hostControls.style.display = 'flex';
                 if (hostStartBtn) {
-                    // 대기실 상태로 돌아왔을 때 로딩 상태 강제 해제
-                    hostStartBtn.removeAttribute('data-loading');
-                    
                     const allReady = roomState.players.every(p => p.is_ready);
                     hostStartBtn.disabled = !allReady;
                     hostStartBtn.innerText = allReady ? '게임 시작하기!' : '준비 대기 중...';
@@ -425,17 +366,19 @@
                 }
             }
 
-            if (isMyTurn && String(previousTurnPlayerId) !== String(myPlayerId)) {
+            const turnNumber = roomState.turn_count !== undefined ? roomState.turn_count : (roomState.round !== undefined ? roomState.round : 0);
+            const isNewTurn = (isMyTurn && String(previousTurnPlayerId) !== String(myPlayerId)) ||
+                              (isMyTurn && lastTurnNumber !== -1 && turnNumber !== lastTurnNumber);
+
+            if (isNewTurn || (isMyTurn && (!initialTurnTableSets || initialTurnTableSets.length === 0))) {
                 playSoundEffect('turn');
-                showToast("🧩 당신의 턴입니다! 자유 조합을 시작하세요!");
+                showToast("🧩 당신의 턴입니다! 배치를 시작하세요.");
                 selectedTiles = [];
-                if (myPlayer && myPlayer.rack) {
-                    initialTurnRack = JSON.parse(JSON.stringify(myPlayer.rack));
-                }
+                initialTurnRack = JSON.parse(JSON.stringify(myPlayer?.rack || []));
                 initialTurnTableSets = JSON.parse(JSON.stringify(roomState.table_sets || []));
+                lastTurnNumber = turnNumber;
             }
             previousTurnPlayerId = roomState.current_turn_player_id;
-
             startClientTurnTimer(roomState.turn_time_remaining || 60, roomState.turn_time_limit || 60);
         }
 
@@ -453,7 +396,6 @@
         renderChatLogs();
     }
 
-    // ★ 턴 제한시간 카운트다운 및 타임아웃 시 자동 제출 처리 함수 ★
     function startClientTurnTimer(secondsLeft, totalLimit) {
         clearInterval(timerInterval);
         timerSecondsLeft = secondsLeft;
@@ -465,7 +407,6 @@
                 timerSecondsLeft = 0;
                 clearInterval(timerInterval);
 
-                // 시간 초과 시 내 턴이고 배치가 유효하면 자동 제출 실행
                 const isMyTurn = (String(myPlayerId) === String(roomState?.current_turn_player_id));
                 if (isMyTurn) {
                     const originalTableCount = (initialTurnTableSets || []).flat().length;
@@ -473,39 +414,30 @@
                     const isTilePlaced = currentTableCount > originalTableCount;
                     const invalidSet = localTableSets.find(s => !isValidRummikubSet(s));
 
-                    // 1. 등록 자격 검증 (시간 초과 시 적용)
                     const myPlayer = roomState?.players?.find(p => String(p.player_id) === String(myPlayerId));
                     let isMeldValid = true;
 
                     if (myPlayer && !myPlayer.has_opened && isTilePlaced) {
                         const ruleType = roomState.rule_type || 'official';
-                        
-                        // ★ [수정] 이전 턴 테이블에 있던 타일 ID 집합 추출
                         const initialTileIds = new Set((initialTurnTableSets || []).flat().map(t => t.id));
-
-                        // ★ [수정] 이번 턴에 내가 순수하게 새로 내놓은 타일이 1장이라도 포함된 유효 세트만 추출
                         const newlyPlacedSets = localTableSets.filter(set => 
                             isValidRummikubSet(set) && set.some(t => !initialTileIds.has(t.id))
                         );
 
                         if (ruleType === 'jaehee') {
-                            // 재히룰: 내가 새로 만든 세트 중 단일 세트 점수가 30점 이상인 것이 존재해야 함
                             isMeldValid = newlyPlacedSets.some(set => calculateSetScore(set) >= 30);
                         } else {
-                            // 공식 룰: 내가 새로 만든 세트들의 점수 합산이 30점 이상이어야 함
                             let newPlacedScore = 0;
                             newlyPlacedSets.forEach(set => { newPlacedScore += calculateSetScore(set); });
                             isMeldValid = (newPlacedScore >= 30);
                         }
                     }
 
-                    // 2. 제출 가능한 올바른 수인 경우
                     if (isTilePlaced && !invalidSet && isMeldValid) {
-                        showToast("⏱️ 제한 시간이 초과되어 배치가 자동으로 제출되었습니다.");
+                        showToast("⏱️ 시간 초과로 자동 제출되었습니다.");
                         sendMessage({ type: 'SUBMIT_TURN', room_id: currentRoomId, table_sets: localTableSets, rack: localRack });
                     } else {
-                        // 3. 미달 또는 오류 배치는 서버에 'TIMEOUT_PASS'를 전송하여 깔끔하게 패스 처리
-                        showToast("⏱️ 제한 시간 초과! (배치가 무효화되고 타일 1장을 가져옵니다)");
+                        showToast("⏱️ 제한 시간 초과! (타일 1장을 가져옵니다)");
                         selectedTiles = [];
                         sendMessage({ type: 'TIMEOUT_PASS', room_id: currentRoomId });
                     }
@@ -525,6 +457,76 @@
         }
     }
 
+    function createTileElement(tile, isSelected) {
+        const div = document.createElement('div');
+        div.className = `rummi-tile-wrapper ${isSelected ? 'selected' : ''}`;
+        div.setAttribute('data-tile-id', tile.id);
+
+        const colorMap = {
+            'black': '#1e293b',
+            'blue': '#0284c7',
+            'orange': '#f59e0b',
+            'red': '#dc2626',
+            'joker': '#dc2626'
+        };
+        const fontColor = colorMap[tile.color] || '#1e293b';
+
+        let innerSymbolSvg = '';
+        if (tile.is_joker) {
+            innerSymbolSvg = `
+                <circle cx="50" cy="62" r="22" fill="none" stroke="${fontColor}" stroke-width="4.5"/>
+                <circle cx="42" cy="56" r="3.2" fill="${fontColor}"/>
+                <circle cx="58" cy="56" r="3.2" fill="${fontColor}"/>
+                <path d="M 40 68 Q 50 78 60 68" fill="none" stroke="${fontColor}" stroke-width="4" stroke-linecap="round"/>
+            `;
+        } else {
+            innerSymbolSvg = `
+                <text x="50" y="66" 
+                      font-family="'Impact', 'Arial Black', -apple-system, sans-serif" 
+                      font-size="54" 
+                      font-weight="900" 
+                      fill="${fontColor}" 
+                      text-anchor="middle" 
+                      dominant-baseline="central" 
+                      letter-spacing="-2.5"
+                      filter="url(#engrave_${tile.id})">
+                    ${tile.number}
+                </text>
+            `;
+        }
+
+        div.innerHTML = `
+            <svg viewBox="0 0 100 148" class="rummi-vector-tile" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="tilePlate_${tile.id}" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stop-color="#ffffff"/>
+                        <stop offset="65%" stop-color="#f8fafc"/>
+                        <stop offset="100%" stop-color="#edf2f7"/>
+                    </linearGradient>
+                    <linearGradient id="tileDepth_${tile.id}" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stop-color="#cbd5e1"/>
+                        <stop offset="100%" stop-color="#94a3b8"/>
+                    </linearGradient>
+                    <filter id="engrave_${tile.id}">
+                        <feDropShadow dx="0" dy="1.2" stdDeviation="0.4" flood-color="#ffffff" flood-opacity="0.95"/>
+                        <feDropShadow dx="0" dy="-1.2" stdDeviation="0.6" flood-color="#000000" flood-opacity="0.25"/>
+                    </filter>
+                    <filter id="shadow_${tile.id}" x="-15%" y="-10%" width="130%" height="135%">
+                        <feDropShadow dx="0" dy="6" stdDeviation="4" flood-color="#000000" flood-opacity="0.2"/>
+                    </filter>
+                </defs>
+
+                <rect x="5" y="10" width="90" height="132" rx="7" fill="url(#tileDepth_${tile.id})" filter="url(#shadow_${tile.id})"/>
+                <rect x="5" y="6" width="90" height="130" rx="6" fill="url(#tilePlate_${tile.id})" stroke="#ffffff" stroke-width="1.2"/>
+                <path d="M 12 7 L 88 7 A 6 6 0 0 1 94 13 L 94 15 A 6 6 0 0 0 88 9 L 12 9 A 6 6 0 0 0 6 15 L 6 13 A 6 6 0 0 1 12 7 Z" fill="#ffffff" opacity="0.95"/>
+                <ellipse cx="50" cy="56" rx="36" ry="44" fill="rgba(0,0,0,0.015)"/>
+                ${innerSymbolSvg}
+            </svg>
+        `;
+
+        return div;
+    }
+
     function renderRack() {
         const container = document.getElementById('my-rack-container');
         if (!container) return;
@@ -532,9 +534,7 @@
 
         localRack.forEach((tile, index) => {
             const isSel = selectedTiles.some(t => t.id === tile.id);
-            const div = document.createElement('div');
-            div.className = `rummi-tile tile-${tile.color} ${isSel ? 'selected' : ''}`;
-            div.innerText = tile.is_joker ? '★' : tile.number;
+            const div = createTileElement(tile, isSel);
 
             div.onclick = (e) => {
                 e.stopPropagation();
@@ -572,7 +572,7 @@
             applyRackSort();
             renderRack();
             renderTable();
-            showToast("선택한 타일을 내 거치대로 회수했습니다.");
+            showToast("선택한 타일을 거치대로 회수했습니다.");
         };
     }
 
@@ -580,76 +580,6 @@
         const container = document.getElementById('table-sets-container');
         if (!container) return;
         container.innerHTML = '';
-
-        if (localTableSets.length === 0) {
-            const emptyGuide = document.createElement('div');
-            emptyGuide.style.cssText = 'width:100%; text-align:center; padding:40px 10px; color:var(--text-muted); font-size:0.88rem; border:1px dashed var(--border-block); border-radius:6px;';
-            emptyGuide.innerText = selectedTiles.length > 0 
-                ? '🧩 선택한 타일을 여기(공유 테이블)를 클릭하여 새 세트로 내놓으세요!' 
-                : '공유 테이블이 비어있습니다.';
-            container.appendChild(emptyGuide);
-        }
-
-        localTableSets = localTableSets.filter(s => s && s.length > 0);
-
-        localTableSets.forEach((set, setIndex) => {
-            const setEl = document.createElement('div');
-            const isValid = isValidRummikubSet(set);
-            setEl.className = 'tile-group-set' + (isValid ? '' : ' invalid-set');
-
-            set.forEach((tile, tileIndex) => {
-                const isSel = selectedTiles.some(t => t.id === tile.id);
-                const div = document.createElement('div');
-                div.className = `rummi-tile tile-${tile.color} ${isSel ? 'selected' : ''}`;
-                div.innerText = tile.is_joker ? '★' : tile.number;
-
-                div.onclick = (e) => {
-                    e.stopPropagation();
-                    if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) {
-                        showToast("내 턴일 때만 조작할 수 있습니다.");
-                        return;
-                    }
-
-                    playSoundEffect('click');
-                    if (isSel) {
-                        selectedTiles = selectedTiles.filter(t => t.id !== tile.id);
-                    } else {
-                        selectedTiles.push({ ...tile, source: 'table', setIndex, tileIndex });
-                    }
-                    renderRack();
-                    renderTable();
-                };
-
-                setEl.appendChild(div);
-            });
-
-            setEl.onclick = (e) => {
-                e.stopPropagation();
-                if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) return;
-                if (selectedTiles.length === 0) return;
-
-                selectedTiles.forEach(st => {
-                    if (st.source === 'rack') {
-                        localRack = localRack.filter(t => t.id !== st.id);
-                    } else if (st.source === 'table') {
-                        if (localTableSets[st.setIndex]) {
-                            localTableSets[st.setIndex] = localTableSets[st.setIndex].filter(t => t.id !== st.id);
-                        }
-                    }
-                });
-
-                const rawTiles = selectedTiles.map(st => ({ id: st.id, color: st.color, number: st.number, is_joker: st.is_joker }));
-                localTableSets[setIndex] = sortTileSetAuto([...localTableSets[setIndex], ...rawTiles]);
-
-                playSoundEffect('place');
-                selectedTiles = [];
-                showToast("타일을 해당 세트에 합치고 자동으로 순서를 정렬했습니다.");
-                renderRack();
-                renderTable();
-            };
-
-            container.appendChild(setEl);
-        });
 
         container.onclick = () => {
             if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) return;
@@ -670,12 +600,76 @@
 
             playSoundEffect('place');
             selectedTiles = [];
-            showToast("선택한 타일로 새 묶음을 만들었습니다.");
+            showToast("선택한 타일로 새 세트를 만들었습니다.");
             renderRack();
             renderTable();
         };
 
-        // ★ [추가] 내가 내놓은 타일이 존재할 경우 제출 버튼 시각적 강조 제어 ★
+        localTableSets = localTableSets.filter(s => s && s.length > 0);
+
+        if (localTableSets.length === 0) {
+            const emptyGuide = document.createElement('div');
+            emptyGuide.className = 'table-empty-guide';
+            emptyGuide.innerText = selectedTiles.length > 0 
+                ? '🧩 선택한 타일을 여기(공유 테이블)를 클릭하여 새 세트로 내놓으세요!' 
+                : '공유 테이블이 비어있습니다.';
+            container.appendChild(emptyGuide);
+            updateSubmitButtonHighlight();
+            return;
+        }
+
+        localTableSets.forEach((set, setIndex) => {
+            const setEl = document.createElement('div');
+            const isValid = isValidRummikubSet(set);
+            setEl.className = 'tile-group-set' + (isValid ? '' : ' invalid-set');
+
+            set.forEach((tile, tileIndex) => {
+                const isSel = selectedTiles.some(t => t.id === tile.id);
+                const div = createTileElement(tile, isSel);
+
+                if (newlyPlacedTileIds.has(tile.id)) {
+                    div.classList.add('just-placed');
+                }
+
+                div.onclick = (e) => {
+                    e.stopPropagation();
+                    if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) {
+                        showToast("내 턴일 때만 조작할 수 있습니다.");
+                        return;
+                    }
+
+                    if (selectedTiles.length > 0) {
+                        mergeSelectedTilesIntoSet(setIndex);
+                        return;
+                    }
+
+                    playSoundEffect('click');
+                    if (isSel) {
+                        selectedTiles = selectedTiles.filter(t => t.id !== tile.id);
+                    } else {
+                        selectedTiles.push({ ...tile, source: 'table', setIndex, tileIndex });
+                    }
+                    renderRack();
+                    renderTable();
+                };
+
+                setEl.appendChild(div);
+            });
+
+            setEl.onclick = (e) => {
+                e.stopPropagation();
+                if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) return;
+                if (selectedTiles.length === 0) return;
+                mergeSelectedTilesIntoSet(setIndex);
+            };
+
+            container.appendChild(setEl);
+        });
+
+        updateSubmitButtonHighlight();
+    }
+
+    function updateSubmitButtonHighlight() {
         const submitBtn = document.getElementById('btn-submit-turn');
         if (submitBtn) {
             const isMyTurn = (String(myPlayerId) === String(roomState?.current_turn_player_id));
@@ -689,6 +683,27 @@
                 submitBtn.classList.remove('highlight-submit');
             }
         }
+    }
+
+    function mergeSelectedTilesIntoSet(targetSetIndex) {
+        selectedTiles.forEach(st => {
+            if (st.source === 'rack') {
+                localRack = localRack.filter(t => t.id !== st.id);
+            } else if (st.source === 'table') {
+                if (localTableSets[st.setIndex]) {
+                    localTableSets[st.setIndex] = localTableSets[st.setIndex].filter(t => t.id !== st.id);
+                }
+            }
+        });
+
+        const rawTiles = selectedTiles.map(st => ({ id: st.id, color: st.color, number: st.number, is_joker: st.is_joker }));
+        localTableSets[targetSetIndex] = sortTileSetAuto([...localTableSets[targetSetIndex], ...rawTiles]);
+
+        playSoundEffect('place');
+        selectedTiles = [];
+        showToast("타일을 해당 세트에 합치고 정렬했습니다.");
+        renderRack();
+        renderTable();
     }
 
     function renderPlayers() {
@@ -738,19 +753,16 @@
             const tileCount = p.tile_count || 0;
 
             const isDanger = (roomState.status === 'PLAYING' && tileCount > 0 && tileCount <= 3);
-            const dangerBadge = isDanger ? `<span class="danger-tile-badge">⚠️ ${tileCount}개 남음!</span>` : '';
+            const dangerBadge = isDanger ? `<span style="color:#ef4444; font-weight:800; font-size:0.7rem;">⚠️${tileCount}장!</span>` : '';
 
             let statusHtml = (roomState.status === 'WAITING' || !roomState.status)
-                ? (p.is_ready ? '<span class="ready-tag ready">준비 완료</span>' : '<span class="ready-tag waiting">작성 중...</span>')
-                : `<span style="font-size:0.75rem; font-weight:bold; color:var(--border-accent);">타일 ${tileCount}개 ${isTurnPlayer ? '🎯' : ''}</span> ${dangerBadge}`;
-
-            const winCount = p.wins || 0;
-            const winBadgeHtml = winCount > 0 ? `<span class="win-count-badge">👑 ${winCount}승</span>` : '';
+                ? (p.is_ready ? '<span style="color:#16a34a; font-weight:bold; font-size:0.75rem;">준비 완료</span>' : '<span style="color:#94a3b8; font-size:0.75rem;">대기 중</span>')
+                : `<span style="font-size:0.75rem; font-weight:bold; color:var(--brand-blue);">${tileCount}장 ${isTurnPlayer ? '🎯' : ''}</span> ${dangerBadge}`;
 
             card.innerHTML = `
                 <div class="player-info">
                     <div class="player-avatar" style="background-color: ${avatarColor};">${firstLetter}</div>
-                    <div class="player-name">${escapeHtml(nickname)} ${p.is_host ? '<span class="host-tag">방장</span>' : ''} ${winBadgeHtml}</div>
+                    <div class="player-name">${escapeHtml(nickname)} ${p.is_host ? '<span style="font-size:0.65rem; color:var(--brand-blue); border:1px solid; border-radius:3px; padding:0 2px;">방장</span>' : ''}</div>
                 </div>
                 <div>${statusHtml}</div>
             `;
@@ -762,66 +774,36 @@
         const chatBox = document.getElementById('chat-messages');
         if (!chatBox || !roomState) return;
         chatBox.innerHTML = '';
+
+        const myNick = localStorage.getItem('office_rummikub_last_nickname');
+
         (roomState.chat_logs || []).forEach(chat => {
             if (chat.system) return;
-            const msgEl = document.createElement('div');
-            msgEl.className = 'chat-msg';
-            msgEl.innerHTML = `<span class="sender" style="color:${chat.color}">${escapeHtml(chat.nickname)}:</span> <span>${escapeHtml(chat.text)}</span>`;
-            chatBox.appendChild(msgEl);
+
+            const isMine = (chat.nickname === myNick);
+            const row = document.createElement('div');
+            row.className = `chat-bubble-row ${isMine ? 'mine' : 'other'}`;
+
+            const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            row.innerHTML = `
+                ${!isMine ? `<span class="chat-sender-name" style="color:${chat.color || '#64748b'}">${escapeHtml(chat.nickname)}</span>` : ''}
+                <div class="bubble">${escapeHtml(chat.text)}</div>
+                <span class="chat-time">${timeStr}</span>
+            `;
+            chatBox.appendChild(row);
         });
+
         chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    function escapeHtml(str) { return String(str || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m])); }
-
-    function initGlobalClickDelegation() {
-        document.addEventListener('click', (e) => {
-            if (e.target.matches('#btn-help') || e.target.closest('#btn-help')) {
-                const helpModal = document.getElementById('help-modal');
-                if (helpModal) helpModal.classList.add('active');
-                return;
-            }
-
-            if (e.target.matches('#help-modal-close') || e.target.closest('#help-modal-close')) {
-                const helpModal = document.getElementById('help-modal');
-                if (helpModal) helpModal.classList.remove('active');
-                return;
-            }
-
-            const timeBtn = e.target.closest('.time-btn');
-            if (timeBtn) {
-                document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('selected'));
-                timeBtn.classList.add('selected');
-                selectedTimeLimit = parseInt(timeBtn.getAttribute('data-time')) || 60;
-                return;
-            }
-
-            const tabBtn = e.target.closest('.tab-btn');
-            if (tabBtn) {
-                const createForm = document.getElementById('create-room-form');
-                const joinForm = document.getElementById('join-room-form');
-                const tabBtnCreate = document.getElementById('tab-btn-create');
-                const tabBtnJoin = document.getElementById('tab-btn-join');
-
-                if (tabBtn.id === 'tab-btn-create') {
-                    if (tabBtnCreate) tabBtnCreate.classList.add('active');
-                    if (tabBtnJoin) tabBtnJoin.classList.remove('active');
-                    if (createForm) createForm.style.display = 'block';
-                    if (joinForm) joinForm.style.display = 'none';
-                } else if (tabBtn.id === 'tab-btn-join') {
-                    if (tabBtnJoin) tabBtnJoin.classList.add('active');
-                    if (tabBtnCreate) tabBtnCreate.classList.remove('active');
-                    if (joinForm) joinForm.style.display = 'block';
-                    if (createForm) createForm.style.display = 'none';
-                }
-            }
-        });
+    function escapeHtml(str) { 
+        return String(str || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m])); 
     }
 
     function showWinnerModal(winnerName) {
         const finalWinner = String(winnerName || '우승자').trim();
         let modal = document.getElementById('winner-modal');
-        
         if (!modal) {
             modal = document.createElement('div');
             modal.id = 'winner-modal';
@@ -830,24 +812,17 @@
                 <div class="modal-box" style="text-align: center; padding: 24px;">
                     <div style="font-size: 3.5rem; margin-bottom: 10px;">🏆</div>
                     <h2 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 8px;">최종 우승!</h2>
-                    <p id="winner-modal-text" style="font-size: 1rem; color: var(--border-accent); font-weight: bold; margin-bottom: 16px;">
+                    <p style="font-size: 1rem; color: var(--brand-blue); font-weight: bold; margin-bottom: 16px;">
                         [${escapeHtml(finalWinner)}] 님이 승리하셨습니다!
                     </p>
-                    <p style="font-size: 0.8rem; color: var(--text-muted);">잠시 후 대기실로 자동 이동합니다...</p>
+                    <p style="font-size: 0.8rem; color: var(--text-muted);">잠시 후 대기실로 이동합니다...</p>
                 </div>
             `;
             document.body.appendChild(modal);
         } else {
-            const modalText = document.getElementById('winner-modal-text');
-            if (modalText) {
-                modalText.innerHTML = `[${escapeHtml(finalWinner)}] 님이 승리하셨습니다!`;
-            }
             modal.classList.add('active');
         }
-
-        setTimeout(() => {
-            if (modal) modal.classList.remove('active');
-        }, 3500);
+        setTimeout(() => { if (modal) modal.classList.remove('active'); }, 3500);
     }
 
     function initGameControls() {
@@ -862,22 +837,22 @@
         const btnSortNumber = document.getElementById('btn-sort-number');
         const btnResetTurn = document.getElementById('btn-reset-turn');
         const btnSubmitTurn = document.getElementById('btn-submit-turn');
-
         const btnCopyLink = document.getElementById('btn-copy-link');
-        const btnShowQr = document.getElementById('btn-show-qr');
-        const qrModal = document.getElementById('qr-modal');
-        const qrModalClose = document.getElementById('qr-modal-close');
+
+        // 모바일 사이드바 제어
+        const mobileFabBtn = document.getElementById('mobile-fab-btn');
+        const sidebarPanel = document.getElementById('sidebar-panel');
+        const mobileSidebarClose = document.getElementById('mobile-sidebar-close');
+
+        if (mobileFabBtn && sidebarPanel) {
+            mobileFabBtn.onclick = () => sidebarPanel.classList.add('active');
+        }
+        if (mobileSidebarClose && sidebarPanel) {
+            mobileSidebarClose.onclick = () => sidebarPanel.classList.remove('active');
+        }
 
         if (btnToggleReady) btnToggleReady.onclick = () => sendMessage({ type: 'TOGGLE_READY' });
-
-        if (hostStartBtn) {
-            hostStartBtn.onclick = () => {
-                hostStartBtn.disabled = true;
-                hostStartBtn.setAttribute('data-loading', 'true');
-                hostStartBtn.innerText = '⏳ 타일 섞는 중...';
-                sendMessage({ type: 'START_GAME', room_id: currentRoomId });
-            };
-        }
+        if (hostStartBtn) hostStartBtn.onclick = () => sendMessage({ type: 'START_GAME', room_id: currentRoomId });
 
         if (btnHostReset) btnHostReset.onclick = () => { if (resetOptionModal) resetOptionModal.classList.add('active'); };
         if (btnResetConfirm) {
@@ -893,7 +868,7 @@
                 currentSortMode = 'color';
                 applyRackSort();
                 renderRack();
-                showToast("타일을 색상별로 정렬했습니다. (매 턴 유지됨)");
+                showToast("타일을 색상별로 정렬했습니다.");
             };
         }
 
@@ -902,25 +877,26 @@
                 currentSortMode = 'number';
                 applyRackSort();
                 renderRack();
-                showToast("타일을 숫자별로 정렬했습니다. (매 턴 유지됨)");
+                showToast("타일을 숫자별로 정렬했습니다.");
             };
         }
 
         if (btnResetTurn) {
             btnResetTurn.onclick = () => {
                 if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) return;
+
                 localRack = JSON.parse(JSON.stringify(initialTurnRack));
                 localTableSets = JSON.parse(JSON.stringify(initialTurnTableSets));
+
                 selectedTiles = [];
                 applyRackSort();
                 renderRack();
                 renderTable();
-                showToast("이번 턴에 변경한 사항을 원래대로 돌렸습니다.");
+                showToast("이번 턴에 조작한 내용을 턴 시작 상태로 되돌렸습니다.");
             };
         }
 
-        // ★ [통합] 단일 제출 / 패스 버튼 이벤트 ★
-       if (btnSubmitTurn) {
+        if (btnSubmitTurn) {
             btnSubmitTurn.onclick = () => {
                 if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) {
                     showToast("내 턴일 때만 조작할 수 있습니다!");
@@ -930,66 +906,54 @@
                 selectedTiles = [];
                 localTableSets = localTableSets.filter(s => s && s.length > 0);
 
-                // 유효하지 않은 세트가 테이블에 남아있는지 검증
                 const invalidSet = localTableSets.find(s => !isValidRummikubSet(s));
                 if (invalidSet) {
-                    showToast("⚠️ 공유 테이블에 3장 미만이거나 올바르지 않은 세트 규칙이 존재합니다!");
+                    showToast("⚠️ 공유 테이블에 올바르지 않은 세트가 존재합니다!");
                     renderTable();
                     return;
                 }
 
-                // 이번 턴 타일 제출 여부 판별
                 const originalTableCount = (initialTurnTableSets || []).flat().length;
                 const currentTableCount = localTableSets.flat().length;
                 const isTilePlaced = currentTableCount > originalTableCount;
 
-          
-                // 첫 등록(Initial Meld) 검증 (내가 새로 낸 세트만 추출)
                 const myPlayer = roomState.players.find(p => String(p.player_id) === String(myPlayerId));
-                // myPlayer.has_opened가 true이면 첫 등록 조건 검사를 통과함
                 if (myPlayer && !myPlayer.has_opened && isTilePlaced) {
                     const ruleType = roomState.rule_type || 'official';
-
-                    // 이전 턴 테이블에 존재했던 기존 타일 ID 목록
                     const initialTileIds = new Set((initialTurnTableSets || []).flat().map(t => t.id));
-
-                    // 이번 턴에 내 거치대에서 새로 꺼내놓은 타일이 1장이라도 포함된 유효 세트만 추출
                     const newlyPlacedSets = localTableSets.filter(set => 
                         isValidRummikubSet(set) && set.some(t => !initialTileIds.has(t.id))
                     );
 
                     if (ruleType === 'jaehee') {
-                        // [재히룰] 내가 새로 내놓은 세트 중 '단일 세트' 점수가 30점 이상인 세트가 존재해야 함
                         const hasSingleSetOver30 = newlyPlacedSets.some(set => calculateSetScore(set) >= 30);
                         if (!hasSingleSetOver30) {
-                            showToast(`⚠️ [재히룰] 첫 등록은 내가 내놓은 한 세트의 합이 30점 이상이어야 합니다!`);
+                            showToast(`⚠️ [재히룰] 첫 등록은 단일 세트 30점 이상이어야 합니다!`);
                             return;
                         }
                     } else {
-                        // [공식 룰] 내가 새로 내놓은 세트들의 점수 총합이 30점 이상이어야 함
                         let newlyPlacedScore = 0;
                         newlyPlacedSets.forEach(set => { newlyPlacedScore += calculateSetScore(set); });
                         if (newlyPlacedScore < 30) {
-                            showToast(`⚠️ [공식 룰] 첫 등록 점수 합계가 30점 이상이어야 합니다! (현재 내가 낸 점수: ${newlyPlacedScore}점)`);
+                            showToast(`⚠️ [공식 룰] 첫 등록 점수 합계가 30점 이상이어야 합니다! (현재: ${newlyPlacedScore}점)`);
                             return;
                         }
                     }
                 }
 
-                // 제출 완료 시 타이머 정지 및 버튼 중복 연타 방지
                 clearInterval(timerInterval);
                 btnSubmitTurn.disabled = true;
-                btnSubmitTurn.classList.remove('highlight-submit');
-
                 if (isTilePlaced) {
-                    showToast("타일 배치를 완료하고 턴을 마칩니다.");
+                    showToast("타일 배치를 완료하고 턴을 넘깁니다.");
                 } else {
                     showToast("타일 1장을 가져오고 턴을 넘깁니다.");
                 }
 
-                sendMessage({ type: 'SUBMIT_TURN', room_id: currentRoomId, table_sets: localTableSets, rack: localRack });
+                initialTurnTableSets = JSON.parse(JSON.stringify(localTableSets));
+                initialTurnRack = JSON.parse(JSON.stringify(localRack));
+                previousTurnPlayerId = null; 
 
-                // 1초 후 버튼 다시 활성화 (다음 턴 대기)
+                sendMessage({ type: 'SUBMIT_TURN', room_id: currentRoomId, table_sets: localTableSets, rack: localRack });
                 setTimeout(() => { if (btnSubmitTurn) btnSubmitTurn.disabled = false; }, 1000);
             };
         }
@@ -997,33 +961,12 @@
         if (btnCopyLink) {
             btnCopyLink.onclick = () => {
                 const shareUrl = `${window.location.origin}/index.html?game=rummikub&room=${currentRoomId}`;
-                if (navigator.clipboard && navigator.clipboard.writeText) {
-                    navigator.clipboard.writeText(shareUrl).then(() => showToast('초대 링크가 복사되었습니다!'))
-                    .catch(() => prompt('아래 링크를 복사하세요:', shareUrl));
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(shareUrl).then(() => showToast('초대 링크가 복사되었습니다!'));
                 } else {
-                    prompt('아래 링크를 복사하세요:', shareUrl);
+                    prompt('초대 링크:', shareUrl);
                 }
             };
-        }
-
-        if (btnShowQr) {
-            btnShowQr.onclick = () => {
-                const shareUrl = `${window.location.origin}/index.html?game=rummikub&room=${currentRoomId}`;
-                const qrContainer = document.getElementById('qrcode');
-                if (qrContainer) {
-                    qrContainer.innerHTML = '';
-                    if (typeof QRCode === 'function') {
-                        new QRCode(qrContainer, { text: shareUrl, width: 180, height: 180 });
-                    } else {
-                        qrContainer.innerText = shareUrl;
-                    }
-                }
-                if (qrModal) qrModal.classList.add('active');
-            };
-        }
-
-        if (qrModalClose && qrModal) {
-            qrModalClose.onclick = () => qrModal.classList.remove('active');
         }
     }
 
@@ -1033,24 +976,26 @@
 
         const savedNick = localStorage.getItem('office_rummikub_last_nickname');
         if (savedNick) {
-            const createNickEl = document.getElementById('create-nickname');
-            const joinNickEl = document.getElementById('join-nickname');
-            if (createNickEl) createNickEl.value = savedNick;
-            if (joinNickEl) joinNickEl.value = savedNick;
+            const cNick = document.getElementById('create-nickname');
+            const jNick = document.getElementById('join-nickname');
+            if (cNick) cNick.value = savedNick;
+            if (jNick) jNick.value = savedNick;
         }
 
         if (createForm) {
             createForm.onsubmit = (e) => {
                 e.preventDefault();
-                const nickEl = document.getElementById('create-nickname');
-                const nick = nickEl ? (nickEl.value.trim() || '루미마스터') : '루미마스터';
+                const nick = document.getElementById('create-nickname')?.value.trim() || '루미마스터';
                 saveMyNickname(nick);
 
+                const titleInput = document.getElementById('create-title');
+                const title = titleInput ? titleInput.value.trim() : '실시간 루미큐브';
                 const selectedRule = document.querySelector('input[name="rule_type"]:checked')?.value || 'official';
+
                 sendMessage({
-                    type: 'CREATE_ROOM', 
+                    type: 'CREATE_ROOM',
                     game_type: 'RUMMIKUB',
-                    title: document.getElementById('create-title') ? document.getElementById('create-title').value.trim() : '사내 실시간 루미큐브',
+                    title: title,
                     nickname: nick,
                     turn_time_limit: selectedTimeLimit,
                     rule_type: selectedRule
@@ -1061,14 +1006,14 @@
         if (joinForm) {
             joinForm.onsubmit = (e) => {
                 e.preventDefault();
-                const nickEl = document.getElementById('join-nickname');
-                const nick = nickEl ? (nickEl.value.trim() || '루미마스터') : '루미마스터';
+                const nick = document.getElementById('join-nickname')?.value.trim() || '도전자';
                 saveMyNickname(nick);
+                const codeInput = document.getElementById('join-room-code');
 
                 sendMessage({
-                    type: 'JOIN_ROOM', 
+                    type: 'JOIN_ROOM',
                     nickname: nick,
-                    room_id: document.getElementById('join-room-code').value
+                    room_id: codeInput ? codeInput.value.trim().toUpperCase() : ''
                 });
             };
         }
@@ -1081,16 +1026,39 @@
                 if (chatInput && chatInput.value.trim()) {
                     sendMessage({ type: 'CHAT_MESSAGE', room_id: currentRoomId, message: chatInput.value.trim() });
                     chatInput.value = '';
+                    chatInput.focus();
                 }
             };
         }
     }
 
-    initStealthMode();
-    initMobileSidebar();
-    initNavControls();
-    initGlobalClickDelegation();
-    initFormControls();
+    function initDelegations() {
+        document.addEventListener('click', (e) => {
+            if (e.target.matches('#btn-help')) document.getElementById('help-modal')?.classList.add('active');
+            if (e.target.matches('#help-modal-close')) document.getElementById('help-modal')?.classList.remove('active');
+            
+            const timeBtn = e.target.closest('.time-btn');
+            if (timeBtn) {
+                document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('selected'));
+                timeBtn.classList.add('selected');
+                selectedTimeLimit = parseInt(timeBtn.getAttribute('data-time')) || 60;
+            }
+
+            const tabBtn = e.target.closest('.tab-btn');
+            if (tabBtn) {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                tabBtn.classList.add('active');
+                const isCreate = tabBtn.id === 'tab-btn-create';
+                const createForm = document.getElementById('create-room-form');
+                const joinForm = document.getElementById('join-room-form');
+                if (createForm) createForm.style.display = isCreate ? 'block' : 'none';
+                if (joinForm) joinForm.style.display = isCreate ? 'none' : 'block';
+            }
+        });
+    }
+
+    initDelegations();
     initGameControls();
+    initFormControls();
     connectNetwork();
 })();

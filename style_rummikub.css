@@ -1,63 +1,269 @@
-/* style_rummikub.css - Color Unified & Board Restored */
+/* style_rummikub.css - Stable 2-Column Permanent Layout with Perfect Flexbox */
 
-/* ==========================================
-   🎨 1. 전체 파란색 톤앤매너 CSS 변수 정의
-   ========================================== */
 :root {
-    --brand-blue: #2383e2;          /* 라이트모드 메인 파랑 */
-    --brand-blue-hover: #1a66b8;    /* 라이트모드 호버 파랑 */
-    --brand-blue-light: #f0f7ff;    /* 라이트모드 파란 연배경 */
+    --brand-blue: #2383e2;
+    --brand-blue-hover: #1a66b8;
+
+    /* 펠트 테이블 매트 */
+    --mat-bg: radial-gradient(circle at 50% 35%, #f8fafc 0%, #edf2f7 65%, #e2e8f0 100%);
+    --mat-border: #cbd5e1;
+    --mat-shadow: inset 0 3px 12px rgba(0, 0, 0, 0.08), 0 4px 10px rgba(0, 0, 0, 0.03);
+
+    /* 원목 거치대 */
+    --wood-top: #deb887;
+    --wood-mid: #b87c42;
+    --wood-lip: #8c5625;
+    --wood-groove: rgba(45, 20, 5, 0.45);
 }
 
 [data-theme="dark"] {
-    --brand-blue: #529cca;          /* 다크모드 메인 파랑 */
-    --brand-blue-hover: #3f87b3;    /* 다크모드 호버 파랑 */
-    --brand-blue-light: #1a2733;    /* 다크모드 파란 연배경 */
+    --brand-blue: #38bdf8;
+    --brand-blue-hover: #0284c7;
+
+    --mat-bg: radial-gradient(circle at 50% 35%, #252b36 0%, #1a1e26 70%, #12151b 100%);
+    --mat-border: #333a46;
+    --mat-shadow: inset 0 4px 16px rgba(0, 0, 0, 0.65), 0 4px 12px rgba(0, 0, 0, 0.3);
+
+    --wood-top: #9c6c3e;
+    --wood-mid: #6e441d;
+    --wood-lip: #4a2807;
+    --wood-groove: rgba(0, 0, 0, 0.7);
 }
 
 /* ==========================================
-   🧩 2. 상단 뱃지, 턴 바, 타이머, 테두리 색상 통일
+   📐 1. 메인 레이아웃 (상시 2열 배치)
    ========================================== */
-/* 상단 뱃지 (RUMMIKUB / 게임 진행 중) */
-.topic-tag,
-.room-state-badge.playing {
-    background: var(--brand-blue-light) !important;
-    color: var(--brand-blue) !important;
-    border: 1px solid var(--brand-blue) !important;
+.arena-header {
+    width: 100% !important;
+    margin-bottom: 12px !important;
 }
 
-/* 현재 턴 안내 바 (내 턴입니다!) */
-.turn-player-badge.my-turn {
-    background: var(--brand-blue) !important;
-    color: #ffffff !important;
-}
-[data-theme="dark"] .turn-player-badge.my-turn {
-    color: #191919 !important;
+.topic-banner {
+    width: 100% !important;
+    box-sizing: border-box !important;
 }
 
-/* 턴 타이머 게이지 바 */
-.turn-timer-fill {
-    background: var(--brand-blue) !important;
+.arena-main {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 16px !important;
+    width: 100% !important;
+    align-items: flex-start !important;
+    box-sizing: border-box !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif !important;
 }
 
-/* 거치대(Rack) 상단 테두리 선 */
-.board-container > div:last-child,
-#my-rack-container {
-    border-top: 2px solid var(--brand-blue) !important;
-}
-
-/* 참가자 목록 내 타일 개수 텍스트 */
-.player-card .turn-player-badge,
-.player-card span[style*="color:var(--border-accent)"] {
-    color: var(--brand-blue) !important;
+.board-container {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    width: 100% !important;
 }
 
 /* ==========================================
-   🔘 3. 하단 조작 버튼 색상 통일
+   🏟️ 2. 공유 테이블 매트
+   ========================================== */
+.rummikub-table-board,
+#table-sets-container {
+    width: 100% !important;
+    min-height: 420px !important;
+    max-height: 490px !important;
+    margin-bottom: 8px;
+    padding: 16px !important;
+    background: var(--mat-bg) !important;
+    border: 2px solid var(--mat-border) !important;
+    border-radius: 14px !important;
+    box-shadow: var(--mat-shadow) !important;
+    
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-content: flex-start !important;
+    align-items: flex-start !important;
+    gap: 12px 14px !important;
+    overflow-y: auto !important;
+    box-sizing: border-box !important;
+}
+
+.table-empty-guide {
+    width: 100% !important;
+    text-align: center !important;
+    padding: 90px 20px !important;
+    color: var(--text-muted, #64748b) !important;
+    font-size: 0.95rem !important;
+    font-weight: 700 !important;
+    line-height: 1.6 !important;
+    border: 2px dashed var(--mat-border) !important;
+    border-radius: 12px !important;
+    background: rgba(255, 255, 255, 0.4) !important;
+    box-sizing: border-box !important;
+}
+
+[data-theme="dark"] .table-empty-guide {
+    background: rgba(0, 0, 0, 0.2) !important;
+}
+
+/* ==========================================
+   🧩 3. 세트 트레이 (가변 안전 버퍼)
+   ========================================== */
+.tile-group-set {
+    display: inline-flex !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+    gap: 1px !important;
+    padding: 6px 8px !important;
+    margin: 4px 6px !important;
+    height: 74px !important;
+
+    flex: 0 0 auto !important;
+    min-width: 210px !important;
+    width: fit-content !important;
+    overflow: visible !important;
+
+    border-radius: 8px !important;
+    background: rgba(0, 0, 0, 0.03) !important;
+    border: 1.5px dashed rgba(0, 0, 0, 0.08) !important;
+    cursor: pointer !important;
+    transition: background-color 0.15s ease, border-color 0.15s ease !important;
+    position: relative !important;
+    box-sizing: border-box !important;
+}
+
+[data-theme="dark"] .tile-group-set {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.tile-group-set:hover {
+    background: rgba(35, 131, 226, 0.08) !important;
+    border-color: rgba(35, 131, 226, 0.4) !important;
+}
+
+.tile-group-set.invalid-set {
+    border-color: #ef4444 !important;
+    background: rgba(239, 68, 68, 0.12) !important;
+}
+
+/* ==========================================
+   ✨ 4. 직전 턴 신규 타일 강조
+   ========================================== */
+.rummi-tile-wrapper.just-placed {
+    z-index: 25 !important;
+}
+
+.rummi-tile-wrapper.just-placed .rummi-vector-tile {
+    filter: drop-shadow(0 0 6px #f59e0b) drop-shadow(0 0 12px rgba(245, 158, 11, 0.6)) !important;
+    animation: newPlacedPulse 1.2s infinite alternate ease-in-out !important;
+}
+
+@keyframes newPlacedPulse {
+    0% { transform: scale(1); }
+    100% { transform: scale(1.05) translateY(-2px); }
+}
+
+/* ==========================================
+   🎲 5. 2.5D 정밀 SVG 벡터 타일 스타일
+   ========================================== */
+.rummi-tile-wrapper {
+    width: 42px !important;
+    height: 62px !important;
+    min-width: 42px !important;
+    position: relative !important;
+    cursor: pointer !important;
+    user-select: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+.rummi-tile-wrapper .rummi-vector-tile {
+    width: 100% !important;
+    height: 100% !important;
+    overflow: visible !important;
+    display: block !important;
+}
+
+.rummi-tile-wrapper:hover {
+    transform: translateY(-3px) !important;
+}
+
+.rummi-tile-wrapper.selected {
+    transform: translateY(-16px) scale(1.08) !important;
+    z-index: 50 !important;
+}
+
+.rummi-tile-wrapper.selected .rummi-vector-tile {
+    filter: drop-shadow(0 14px 14px rgba(2, 132, 199, 0.45));
+}
+
+/* ==========================================
+   🪵 6. 2단 원목 타일 랙
+   ========================================== */
+.rack-wood-panel {
+    background: linear-gradient(180deg, var(--wood-top) 0%, var(--wood-mid) 75%, var(--wood-lip) 100%) !important;
+    border: 2px solid rgba(255, 255, 255, 0.45) !important;
+    border-bottom: 5px solid rgba(0, 0, 0, 0.4) !important;
+    border-radius: 12px 12px 6px 6px;
+    padding: 10px 14px 18px 14px !important;
+    box-shadow: 0 -4px 14px rgba(0, 0, 0, 0.2), inset 0 2px 4px rgba(255, 255, 255, 0.5);
+    margin-top: 8px;
+    box-sizing: border-box;
+}
+
+.rack-wood-top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: #4a2406;
+    margin-bottom: 8px;
+    padding: 0 4px;
+}
+
+[data-theme="dark"] .rack-wood-top-bar {
+    color: #fce7d2;
+}
+
+.wood-brand {
+    font-weight: 900;
+    font-style: italic;
+    letter-spacing: 1px;
+    opacity: 0.65;
+}
+
+.my-rack-container {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)) !important;
+    grid-auto-rows: 68px !important;
+    gap: 8px 6px !important;
+    min-height: 144px !important;
+    max-height: 150px !important;
+    overflow-y: auto !important;
+    padding: 8px 10px !important;
+    background: var(--wood-groove) !important;
+    border-radius: 8px;
+    box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.55);
+}
+
+.my-rack-container .rummi-tile-wrapper {
+    transform: perspective(600px) rotateX(10deg);
+    transform-origin: bottom center;
+}
+
+.my-rack-container .rummi-tile-wrapper:hover {
+    transform: perspective(600px) rotateX(4deg) translateY(-2px);
+}
+
+.my-rack-container .rummi-tile-wrapper.selected {
+    transform: translateY(-16px) scale(1.08) rotateX(0deg) !important;
+}
+
+/* ==========================================
+   🔘 7. 하단 버튼 바
    ========================================== */
 #board-footer {
-    margin-top: 10px !important;
-    min-height: 40px !important;
+    min-height: 38px !important;
+    margin: 4px 0 !important;
     display: flex !important;
     align-items: center !important;
 }
@@ -70,342 +276,354 @@
     gap: 8px !important;
 }
 
-.footer-left-zone,
-.footer-right-zone {
+.footer-left-zone, .footer-right-zone {
     display: flex !important;
     align-items: center !important;
     gap: 6px !important;
 }
 
-.footer-right-zone {
-    margin-left: auto !important;
-}
+.footer-right-zone { margin-left: auto !important; }
 
-/* 버튼 규격 및 높이 일직선 통일 */
-#board-footer button,
-#board-footer .primary-btn,
-#board-footer .secondary-btn {
-    box-sizing: border-box !important;
-    height: 32px !important;
-    line-height: 1 !important;
-    font-size: 0.8rem !important;
-    font-weight: 600 !important;
-    padding: 0 12px !important;
-    margin: 0 !important;
+.3d-btn,
+#board-footer button {
+    height: 34px !important;
+    font-size: 0.82rem !important;
+    font-weight: 800 !important;
+    padding: 0 14px !important;
     border-radius: 6px !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    vertical-align: middle !important;
-    box-shadow: none !important;
-    transition: background 0.15s, border-color 0.15s !important;
-    white-space: nowrap !important;
+    border: none !important;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+    transition: transform 0.08s !important;
 }
 
-/* 주요 액션 버튼 (준비 완료 / 제출·패스) - 메인 블루 통일 */
+#board-footer button:active {
+    transform: translateY(1px) !important;
+}
+
 #btn-toggle-ready,
 #btn-submit-turn,
 .primary-btn {
     background: var(--brand-blue) !important;
     color: #ffffff !important;
-    border: 1px solid var(--brand-blue) !important;
-}
-#btn-toggle-ready:hover,
-#btn-submit-turn:hover,
-.primary-btn:hover {
-    background: var(--brand-blue-hover) !important;
-    border-color: var(--brand-blue-hover) !important;
+    box-shadow: 0 2px 0 var(--brand-blue-hover), 0 3px 6px rgba(35, 131, 226, 0.3) !important;
 }
 
-[data-theme="dark"] #btn-toggle-ready,
-[data-theme="dark"] #btn-submit-turn,
-[data-theme="dark"] .primary-btn {
-    color: #191919 !important;
-}
-
-/* 보조 버튼 (색상정렬 / 숫자정렬) - 모노톤 */
 #btn-sort-color,
 #btn-sort-number,
 .secondary-btn {
-    background: #f1f1ef !important;
-    color: #37352f !important;
-    border: 1px solid #e1e1df !important;
-}
-#btn-sort-color:hover,
-#btn-sort-number:hover,
-.secondary-btn:hover {
-    background: #e3e3e1 !important;
+    background: #f1f3f5 !important;
+    color: #334155 !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: 0 2px 0 #cbd5e1 !important;
 }
 
 [data-theme="dark"] #btn-sort-color,
 [data-theme="dark"] #btn-sort-number,
 [data-theme="dark"] .secondary-btn {
-    background: #2f3136 !important;
-    color: #d4d4d4 !important;
-    border-color: #404249 !important;
+    background: #2d333b !important;
+    color: #e2e8f0 !important;
+    border-color: #3f4754 !important;
+    box-shadow: 0 2px 0 #181c22 !important;
 }
 
-/* 턴 초기화 버튼 - 차분한 로즈/레드 */
 #btn-reset-turn {
-    background: #fbe4e4 !important;
-    color: #c4383a !important;
-    border: 1px solid #f7c9c9 !important;
-}
-#btn-reset-turn:hover {
-    background: #f7c9c9 !important;
+    background: #fee2e2 !important;
+    color: #b91c1c !important;
+    border: 1px solid #fca5a5 !important;
+    box-shadow: 0 2px 0 #fca5a5 !important;
 }
 
-[data-theme="dark"] #btn-reset-turn {
-    background: #4a1d1f !important;
-    color: #ff9b9d !important;
-    border-color: #6b292c !important;
+#btn-submit-turn.highlight-submit {
+    background: #e11d48 !important;
+    box-shadow: 0 2px 0 #9f1239, 0 0 12px rgba(225, 29, 72, 0.6) !important;
+    animation: submitPulse 1s infinite alternate;
+}
+
+@keyframes submitPulse {
+    0% { transform: scale(1); }
+    100% { transform: scale(1.04); }
 }
 
 /* ==========================================
-   🧱 4. 타일 및 테이블 보드 구조
+   💬 8. 상시 고정 우측 사이드바 (높이 버그 완벽 해결)
    ========================================== */
-.rummikub-table-board,
-#table-sets-container {
-    width: 100% !important;
-    max-width: none !important;
-    min-height: 340px;
-    max-height: 540px;
-    margin: 0 auto;
-    padding: 12px !important;
-    background: var(--bg-surface) !important;
-    border: 1px solid var(--border-block) !important;
-    border-radius: 8px;
+.sidebar-panel {
+    flex: 0 0 320px !important;
+    width: 320px !important;
+    height: 680px !important;
     display: flex !important;
-    flex-wrap: wrap !important;
-    align-content: flex-start !important;
+    flex-direction: column !important;
     gap: 8px !important;
-    overflow-y: auto !important;
-    box-shadow: var(--shadow-block-sm);
-    margin-bottom: 16px;
-}
-
-/* 타일 세트 묶음 상자 */
-.tile-group-set {
-    display: inline-flex !important;
-    align-items: center !important;
-    flex-wrap: nowrap !important;
-    gap: 3px !important;
-    padding: 12px 6px !important;
-    margin: 4px 2px !important;
-    height: fit-content !important;
-    background: #ffffff !important;
-    border: 2px dashed #d0d0d0 !important;
-    border-radius: 8px !important;
-    box-shadow: var(--shadow-block-sm);
-    cursor: pointer;
-    transition: border-color 0.15s, background-color 0.15s;
-}
-
-.tile-group-set:hover {
-    border-color: var(--brand-blue) !important;
-    background: var(--brand-blue-light) !important;
-}
-
-/* 유효하지 않은 세트 경고 */
-.tile-group-set.invalid-set {
-    border: 2px dashed #e16950 !important;
-    background-color: rgba(225, 105, 80, 0.06) !important;
-}
-
-.tile-group-set .rummi-tile {
-    min-width: 32px !important;
-    max-width: 38px !important;
-    min-height: 48px !important;
-    pointer-events: auto !important;
-}
-
-/* 타일 3D 디자인 및 선택 하이라이트 */
-.rummi-tile {
-    width: 100%;
-    aspect-ratio: 1 / 1.35;
-    background: linear-gradient(180deg, #ffffff 0%, #f7f7f5 100%) !important;
-    border: 1px solid #dcdcd0 !important;
-    border-bottom: 3px solid #b8b8a8 !important;
-    border-radius: 6px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08) !important;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: clamp(1rem, 3.2vw, 1.25rem) !important;
-    font-weight: 800 !important;
-    cursor: pointer;
-    user-select: none;
-    transition: transform 0.1s ease, border-color 0.15s !important;
-}
-
-.rummi-tile.selected {
-    border: 2px solid var(--brand-blue) !important;
-    border-bottom: 3px solid var(--brand-blue-hover) !important;
-    transform: translateY(-6px) !important;
-    box-shadow: 0 0 12px rgba(35, 131, 226, 0.6) !important;
-    z-index: 10;
-}
-
-/* 라이트모드 타일 글자색 (파란색 타일에 통일 파랑 적용) */
-.rummi-tile.tile-red { color: #d9383a !important; }
-.rummi-tile.tile-orange { color: #d9730d !important; }
-.rummi-tile.tile-blue { color: var(--brand-blue) !important; }
-.rummi-tile.tile-black { color: #37352f !important; }
-.rummi-tile.tile-joker { color: #9065b0 !important; }
-
-/* 거치대 (Rack) */
-.my-rack-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(42px, 1fr));
-    gap: 6px !important;
-    min-height: 110px !important;
-    max-height: 180px !important;
-    overflow-y: auto !important;
+    box-sizing: border-box !important;
     padding: 12px !important;
-    background: var(--bg-card);
-    border: 1px solid var(--border-block);
-    border-radius: 8px;
-    align-content: start;
-    cursor: pointer;
+    overflow: hidden !important;
 }
 
-/* 다크모드 타일 및 세트 보정 */
-[data-theme="dark"] .rummi-tile {
-    background: linear-gradient(180deg, #2f3136 0%, #222427 100%) !important;
-    border-color: #404249 !important;
-    border-bottom: 3px solid #18191c !important;
+.mobile-sidebar-close {
+    display: none !important;
 }
 
-[data-theme="dark"] .rummi-tile.tile-black { color: #f8fafc !important; }
-[data-theme="dark"] .rummi-tile.tile-red { color: #ff5c5c !important; }
-[data-theme="dark"] .rummi-tile.tile-orange { color: #f29d38 !important; }
-[data-theme="dark"] .rummi-tile.tile-blue { color: var(--brand-blue) !important; }
-[data-theme="dark"] .rummi-tile.tile-joker { color: #be95e8 !important; }
-
-[data-theme="dark"] .tile-group-set {
-    background: #1e1f22 !important;
-    border-color: #3f4248 !important;
-}
-
-[data-theme="dark"] .rummi-tile.selected {
-    border: 2px solid #38bdf8 !important;
-    border-bottom: 3px solid #0284c7 !important;
-    box-shadow: 0 0 16px rgba(56, 189, 248, 0.9) !important;
-}
-
-/* ==========================================
-   🏆 5. 전광판 및 오늘의 전적 뱃지 복원 (복구 완료)
-   ========================================== */
-.today-rank-ticker {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    background: var(--bg-card, #fff);
-    border: 1px solid var(--border-block, #e4e4e7);
-    padding: 3px 10px;
-    border-radius: 6px;
-    font-size: 0.78rem;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-}
-
-.today-rank-ticker .ticker-label {
-    font-weight: 700;
-    color: var(--text-secondary, #71717a);
-    font-size: 0.72rem;
-}
-
-.today-rank-ticker .ticker-value.gold {
-    font-weight: 800;
-    color: #d97706;
-}
-
-/* 👑 우측 사이드바 TODAY 전적 뱃지 복원 */
 .today-king-banner {
     display: flex !important;
     align-items: center !important;
     justify-content: space-between !important;
-    background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(245, 158, 11, 0.05)) !important;
-    border: 1px solid rgba(245, 158, 11, 0.35) !important;
-    border-radius: 6px !important;
-    padding: 6px 10px !important;
-    margin-bottom: 10px !important;
-    width: 100% !important;
+    padding: 8px 12px !important;
+    border-radius: 8px !important;
+    background: #fffbeb !important;
+    border: 1px solid #fde68a !important;
     box-sizing: border-box !important;
 }
 
-.today-king-banner .king-title {
-    font-size: 0.72rem !important;
+[data-theme="dark"] .today-king-banner {
+    background: rgba(245, 158, 11, 0.1) !important;
+    border-color: rgba(245, 158, 11, 0.25) !important;
+}
+
+.king-title {
+    font-size: 0.8rem !important;
     font-weight: 800 !important;
     color: #b45309 !important;
+}
+
+.king-name {
+    font-size: 0.8rem !important;
+    font-weight: 800 !important;
+    color: #d97706 !important;
+}
+
+.sidebar-section-title {
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    font-size: 0.84rem !important;
+    font-weight: 800 !important;
+    color: var(--text-primary, #1e293b) !important;
+    margin: 4px 0 !important;
+}
+
+.player-list-scroll {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+    max-height: 96px !important;
+    overflow-y: auto !important;
+}
+
+.player-card {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 5px 8px !important;
+    border-radius: 6px !important;
+    background: var(--bg-surface, #ffffff) !important;
+    border: 1px solid var(--mat-border, #e2e8f0) !important;
+    font-size: 0.78rem !important;
+}
+
+.player-card.active-turn {
+    border-color: #38bdf8 !important;
+    background: rgba(56, 189, 248, 0.08) !important;
+}
+
+.player-info {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+}
+
+.player-avatar {
+    width: 22px !important;
+    height: 22px !important;
+    border-radius: 4px !important;
+    color: #fff !important;
+    font-size: 0.75rem !important;
+    font-weight: 800 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.player-name {
+    font-size: 0.8rem !important;
+    font-weight: 700 !important;
+}
+
+/* 내부 대화창: 부모 카드 안에서 완벽하게 높이 계산 */
+.sidebar-tabbed-area {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 0 !important;
+    min-height: 0 !important;
+    border: 1px solid var(--mat-border, #e2e8f0) !important;
+    border-radius: 10px !important;
+    background: #f8fafc !important;
+    overflow: hidden !important;
+}
+
+[data-theme="dark"] .sidebar-tabbed-area {
+    background: #181b20 !important;
+    border-color: #333a44 !important;
+}
+
+.sidebar-tabs {
+    padding: 8px 12px !important;
+    font-size: 0.8rem !important;
+    font-weight: 800 !important;
+    border-bottom: 1px solid var(--mat-border, #e2e8f0) !important;
+    background: rgba(0, 0, 0, 0.02) !important;
+    color: var(--text-secondary, #64748b) !important;
     flex-shrink: 0 !important;
 }
 
-.today-king-banner .king-name {
-    font-size: 0.75rem !important;
+.chat-container {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 0 !important;
+    min-height: 0 !important;
+    padding: 8px 10px 10px 10px !important;
+    box-sizing: border-box !important;
+}
+
+.chat-messages {
+    flex: 1 1 0 !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    padding-right: 4px !important;
+}
+
+.chat-bubble-row {
+    display: flex !important;
+    flex-direction: column !important;
+    max-width: 86% !important;
+}
+
+.chat-bubble-row.other {
+    align-self: flex-start !important;
+    align-items: flex-start !important;
+}
+
+.chat-bubble-row.other .bubble {
+    background: #ffffff !important;
+    color: #1e293b !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 2px 12px 12px 12px !important;
+}
+
+[data-theme="dark"] .chat-bubble-row.other .bubble {
+    background: #232832 !important;
+    color: #f1f5f9 !important;
+    border-color: #384150 !important;
+}
+
+.chat-bubble-row.mine {
+    align-self: flex-end !important;
+    align-items: flex-end !important;
+}
+
+.chat-bubble-row.mine .bubble {
+    background: var(--brand-blue) !important;
+    color: #ffffff !important;
+    border-radius: 12px 2px 12px 12px !important;
+}
+
+.chat-sender-name {
+    font-size: 0.72rem !important;
+    font-weight: 700 !important;
+    margin-bottom: 2px !important;
+}
+
+.bubble {
+    padding: 7px 11px !important;
+    font-size: 0.82rem !important;
+    line-height: 1.45 !important;
+    word-break: break-word !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+
+.chat-time {
+    font-size: 0.65rem !important;
+    color: #94a3b8 !important;
+    margin-top: 2px !important;
+}
+
+.chat-input-box {
+    display: flex !important;
+    gap: 6px !important;
+    margin-top: 6px !important;
+    padding-top: 6px !important;
+    border-top: 1px solid var(--mat-border, #e2e8f0) !important;
+    flex-shrink: 0 !important;
+}
+
+.chat-input {
+    flex: 1 !important;
+    height: 34px !important;
+    padding: 0 10px !important;
+    font-size: 0.82rem !important;
+    border: 1.5px solid var(--mat-border, #cbd5e1) !important;
+    border-radius: 6px !important;
+    background: #ffffff !important;
+    color: #1e293b !important;
+    box-sizing: border-box !important;
+}
+
+[data-theme="dark"] .chat-input {
+    background: #1e2229 !important;
+    border-color: #3b4452 !important;
+    color: #f1f5f9 !important;
+}
+
+.chat-send-btn {
+    height: 34px !important;
+    padding: 0 12px !important;
+    background: var(--brand-blue) !important;
+    color: #fff !important;
+    border: none !important;
+    border-radius: 6px !important;
+    font-size: 0.8rem !important;
     font-weight: 800 !important;
-    color: #d97706 !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-}
-
-[data-theme="dark"] .today-king-banner {
-    background: linear-gradient(135deg, rgba(251, 191, 36, 0.12), rgba(30, 30, 30, 0.9)) !important;
-    border-color: rgba(251, 191, 36, 0.35) !important;
-}
-
-[data-theme="dark"] .today-king-banner .king-title {
-    color: #fbbf24 !important;
-}
-
-[data-theme="dark"] .today-king-banner .king-name {
-    color: #fef08a !important;
-}
-
-.danger-tile-badge {
-    background: #e16950;
-    color: #ffffff;
-    font-size: 0.7rem;
-    font-weight: bold;
-    padding: 1px 5px;
-    border-radius: 4px;
-    margin-left: 4px;
-    animation: blinkWarning 1s infinite alternate;
-}
-
-@keyframes blinkWarning {
-    0% { opacity: 0.7; }
-    100% { opacity: 1; transform: scale(1.05); }
+    cursor: pointer !important;
 }
 
 /* ==========================================
-   📱 모바일 전용 레이아웃 
+   📱 9. 모바일 전용
    ========================================== */
-@media (max-width: 640px) {
-    #board-footer { height: auto !important; }
-    #footer-waiting-controls { flex-direction: column !important; align-items: stretch !important; gap: 6px !important; }
-    .footer-left-zone, .footer-right-zone { width: 100% !important; margin-left: 0 !important; justify-content: space-between !important; }
-    .footer-right-zone { display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 4px !important; }
-    #btn-submit-turn { grid-column: span 3 !important; height: 38px !important; font-size: 0.85rem !important; }
-    #board-footer button { width: 100% !important; padding: 0 4px !important; }
-}
+@media (max-width: 900px) {
+    .arena-main {
+        flex-direction: column !important;
+    }
 
-/* 타일을 내놓았을 때 '제출 / 패스' 버튼 강조 효과 */
-#btn-submit-turn.highlight-submit {
-    background: #e11d48 !important; /* 강렬한 레드/로즈 포인트 */
-    color: #ffffff !important;
-    border-color: #be123c !important;
-    box-shadow: 0 0 12px rgba(225, 29, 72, 0.7) !important;
-    animation: submitBtnPulse 1.2s infinite alternate !important;
-}
+    .sidebar-panel {
+        position: fixed !important;
+        bottom: 0 !important;
+        right: 0 !important;
+        width: 100vw !important;
+        height: 75vh !important;
+        z-index: 1800 !important;
+        background: var(--bg-surface, #ffffff) !important;
+        border-radius: 16px 16px 0 0 !important;
+        box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.2) !important;
+        transform: translateY(100%) !important;
+        transition: transform 0.25s ease !important;
+    }
 
-@keyframes submitBtnPulse {
-    0% { transform: scale(1); box-shadow: 0 0 6px rgba(225, 29, 72, 0.5); }
-    100% { transform: scale(1.05); box-shadow: 0 0 16px rgba(225, 29, 72, 0.9); }
-}
+    .sidebar-panel.active {
+        transform: translateY(0) !important;
+    }
 
-[data-theme="dark"] #btn-submit-turn.highlight-submit {
-    background: #f43f5e !important;
-    color: #ffffff !important;
-    border-color: #e11d48 !important;
-    box-shadow: 0 0 14px rgba(244, 63, 94, 0.8) !important;
+    .mobile-sidebar-close {
+        display: block !important;
+        background: transparent !important;
+        border: none !important;
+        font-weight: 800 !important;
+        font-size: 0.85rem !important;
+        color: var(--text-muted) !important;
+        padding: 4px !important;
+        text-align: right !important;
+        cursor: pointer !important;
+    }
 }
