@@ -20,6 +20,9 @@
     let localTableSets = [];
     let currentSortMode = 'none'; 
     let selectedTimeLimit = 60; 
+	// ★ 테이블 스케일 및 자동 줌 제어 변수 추가
+    let tableZoomScale = 1.0;
+    let isAutoZoomMode = true;
 
     let timerInterval = null;
     let timerSecondsLeft = 60;
@@ -332,6 +335,32 @@
             localRack.sort((a, b) => a.number - b.number || a.color.localeCompare(b.color));
         }
     }
+	function setTableZoom(scale, isAuto = false) {
+        tableZoomScale = Math.min(1.15, Math.max(0.62, Math.round(scale * 100) / 100));
+        const container = document.getElementById('table-sets-container');
+        const zoomText = document.getElementById('zoom-level-text');
+
+        if (container) {
+            container.style.setProperty('--rummi-scale', tableZoomScale);
+        }
+        if (zoomText) {
+            zoomText.innerText = `${Math.round(tableZoomScale * 100)}%${isAuto ? '(A)' : ''}`;
+        }
+    }
+
+    function evaluateAutoZoom() {
+        if (!isAutoZoomMode) return;
+        const setCount = localTableSets.length;
+        if (setCount <= 6) {
+            setTableZoom(1.0, true);
+        } else if (setCount <= 10) {
+            setTableZoom(0.88, true);
+        } else if (setCount <= 14) {
+            setTableZoom(0.78, true);
+        } else {
+            setTableZoom(0.68, true);
+        }
+    }
 
     function updateUI(isFirstJoin) {
         if (!roomState) return;
@@ -610,6 +639,10 @@
     function renderTable() {
         const container = document.getElementById('table-sets-container');
         if (!container) return;
+        
+        // ★ 렌더링 시 자동 줌 배율 계산 적용
+        evaluateAutoZoom();
+
         container.innerHTML = '';
 
         // 공유 테이블 빈 바닥 클릭 시: 선택된 타일들을 분리/추출하여 새로운 독립 세트로 생성
@@ -868,26 +901,27 @@
     }
 
     function showWinnerModal(winnerName) {
-        const finalWinner = String(winnerName || '우승자').trim();
+        const finalWinner = String(winnerName || '알 수 없는 플레이어').trim();
         let modal = document.getElementById('winner-modal');
         if (!modal) {
             modal = document.createElement('div');
             modal.id = 'winner-modal';
-            modal.className = 'modal-overlay active';
-            modal.innerHTML = `
-                <div class="modal-box" style="text-align: center; padding: 24px;">
-                    <div style="font-size: 3.5rem; margin-bottom: 10px;">🏆</div>
-                    <h2 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 8px;">최종 우승!</h2>
-                    <p style="font-size: 1rem; color: var(--brand-blue); font-weight: bold; margin-bottom: 16px;">
-                        [${escapeHtml(finalWinner)}] 님이 승리하셨습니다!
-                    </p>
-                    <p style="font-size: 0.8rem; color: var(--text-muted);">잠시 후 대기실로 이동합니다...</p>
-                </div>
-            `;
+            modal.className = 'modal-overlay';
             document.body.appendChild(modal);
-        } else {
-            modal.classList.add('active');
         }
+        
+        // 모달이 이미 존재하더라도 우승자 닉네임을 반드시 새로 반영하여 렌더링
+        modal.innerHTML = `
+            <div class="modal-box" style="text-align: center; padding: 24px;">
+                <div style="font-size: 3.5rem; margin-bottom: 10px;">🏆</div>
+                <h2 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 8px;">최종 우승!</h2>
+                <p style="font-size: 1.05rem; color: var(--brand-blue); font-weight: bold; margin-bottom: 16px;">
+                    [${escapeHtml(finalWinner)}] 님이 승리하셨습니다!
+                </p>
+                <p style="font-size: 0.8rem; color: var(--text-muted);">잠시 후 대기실로 이동합니다...</p>
+            </div>
+        `;
+        modal.classList.add('active');
         setTimeout(() => { if (modal) modal.classList.remove('active'); }, 3500);
     }
 
@@ -904,6 +938,43 @@
         const btnResetTurn = document.getElementById('btn-reset-turn');
         const btnSubmitTurn = document.getElementById('btn-submit-turn');
         const btnCopyLink = document.getElementById('btn-copy-link');
+		const btnZoomOut = document.getElementById('btn-zoom-out');
+        const btnZoomIn = document.getElementById('btn-zoom-in');
+        const btnZoomAuto = document.getElementById('btn-zoom-auto');
+        const tableBoard = document.getElementById('table-sets-container');
+
+        if (btnZoomOut) {
+            btnZoomOut.onclick = (e) => {
+                e.stopPropagation();
+                isAutoZoomMode = false;
+                setTableZoom(tableZoomScale - 0.08);
+            };
+        }
+        if (btnZoomIn) {
+            btnZoomIn.onclick = (e) => {
+                e.stopPropagation();
+                isAutoZoomMode = false;
+                setTableZoom(tableZoomScale + 0.08);
+            };
+        }
+        if (btnZoomAuto) {
+            btnZoomAuto.onclick = (e) => {
+                e.stopPropagation();
+                isAutoZoomMode = true;
+                evaluateAutoZoom();
+                showToast("세트 수에 맞춰 자동 배율로 정렬되었습니다.");
+            };
+        }
+        if (tableBoard) {
+            tableBoard.addEventListener('wheel', (e) => {
+                if (e.ctrlKey || e.metaKey) {
+                    e.preventDefault();
+                    isAutoZoomMode = false;
+                    const delta = e.deltaY < 0 ? 0.05 : -0.05;
+                    setTableZoom(tableZoomScale + delta);
+                }
+            }, { passive: false });
+        }
 
         const mobileFabBtn = document.getElementById('mobile-fab-btn');
         const sidebarPanel = document.getElementById('sidebar-panel');

@@ -166,7 +166,15 @@
 
             <div class="arena-main" id="arena-main">
                 <!-- 좌측 메인 보드 영역 -->
-                <div class="board-container">
+                <div class="board-container" style="position: relative;">
+                    <!-- 테이블 스마트 줌 컨트롤러 -->
+                    <div class="table-zoom-widget">
+                        <button type="button" class="zoom-btn" id="btn-zoom-out" title="축소">－</button>
+                        <span class="zoom-level-text" id="zoom-level-text">100%</span>
+                        <button type="button" class="zoom-btn" id="btn-zoom-in" title="확대">＋</button>
+                        <button type="button" class="zoom-btn" id="btn-zoom-auto" title="세트 수에 맞춰 자동 배율 맞춤">AUTO 🎯</button>
+                    </div>
+
                     <div class="rummikub-table-board" id="table-sets-container"></div>
 
                     <div class="board-footer" id="board-footer">
