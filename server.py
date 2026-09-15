@@ -1172,13 +1172,42 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
                     rule_type = room.get('rule_type', 'official')
 
                     def get_set_score(s):
+                        if not s:
+                            return 0
                         non_jokers = [t for t in s if not t.get('is_joker')]
-                        if not non_jokers: return 0
-                        is_group = all(t['number'] == non_jokers[0]['number'] for t in non_jokers)
-                        if is_group: return non_jokers[0]['number'] * len(s)
-                        return sum(t['number'] for t in non_jokers)
+                        joker_count = len(s) - len(non_jokers)
+                        if not non_jokers:
+                            return 0
 
-                    # 내가 새로 내놓은 타일이 1장이라도 포함된 세트들만 추출 (남이 만든 세트 제외)
+                        # 1) 그룹 세트 (숫자가 같고 색상이 다름)
+                        is_group = all(t['number'] == non_jokers[0]['number'] for t in non_jokers)
+                        if is_group:
+                            return non_jokers[0]['number'] * len(s)
+
+                        # 2) 연속 세트 (색상이 같고 연속된 숫자)
+                        sorted_nums = sorted([t['number'] for t in non_jokers])
+                        min_num = sorted_nums[0]
+                        max_num = sorted_nums[-1]
+
+                        # 숫자 사이 빈틈(gap)에 들어간 조커 수
+                        internal_gaps = sum(sorted_nums[i + 1] - sorted_nums[i] - 1 for i in range(len(sorted_nums) - 1))
+                        remaining_jokers = joker_count - internal_gaps
+
+                        start_num = min_num
+                        end_num = max_num
+
+                        # 양 끝에 붙은 조커 처리
+                        while remaining_jokers > 0:
+                            if end_num < 13:
+                                end_num += 1
+                            elif start_num > 1:
+                                start_num -= 1
+                            remaining_jokers -= 1
+
+                        # 조커가 채워진 전체 세트의 실제 숫자 총합 계산
+                        return sum(start_num + i for i in range(len(s)))
+
+                    # 내가 새로 내놓은 타일이 1장이라도 포함된 세트들만 추출
                     my_new_sets = [
                         s for s in new_table 
                         if any(t['id'] in old_rack_ids for t in s)
@@ -1201,7 +1230,6 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
                             else: await ws.send(json.dumps(err_msg, ensure_ascii=False))
                             return current_room_id
 
-                    # 30점 이상 등록 조건 통과 시 즉시 플래그 True 저장 (이후 턴부터 30점 조건 면제)
                     player['has_opened'] = True
 
                 # 타일을 내지 않고 턴을 마친 경우 타일 1장 드로우

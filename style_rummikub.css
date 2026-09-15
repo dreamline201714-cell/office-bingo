@@ -9,7 +9,7 @@
     --mat-border: #cbd5e1;
     --mat-shadow: inset 0 3px 12px rgba(0, 0, 0, 0.08), 0 4px 10px rgba(0, 0, 0, 0.03);
 
-    /* 원목 거치대 */
+    /* 원목 거치대 (라이트) */
     --wood-top: #deb887;
     --wood-mid: #b87c42;
     --wood-lip: #8c5625;
@@ -24,10 +24,11 @@
     --mat-border: #333a46;
     --mat-shadow: inset 0 4px 16px rgba(0, 0, 0, 0.65), 0 4px 12px rgba(0, 0, 0, 0.3);
 
-    --wood-top: #9c6c3e;
-    --wood-mid: #6e441d;
-    --wood-lip: #4a2807;
-    --wood-groove: rgba(0, 0, 0, 0.7);
+    /* 원목 거치대 (다크: 튀지 않는 차분한 딥 다크 월넛) */
+    --wood-top: #382e2b;
+    --wood-mid: #28211f;
+    --wood-lip: #191413;
+    --wood-groove: rgba(10, 8, 8, 0.85);
 }
 
 /* ==========================================
@@ -209,6 +210,12 @@
     box-sizing: border-box;
 }
 
+[data-theme="dark"] .rack-wood-panel {
+    border: 1.5px solid rgba(255, 255, 255, 0.12) !important;
+    border-bottom: 5px solid rgba(0, 0, 0, 0.8) !important;
+    box-shadow: 0 -4px 14px rgba(0, 0, 0, 0.5), inset 0 1px 2px rgba(255, 255, 255, 0.08) !important;
+}
+
 .rack-wood-top-bar {
     display: flex;
     justify-content: space-between;
@@ -221,7 +228,7 @@
 }
 
 [data-theme="dark"] .rack-wood-top-bar {
-    color: #fce7d2;
+    color: #cbd5e1 !important;
 }
 
 .wood-brand {
@@ -346,7 +353,7 @@
 }
 
 /* ==========================================
-   💬 8. 상시 고정 우측 사이드바 (높이 버그 완벽 해결)
+   💬 8. 상시 고정 우측 사이드바 & 말풍선 디자인
    ========================================== */
 .sidebar-panel {
     flex: 0 0 320px !important;
@@ -449,7 +456,6 @@
     font-weight: 700 !important;
 }
 
-/* 내부 대화창: 부모 카드 안에서 완벽하게 높이 계산 */
 .sidebar-tabbed-area {
     display: flex !important;
     flex-direction: column !important;
@@ -491,7 +497,7 @@
     overflow-y: auto !important;
     display: flex !important;
     flex-direction: column !important;
-    gap: 8px !important;
+    gap: 4px !important;
     padding-right: 4px !important;
 }
 
@@ -499,6 +505,7 @@
     display: flex !important;
     flex-direction: column !important;
     max-width: 86% !important;
+    margin-bottom: 2px !important;
 }
 
 .chat-bubble-row.other {
@@ -513,10 +520,12 @@
     border-radius: 2px 12px 12px 12px !important;
 }
 
+/* [다크모드 상대방 말풍선]: 묻히지 않는 슬레이트 차콜 + 뚜렷한 경계선 */
 [data-theme="dark"] .chat-bubble-row.other .bubble {
-    background: #232832 !important;
-    color: #f1f5f9 !important;
-    border-color: #384150 !important;
+    background: #334155 !important;
+    color: #f8fafc !important;
+    border: 1px solid #475569 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
 }
 
 .chat-bubble-row.mine {
@@ -530,6 +539,14 @@
     border-radius: 12px 2px 12px 12px !important;
 }
 
+/* [다크모드 내 말풍선]: 형광기를 뺀 안정적인 로열 인디고 블루 */
+[data-theme="dark"] .chat-bubble-row.mine .bubble {
+    background: #2563eb !important;
+    color: #ffffff !important;
+    border: 1px solid #3b82f6 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4) !important;
+}
+
 .chat-sender-name {
     font-size: 0.72rem !important;
     font-weight: 700 !important;
@@ -537,17 +554,22 @@
 }
 
 .bubble {
-    padding: 7px 11px !important;
+    padding: 6px 10px !important;
     font-size: 0.82rem !important;
-    line-height: 1.45 !important;
+    line-height: 1.4 !important;
     word-break: break-word !important;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
 }
 
 .chat-time {
-    font-size: 0.65rem !important;
+    font-size: 0.62rem !important;
     color: #94a3b8 !important;
-    margin-top: 2px !important;
+    margin-top: 1px !important;
+    line-height: 1 !important;
+}
+
+[data-theme="dark"] .chat-time {
+    color: #64748b !important;
 }
 
 .chat-input-box {

@@ -273,24 +273,54 @@
     }
 
     function calculateSetScore(set) {
-        if (!set) return 0;
+        if (!set || set.length === 0) return 0;
         const nonJokers = set.filter(t => !t.is_joker);
         const jokerCount = set.length - nonJokers.length;
         if (nonJokers.length === 0) return 0;
 
+        // 그룹 (같은 숫자, 다른 색상): 조커도 해당 숫자의 값을 가짐
         const isGroup = nonJokers.every(t => t.number === nonJokers[0].number);
-        if (isGroup) return nonJokers[0].number * set.length;
+        if (isGroup) {
+            return nonJokers[0].number * set.length;
+        }
 
+        // 연속 (같은 색상, 연속된 숫자)
         const isSameColor = nonJokers.every(t => t.color === nonJokers[0].color);
         if (isSameColor) {
             const sorted = [...nonJokers].sort((a, b) => a.number - b.number);
-            let scoreSum = sorted.reduce((acc, curr) => acc + curr.number, 0);
-            let maxNum = sorted[sorted.length - 1].number;
-            for (let i = 0; i < jokerCount; i++) {
-                maxNum += 1;
-                scoreSum += maxNum;
+            const minNum = sorted[0].number;
+            const maxNum = sorted[sorted.length - 1].number;
+
+            // nonJokers 내부의 빈 간격(gap) 수 계산
+            let internalGaps = 0;
+            for (let i = 0; i < sorted.length - 1; i++) {
+                internalGaps += (sorted[i + 1].number - sorted[i].number - 1);
             }
-            return scoreSum;
+
+            // 남은 조커 개수
+            let remainingJokers = jokerCount - internalGaps;
+
+            // 시작 번호(startNum) 결정: 앞쪽으로 1 미만이 되지 않는 한도 내에서 최대한 확장
+            let startNum = minNum;
+            // 끝 번호(endNum) 기본값
+            let endNum = maxNum;
+
+            // 남는 조커는 뒤(13 이하) 또는 앞(1 이상)에 배치
+            while (remainingJokers > 0) {
+                if (endNum < 13) {
+                    endNum++;
+                } else if (startNum > 1) {
+                    startNum--;
+                }
+                remainingJokers--;
+            }
+
+            // startNum부터 set.length 개의 연속된 숫자 합산
+            let totalScore = 0;
+            for (let i = 0; i < set.length; i++) {
+                totalScore += (startNum + i);
+            }
+            return totalScore;
         }
         return 0;
     }
@@ -560,10 +590,11 @@
             const tableSelected = selectedTiles.filter(st => st.source === 'table');
             if (tableSelected.length === 0) return;
 
+            const selectedIds = new Set(tableSelected.map(t => t.id));
+            localTableSets = localTableSets.map(set => set.filter(t => !selectedIds.has(t.id)));
+            localTableSets = localTableSets.filter(s => s && s.length > 0);
+
             tableSelected.forEach(st => {
-                if (localTableSets[st.setIndex]) {
-                    localTableSets[st.setIndex] = localTableSets[st.setIndex].filter(t => t.id !== st.id);
-                }
                 localRack.push({ id: st.id, color: st.color, number: st.number, is_joker: st.is_joker });
             });
 
@@ -581,21 +612,30 @@
         if (!container) return;
         container.innerHTML = '';
 
-        container.onclick = () => {
+        // 공유 테이블 빈 바닥 클릭 시: 선택된 타일들을 분리/추출하여 새로운 독립 세트로 생성
+        container.onclick = (e) => {
+            if (e.target.closest('.rummi-tile-wrapper')) return;
+            if (e.target.closest('.tile-group-set')) return;
+
             if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) return;
             if (selectedTiles.length === 0) return;
 
-            selectedTiles.forEach(st => {
-                if (st.source === 'rack') {
-                    localRack = localRack.filter(t => t.id !== st.id);
-                } else if (st.source === 'table') {
-                    if (localTableSets[st.setIndex]) {
-                        localTableSets[st.setIndex] = localTableSets[st.setIndex].filter(t => t.id !== st.id);
-                    }
-                }
-            });
+            const selectedIds = new Set(selectedTiles.map(t => t.id));
 
-            const newSetRaw = selectedTiles.map(st => ({ id: st.id, color: st.color, number: st.number, is_joker: st.is_joker }));
+            // 1) 랙에서 선택된 타일 제거
+            localRack = localRack.filter(t => !selectedIds.has(t.id));
+
+            // 2) 기존 테이블 세트들에서 추출된 타일들 제거
+            localTableSets = localTableSets.map(set => set.filter(t => !selectedIds.has(t.id)));
+            localTableSets = localTableSets.filter(s => s && s.length > 0);
+
+            // 3) 새 세트로 테이블에 추가
+            const newSetRaw = selectedTiles.map(st => ({ 
+                id: st.id, 
+                color: st.color, 
+                number: st.number, 
+                is_joker: st.is_joker 
+            }));
             localTableSets.push(sortTileSetAuto(newSetRaw));
 
             playSoundEffect('place');
@@ -613,6 +653,7 @@
             emptyGuide.innerText = selectedTiles.length > 0 
                 ? '🧩 선택한 타일을 여기(공유 테이블)를 클릭하여 새 세트로 내놓으세요!' 
                 : '공유 테이블이 비어있습니다.';
+            emptyGuide.style.pointerEvents = 'none';
             container.appendChild(emptyGuide);
             updateSubmitButtonHighlight();
             return;
@@ -631,15 +672,11 @@
                     div.classList.add('just-placed');
                 }
 
+                // 타일 클릭: 타일 단일 선택/해제 토글 (복수 선택 유지)
                 div.onclick = (e) => {
                     e.stopPropagation();
                     if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) {
                         showToast("내 턴일 때만 조작할 수 있습니다.");
-                        return;
-                    }
-
-                    if (selectedTiles.length > 0) {
-                        mergeSelectedTilesIntoSet(setIndex);
                         return;
                     }
 
@@ -656,10 +693,15 @@
                 setEl.appendChild(div);
             });
 
+            // 세트 트레이 여백 클릭 시: 선택된 타일들을 이 세트에 결합 (Merge)
             setEl.onclick = (e) => {
                 e.stopPropagation();
                 if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) return;
                 if (selectedTiles.length === 0) return;
+
+                const onlyFromThisSet = selectedTiles.every(st => st.source === 'table' && st.setIndex === setIndex);
+                if (onlyFromThisSet) return;
+
                 mergeSelectedTilesIntoSet(setIndex);
             };
 
@@ -686,22 +728,33 @@
     }
 
     function mergeSelectedTilesIntoSet(targetSetIndex) {
-        selectedTiles.forEach(st => {
-            if (st.source === 'rack') {
-                localRack = localRack.filter(t => t.id !== st.id);
-            } else if (st.source === 'table') {
-                if (localTableSets[st.setIndex]) {
-                    localTableSets[st.setIndex] = localTableSets[st.setIndex].filter(t => t.id !== st.id);
-                }
-            }
-        });
+        const selectedIds = new Set(selectedTiles.map(t => t.id));
 
-        const rawTiles = selectedTiles.map(st => ({ id: st.id, color: st.color, number: st.number, is_joker: st.is_joker }));
-        localTableSets[targetSetIndex] = sortTileSetAuto([...localTableSets[targetSetIndex], ...rawTiles]);
+        // 1) 랙에서 제거
+        localRack = localRack.filter(t => !selectedIds.has(t.id));
+
+        // 2) 기존 테이블 세트들에서 타일 제거
+        localTableSets = localTableSets.map(set => set.filter(t => !selectedIds.has(t.id)));
+
+        const rawTiles = selectedTiles.map(st => ({ 
+            id: st.id, 
+            color: st.color, 
+            number: st.number, 
+            is_joker: st.is_joker 
+        }));
+        
+        // 3) 대상 세트에 합치고 자동 정렬
+        if (localTableSets[targetSetIndex]) {
+            localTableSets[targetSetIndex] = sortTileSetAuto([...localTableSets[targetSetIndex], ...rawTiles]);
+        } else {
+            localTableSets.push(sortTileSetAuto(rawTiles));
+        }
+
+        localTableSets = localTableSets.filter(s => s && s.length > 0);
 
         playSoundEffect('place');
         selectedTiles = [];
-        showToast("타일을 해당 세트에 합치고 정렬했습니다.");
+        showToast("타일을 해당 세트에 합쳤습니다.");
         renderRack();
         renderTable();
     }
@@ -776,20 +829,33 @@
         chatBox.innerHTML = '';
 
         const myNick = localStorage.getItem('office_rummikub_last_nickname');
+        const logs = (roomState.chat_logs || []).filter(c => !c.system);
 
-        (roomState.chat_logs || []).forEach(chat => {
-            if (chat.system) return;
-
+        logs.forEach((chat, idx) => {
             const isMine = (chat.nickname === myNick);
             const row = document.createElement('div');
             row.className = `chat-bubble-row ${isMine ? 'mine' : 'other'}`;
 
-            const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const chatTime = chat.timestamp ? new Date(chat.timestamp) : new Date();
+            const timeStr = chatTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            const nextChat = logs[idx + 1];
+            let showTime = true;
+            if (nextChat && nextChat.nickname === chat.nickname) {
+                const nextTime = nextChat.timestamp ? new Date(nextChat.timestamp) : new Date();
+                const nextTimeStr = nextTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                if (nextTimeStr === timeStr) {
+                    showTime = false;
+                }
+            }
+
+            const prevChat = logs[idx - 1];
+            const isFirstFromSender = !prevChat || prevChat.nickname !== chat.nickname;
 
             row.innerHTML = `
-                ${!isMine ? `<span class="chat-sender-name" style="color:${chat.color || '#64748b'}">${escapeHtml(chat.nickname)}</span>` : ''}
+                ${(!isMine && isFirstFromSender) ? `<span class="chat-sender-name" style="color:${chat.color || '#64748b'}">${escapeHtml(chat.nickname)}</span>` : ''}
                 <div class="bubble">${escapeHtml(chat.text)}</div>
-                <span class="chat-time">${timeStr}</span>
+                ${showTime ? `<span class="chat-time">${timeStr}</span>` : ''}
             `;
             chatBox.appendChild(row);
         });
@@ -839,7 +905,6 @@
         const btnSubmitTurn = document.getElementById('btn-submit-turn');
         const btnCopyLink = document.getElementById('btn-copy-link');
 
-        // 모바일 사이드바 제어
         const mobileFabBtn = document.getElementById('mobile-fab-btn');
         const sidebarPanel = document.getElementById('sidebar-panel');
         const mobileSidebarClose = document.getElementById('mobile-sidebar-close');
