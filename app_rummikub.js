@@ -440,6 +440,17 @@
                 playSoundEffect('turn');
                 showToast("🧩 당신의 턴입니다! 배치를 시작하세요.");
                 selectedTiles = [];
+
+                // 내 턴이 시작되면 상대 턴에 조합하던 임시작업대 타일을 랙으로 안전하게 자동 병합
+                const scratchTiles = localScratchSlots.flat();
+                if (scratchTiles.length > 0) {
+                    const existingIds = new Set(localRack.map(t => t.id));
+                    scratchTiles.forEach(st => {
+                        if (!existingIds.has(st.id)) localRack.push(st);
+                    });
+                    localScratchSlots = [[]];
+                }
+
                 initialTurnRack = JSON.parse(JSON.stringify(myPlayer?.rack || []));
                 initialTurnTableSets = JSON.parse(JSON.stringify(roomState.table_sets || []));
                 lastTurnNumber = turnNumber;
@@ -504,12 +515,24 @@
                         }
                     }
 
+                    // 타임아웃 시 임시작업대 타일이 있으면 랙으로 자동 회수하여 타일 유실 방지
+                    const scratchTiles = localScratchSlots.flat();
+                    if (scratchTiles.length > 0) {
+                        const existingIds = new Set(localRack.map(t => t.id));
+                        scratchTiles.forEach(st => {
+                            if (!existingIds.has(st.id)) localRack.push(st);
+                        });
+                        localScratchSlots = [[]];
+                    }
+
                     if (isTilePlaced && !invalidSet && isMeldValid) {
                         showToast("⏱️ 시간 초과로 자동 제출되었습니다.");
                         sendMessage({ type: 'SUBMIT_TURN', room_id: currentRoomId, table_sets: localTableSets, rack: localRack });
                     } else {
                         showToast("⏱️ 제한 시간 초과! (타일 1장을 가져옵니다)");
                         selectedTiles = [];
+                        // 턴 시작 스냅샷 상태로 롤백 후 패스
+                        localTableSets = JSON.parse(JSON.stringify(initialTurnTableSets || []));
                         sendMessage({ type: 'TIMEOUT_PASS', room_id: currentRoomId });
                     }
                 }
@@ -612,10 +635,7 @@
 
             div.onclick = (e) => {
                 e.stopPropagation();
-                if (String(myPlayerId) !== String(roomState?.current_turn_player_id) && roomState?.status === 'PLAYING') {
-                    showToast("내 턴일 때만 조작할 수 있습니다.");
-                    return;
-                }
+                // ★ 상대방 턴에도 내 거치대 타일은 자유롭게 선택/해제 허용 (가드 제거)
 
                 playSoundEffect('click');
                 if (isSel) {
@@ -624,13 +644,16 @@
                     selectedTiles.push({ ...tile, source: 'rack', rackIndex: index });
                 }
                 renderRack();
+                renderScratchpad();
                 renderTable();
             };
             container.appendChild(div);
         });
 
         container.onclick = (e) => {
-          // 내 턴이 아니어도 내 랙으로의 회수는 허용 (상대 턴 시뮬레이션 종료 지원)
+          // 랙 내부의 타일 엘리먼트 자체를 클릭한 경우 이벤트 전파 방지
+          if (e.target.closest('.rummi-tile-wrapper')) return;
+
           const isMyTurn = (String(myPlayerId) === String(roomState?.current_turn_player_id) && roomState?.status === 'PLAYING');
           const hasTableTile = selectedTiles.some(t => t.source === 'table');
           if (!isMyTurn && hasTableTile) {
@@ -641,18 +664,20 @@
 
           const selectedIds = new Set(selectedTiles.map(t => t.id));
 
-          // 테이블 및 다중 스크래치 슬롯에서 제거
+          // 1) ★ 핵심: 거치대 자체에서 선택된 타일도 localRack에서 먼저 확실히 제거 (무한 증식 차단)
+          localRack = localRack.filter(t => !selectedIds.has(t.id));
+
+          // 2) 테이블 및 임시작업대 슬롯에서도 제거
           if (isMyTurn) {
               localTableSets = localTableSets.map(set => set.filter(t => !selectedIds.has(t.id)));
               localTableSets = localTableSets.filter(s => s && s.length > 0);
           }
           localScratchSlots = localScratchSlots.map(slot => slot.filter(t => !selectedIds.has(t.id)));
 
-          // 기존 랙에 이미 존재하는 타일 ID 집합
+          // 3) 거치대에 없는 타일만 중복 없이 담기
           const existingRackIds = new Set(localRack.map(t => t.id));
 
           selectedTiles.forEach(st => {
-              // 이미 존재하는 타일이면 중복 push 차단
               if (!existingRackIds.has(st.id)) {
                   localRack.push({ id: st.id, color: st.color, number: st.number, is_joker: st.is_joker });
                   existingRackIds.add(st.id);
@@ -665,7 +690,7 @@
           renderRack();
           renderScratchpad();
           renderTable();
-          showToast("선택한 타일을 거치대로 회수했습니다.");
+          showToast("타일을 거치대에 배치했습니다.");
       };
     }
 	
@@ -971,10 +996,16 @@
         }
     }
 
-    function mergeSelectedTilesIntoSet(targetSetIndex) {
+   function mergeSelectedTilesIntoSet(targetSetIndex) {
+		const isMyTurn = (String(myPlayerId) === String(roomState?.current_turn_player_id) && roomState?.status === 'PLAYING');
+		if (!isMyTurn) {
+			showToast("내 턴일 때만 테이블 세트에 타일을 합칠 수 있습니다.");
+			return;
+		}
+
 		const selectedIds = new Set(selectedTiles.map(t => t.id));
 
-		// 1) 랙, 테이블, 다중 스크래치 슬롯에서 제거
+		// 1) 랙, 기존 테이블 세트, 다중 스크래치 슬롯 전 구역에서 선택 타일 원천 제거
 		localRack = localRack.filter(t => !selectedIds.has(t.id));
 		localTableSets = localTableSets.map(set => set.filter(t => !selectedIds.has(t.id)));
 		localScratchSlots = localScratchSlots.map(slot => slot.filter(t => !selectedIds.has(t.id)));
