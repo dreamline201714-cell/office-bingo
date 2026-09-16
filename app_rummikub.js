@@ -449,7 +449,11 @@
         }
 
         if (myPlayer && myPlayer.rack) {
-            localRack = [...myPlayer.rack];
+            // 임시작업대에 이미 올라가 있는 타일 ID 추출
+            const scratchTileIds = new Set(localScratchSlots.flat().map(t => t.id));
+            
+            // 서버의 최신 랙 타일 중 임시작업대에 빠져나간 타일을 제외하여 복제 방지
+            localRack = myPlayer.rack.filter(t => !scratchTileIds.has(t.id));
             applyRackSort();
         }
 
@@ -457,7 +461,7 @@
         localTableSets = localTableSets.map(set => sortTileSetAuto(set));
 
         renderRack();
-		renderScratchpad();
+        renderScratchpad();
         renderTable();
         renderPlayers();
         renderChatLogs();
@@ -626,18 +630,33 @@
         });
 
         container.onclick = (e) => {
-          if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) return;
+          // 내 턴이 아니어도 내 랙으로의 회수는 허용 (상대 턴 시뮬레이션 종료 지원)
+          const isMyTurn = (String(myPlayerId) === String(roomState?.current_turn_player_id) && roomState?.status === 'PLAYING');
+          const hasTableTile = selectedTiles.some(t => t.source === 'table');
+          if (!isMyTurn && hasTableTile) {
+              showToast("상대방의 턴에는 바닥 타일을 회수할 수 없습니다.");
+              return;
+          }
           if (selectedTiles.length === 0) return;
 
           const selectedIds = new Set(selectedTiles.map(t => t.id));
 
           // 테이블 및 다중 스크래치 슬롯에서 제거
-          localTableSets = localTableSets.map(set => set.filter(t => !selectedIds.has(t.id)));
-          localTableSets = localTableSets.filter(s => s && s.length > 0);
+          if (isMyTurn) {
+              localTableSets = localTableSets.map(set => set.filter(t => !selectedIds.has(t.id)));
+              localTableSets = localTableSets.filter(s => s && s.length > 0);
+          }
           localScratchSlots = localScratchSlots.map(slot => slot.filter(t => !selectedIds.has(t.id)));
 
+          // 기존 랙에 이미 존재하는 타일 ID 집합
+          const existingRackIds = new Set(localRack.map(t => t.id));
+
           selectedTiles.forEach(st => {
-              localRack.push({ id: st.id, color: st.color, number: st.number, is_joker: st.is_joker });
+              // 이미 존재하는 타일이면 중복 push 차단
+              if (!existingRackIds.has(st.id)) {
+                  localRack.push({ id: st.id, color: st.color, number: st.number, is_joker: st.is_joker });
+                  existingRackIds.add(st.id);
+              }
           });
 
           playSoundEffect('place');
