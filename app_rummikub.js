@@ -336,7 +336,8 @@
         }
     }
 	function setTableZoom(scale, isAuto = false) {
-        tableZoomScale = Math.min(1.15, Math.max(0.62, Math.round(scale * 100) / 100));
+        // ★ 최소 배율을 0.72(72%)로 방어하여 타일 식별 및 여유 폭 보장
+        tableZoomScale = Math.min(1.05, Math.max(0.72, Math.round(scale * 100) / 100));
         const container = document.getElementById('table-sets-container');
         const zoomText = document.getElementById('zoom-level-text');
 
@@ -351,14 +352,16 @@
     function evaluateAutoZoom() {
         if (!isAutoZoomMode) return;
         const setCount = localTableSets.length;
-        if (setCount <= 6) {
+        
+        // ★ 5~6타일 버퍼가 유지되므로 실제 보드 세트 개수에 맞춰 현실적으로 축소
+        if (setCount <= 4) {
             setTableZoom(1.0, true);
-        } else if (setCount <= 10) {
-            setTableZoom(0.88, true);
-        } else if (setCount <= 14) {
-            setTableZoom(0.78, true);
+        } else if (setCount <= 8) {
+            setTableZoom(0.90, true);
+        } else if (setCount <= 12) {
+            setTableZoom(0.82, true);
         } else {
-            setTableZoom(0.68, true);
+            setTableZoom(0.74, true);
         }
     }
 
