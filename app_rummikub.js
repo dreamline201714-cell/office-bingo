@@ -18,6 +18,10 @@
     let selectedTiles = []; 
     let localRack = [];
     let localTableSets = [];
+	// ★ 2차원 배열 형태의 다중 슬롯 임시 보관함 (기본 1개 슬롯 제공)
+    let localScratchSlots = [[]]; 
+    let isScratchpadOpen = false;
+	
     let currentSortMode = 'none'; 
     let selectedTimeLimit = 60; 
 	// ★ 테이블 스케일 및 자동 줌 제어 변수 추가
@@ -453,6 +457,7 @@
         localTableSets = localTableSets.map(set => sortTileSetAuto(set));
 
         renderRack();
+		renderScratchpad();
         renderTable();
         renderPlayers();
         renderChatLogs();
@@ -595,7 +600,10 @@
         container.innerHTML = '';
 
         localRack.forEach((tile, index) => {
-            const isSel = selectedTiles.some(t => t.id === tile.id);
+            // ★ 수정: 단순 tile.id 검사가 아니라 rack 출처와 고유 인덱스(또는 ID 일치)를 정밀하게 확인
+            const isSel = selectedTiles.some(t => 
+                t.source === 'rack' ? (t.rackIndex === index && t.id === tile.id) : (t.id === tile.id)
+            );
             const div = createTileElement(tile, isSel);
 
             div.onclick = (e) => {
@@ -607,7 +615,7 @@
 
                 playSoundEffect('click');
                 if (isSel) {
-                    selectedTiles = selectedTiles.filter(t => t.id !== tile.id);
+                    selectedTiles = selectedTiles.filter(t => !(t.source === 'rack' && t.rackIndex === index));
                 } else {
                     selectedTiles.push({ ...tile, source: 'rack', rackIndex: index });
                 }
@@ -618,25 +626,206 @@
         });
 
         container.onclick = (e) => {
-            if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) return;
-            const tableSelected = selectedTiles.filter(st => st.source === 'table');
-            if (tableSelected.length === 0) return;
+          if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) return;
+          if (selectedTiles.length === 0) return;
 
-            const selectedIds = new Set(tableSelected.map(t => t.id));
-            localTableSets = localTableSets.map(set => set.filter(t => !selectedIds.has(t.id)));
-            localTableSets = localTableSets.filter(s => s && s.length > 0);
+          const selectedIds = new Set(selectedTiles.map(t => t.id));
 
-            tableSelected.forEach(st => {
-                localRack.push({ id: st.id, color: st.color, number: st.number, is_joker: st.is_joker });
-            });
+          // 테이블 및 다중 스크래치 슬롯에서 제거
+          localTableSets = localTableSets.map(set => set.filter(t => !selectedIds.has(t.id)));
+          localTableSets = localTableSets.filter(s => s && s.length > 0);
+          localScratchSlots = localScratchSlots.map(slot => slot.filter(t => !selectedIds.has(t.id)));
 
-            playSoundEffect('place');
-            selectedTiles = [];
-            applyRackSort();
-            renderRack();
-            renderTable();
-            showToast("선택한 타일을 거치대로 회수했습니다.");
-        };
+          selectedTiles.forEach(st => {
+              localRack.push({ id: st.id, color: st.color, number: st.number, is_joker: st.is_joker });
+          });
+
+          playSoundEffect('place');
+          selectedTiles = [];
+          applyRackSort();
+          renderRack();
+          renderScratchpad();
+          renderTable();
+          showToast("선택한 타일을 거치대로 회수했습니다.");
+      };
+    }
+	
+	function updateScratchpadBadge() {
+        const badge = document.getElementById('scratchpad-badge');
+        if (!badge) return;
+        const totalTiles = localScratchSlots.flat().length;
+        badge.innerText = totalTiles;
+        badge.style.display = totalTiles > 0 ? 'inline-block' : 'none';
+    }
+
+    function toggleScratchpad(forceState) {
+        const panel = document.getElementById('scratchpad-panel');
+        if (!panel) return;
+        isScratchpadOpen = (forceState !== undefined) ? forceState : !isScratchpadOpen;
+        if (isScratchpadOpen) panel.classList.add('active');
+        else panel.classList.remove('active');
+    }
+
+    function renderScratchpad() {
+        const container = document.getElementById('scratchpad-container');
+        if (!container) return;
+        container.innerHTML = '';
+        updateScratchpadBadge();
+
+        if (localScratchSlots.length === 0) {
+            localScratchSlots.push([]);
+        }
+
+        let allValid = true;
+        let totalTiles = 0;
+
+        localScratchSlots.forEach((slot, slotIdx) => {
+            totalTiles += slot.length;
+            const isValid = isValidRummikubSet(slot);
+            if (slot.length > 0 && !isValid) allValid = false;
+
+            const slotBox = document.createElement('div');
+            slotBox.className = 'scratch-slot-box' + (slot.length >= 3 && isValid ? ' valid-slot' : (slot.length > 0 ? ' invalid-slot' : ''));
+
+            // 슬롯 헤더
+            const slotHeader = document.createElement('div');
+            slotHeader.className = 'scratch-slot-header';
+            slotHeader.innerHTML = `
+                <span>묶음 ${slotIdx + 1} ${slot.length >= 3 && isValid ? '✅' : (slot.length > 0 ? '⚠️' : '')}</span>
+                ${localScratchSlots.length > 1 && slot.length === 0 ? `<button class="scratch-slot-del-btn" data-slot="${slotIdx}">✕ 삭제</button>` : ''}
+            `;
+            slotBox.appendChild(slotHeader);
+
+            // 타일 거치 영역
+            // 타일 거치 영역
+            const tilesZone = document.createElement('div');
+            tilesZone.className = 'scratch-slot-tiles';
+
+            if (slot.length === 0) {
+                const emptyMsg = document.createElement('span');
+                emptyMsg.style.cssText = 'font-size:0.75rem; color:#94a3b8; padding: 18px 8px; user-select:none; pointer-events:none;';
+                emptyMsg.innerText = '타일을 선택 후 여기를 클릭하세요';
+                tilesZone.appendChild(emptyMsg);
+            } else {
+                slot.forEach((tile, tileIdx) => {
+                    const isSel = selectedTiles.some(t => t.source === 'scratchpad' && t.slotIdx === slotIdx && t.tileIdx === tileIdx);
+                    const div = createTileElement(tile, isSel);
+
+                    // 임시작업대 내부 타일 시인성 보장 인라인 스타일
+                    div.style.width = '42px';
+                    div.style.height = '62px';
+                    div.style.minWidth = '42px';
+                    div.style.display = 'inline-flex';
+                    div.style.visibility = 'visible';
+                    div.style.opacity = '1';
+
+                    div.onclick = (e) => {
+                        e.stopPropagation();
+                        playSoundEffect('click');
+                        if (isSel) {
+                            selectedTiles = selectedTiles.filter(t => !(t.source === 'scratchpad' && t.slotIdx === slotIdx && t.tileIdx === tileIdx));
+                        } else {
+                            selectedTiles.push({ ...tile, source: 'scratchpad', slotIdx, tileIdx });
+                        }
+                        renderRack();
+                        renderScratchpad();
+                        renderTable();
+                    };
+                    tilesZone.appendChild(div);
+                });
+            }
+
+            // 슬롯 박스에 타일 거치 영역 등록
+            slotBox.appendChild(tilesZone);
+
+            // 해당 슬롯 여백 클릭 시: 선택된 타일들을 이 슬롯에 넣기
+            slotBox.onclick = (e) => {
+                if (e.target.closest('.scratch-slot-del-btn')) return;
+                if (e.target.closest('.rummi-tile-wrapper')) return;
+                if (selectedTiles.length === 0) return;
+
+                // 상대방 턴일 때 바닥 타일 조작 금지 가드
+                const isMyTurn = (String(myPlayerId) === String(roomState?.current_turn_player_id) && roomState?.status === 'PLAYING');
+                const hasTableTile = selectedTiles.some(t => t.source === 'table');
+                if (!isMyTurn && hasTableTile) {
+                    showToast("상대방의 턴에는 내 랙의 타일만 조합해볼 수 있습니다.");
+                    return;
+                }
+
+                const selectedIds = new Set(selectedTiles.map(t => t.id));
+
+                // 랙, 테이블, 다른 스크래치 슬롯에서 제거
+                localRack = localRack.filter(t => !selectedIds.has(t.id));
+                if (isMyTurn) {
+                    localTableSets = localTableSets.map(set => set.filter(t => !selectedIds.has(t.id))).filter(s => s && s.length > 0);
+                }
+                localScratchSlots = localScratchSlots.map(s => s.filter(t => !selectedIds.has(t.id)));
+
+                // 현재 슬롯에 추가
+                selectedTiles.forEach(st => {
+                    localScratchSlots[slotIdx].push({ id: st.id, color: st.color, number: st.number, is_joker: st.is_joker });
+                });
+
+                playSoundEffect('place');
+                selectedTiles = [];
+                renderRack();
+                renderScratchpad();
+                renderTable();
+            };
+
+            container.appendChild(slotBox);
+        });
+
+        // 일괄 등록 버튼 상태 갱신
+        const deployBtn = document.getElementById('btn-scratchpad-deploy');
+        if (deployBtn) {
+            const hasCompleteSets = totalTiles >= 3 && allValid && localScratchSlots.some(s => s.length >= 3);
+            const isMyTurn = (String(myPlayerId) === String(roomState?.current_turn_player_id) && roomState?.status === 'PLAYING');
+
+            if (isMyTurn && hasCompleteSets) {
+                deployBtn.style.display = 'inline-flex';
+                deployBtn.className = 'scratchpad-deploy-btn valid';
+                deployBtn.innerText = `🚀 ${localScratchSlots.filter(s => s.length >= 3).length}개 세트 일괄 등록`;
+            } else {
+                deployBtn.style.display = 'none';
+            }
+        }
+    }
+
+    // 완성된 모든 슬롯의 세트를 바닥으로 동시 등록
+    function deployAllScratchSlotsToTable() {
+        const isMyTurn = (String(myPlayerId) === String(roomState?.current_turn_player_id) && roomState?.status === 'PLAYING');
+        if (!isMyTurn) {
+            showToast("내 턴일 때만 테이블로 등록할 수 있습니다.");
+            return;
+        }
+
+        const validSetsToDeploy = [];
+        for (let i = 0; i < localScratchSlots.length; i++) {
+            const slot = localScratchSlots[i];
+            if (slot.length === 0) continue;
+            if (!isValidRummikubSet(slot)) {
+                showToast(`⚠️ [묶음 ${i + 1}]이 올바른 세트(3장 이상)가 아닙니다!`);
+                return;
+            }
+            validSetsToDeploy.push(sortTileSetAuto([...slot]));
+        }
+
+        if (validSetsToDeploy.length === 0) {
+            showToast("등록할 세트가 없습니다.");
+            return;
+        }
+
+        validSetsToDeploy.forEach(s => localTableSets.push(s));
+        localScratchSlots = [[]]; // 등록 후 빈 슬롯 1개로 리셋
+        selectedTiles = [];
+        toggleScratchpad(false); // 서랍 닫기
+
+        playSoundEffect('place');
+        showToast(`🚀 ${validSetsToDeploy.length}개의 세트를 테이블로 일괄 등록했습니다!`);
+        renderRack();
+        renderScratchpad();
+        renderTable();
     }
 
     function renderTable() {
@@ -649,37 +838,37 @@
         container.innerHTML = '';
 
         // 공유 테이블 빈 바닥 클릭 시: 선택된 타일들을 분리/추출하여 새로운 독립 세트로 생성
-        container.onclick = (e) => {
-            if (e.target.closest('.rummi-tile-wrapper')) return;
-            if (e.target.closest('.tile-group-set')) return;
+		container.onclick = (e) => {
+			if (e.target.closest('.rummi-tile-wrapper')) return;
+			if (e.target.closest('.tile-group-set')) return;
 
-            if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) return;
-            if (selectedTiles.length === 0) return;
+			if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) return;
+			if (selectedTiles.length === 0) return;
 
-            const selectedIds = new Set(selectedTiles.map(t => t.id));
+			const selectedIds = new Set(selectedTiles.map(t => t.id));
 
-            // 1) 랙에서 선택된 타일 제거
-            localRack = localRack.filter(t => !selectedIds.has(t.id));
+			// 1) 랙, 테이블, 다중 스크래치 슬롯에서 선택된 타일 제거
+			localRack = localRack.filter(t => !selectedIds.has(t.id));
+			localTableSets = localTableSets.map(set => set.filter(t => !selectedIds.has(t.id)));
+			localTableSets = localTableSets.filter(s => s && s.length > 0);
+			localScratchSlots = localScratchSlots.map(slot => slot.filter(t => !selectedIds.has(t.id)));
 
-            // 2) 기존 테이블 세트들에서 추출된 타일들 제거
-            localTableSets = localTableSets.map(set => set.filter(t => !selectedIds.has(t.id)));
-            localTableSets = localTableSets.filter(s => s && s.length > 0);
+			// 2) 새 세트로 테이블에 추가
+			const newSetRaw = selectedTiles.map(st => ({ 
+				id: st.id, 
+				color: st.color, 
+				number: st.number, 
+				is_joker: st.is_joker 
+			}));
+			localTableSets.push(sortTileSetAuto(newSetRaw));
 
-            // 3) 새 세트로 테이블에 추가
-            const newSetRaw = selectedTiles.map(st => ({ 
-                id: st.id, 
-                color: st.color, 
-                number: st.number, 
-                is_joker: st.is_joker 
-            }));
-            localTableSets.push(sortTileSetAuto(newSetRaw));
-
-            playSoundEffect('place');
-            selectedTiles = [];
-            showToast("선택한 타일로 새 세트를 만들었습니다.");
-            renderRack();
-            renderTable();
-        };
+			playSoundEffect('place');
+			selectedTiles = [];
+			showToast("선택한 타일로 새 세트를 만들었습니다.");
+			renderRack();
+			renderScratchpad();
+			renderTable();
+		};
 
         localTableSets = localTableSets.filter(s => s && s.length > 0);
 
@@ -764,36 +953,36 @@
     }
 
     function mergeSelectedTilesIntoSet(targetSetIndex) {
-        const selectedIds = new Set(selectedTiles.map(t => t.id));
+		const selectedIds = new Set(selectedTiles.map(t => t.id));
 
-        // 1) 랙에서 제거
-        localRack = localRack.filter(t => !selectedIds.has(t.id));
+		// 1) 랙, 테이블, 다중 스크래치 슬롯에서 제거
+		localRack = localRack.filter(t => !selectedIds.has(t.id));
+		localTableSets = localTableSets.map(set => set.filter(t => !selectedIds.has(t.id)));
+		localScratchSlots = localScratchSlots.map(slot => slot.filter(t => !selectedIds.has(t.id)));
 
-        // 2) 기존 테이블 세트들에서 타일 제거
-        localTableSets = localTableSets.map(set => set.filter(t => !selectedIds.has(t.id)));
+		const rawTiles = selectedTiles.map(st => ({ 
+			id: st.id, 
+			color: st.color, 
+			number: st.number, 
+			is_joker: st.is_joker 
+		}));
 
-        const rawTiles = selectedTiles.map(st => ({ 
-            id: st.id, 
-            color: st.color, 
-            number: st.number, 
-            is_joker: st.is_joker 
-        }));
-        
-        // 3) 대상 세트에 합치고 자동 정렬
-        if (localTableSets[targetSetIndex]) {
-            localTableSets[targetSetIndex] = sortTileSetAuto([...localTableSets[targetSetIndex], ...rawTiles]);
-        } else {
-            localTableSets.push(sortTileSetAuto(rawTiles));
-        }
+		// 2) 대상 세트에 합치고 자동 정렬
+		if (localTableSets[targetSetIndex]) {
+			localTableSets[targetSetIndex] = sortTileSetAuto([...localTableSets[targetSetIndex], ...rawTiles]);
+		} else {
+			localTableSets.push(sortTileSetAuto(rawTiles));
+		}
 
-        localTableSets = localTableSets.filter(s => s && s.length > 0);
+		localTableSets = localTableSets.filter(s => s && s.length > 0);
 
-        playSoundEffect('place');
-        selectedTiles = [];
-        showToast("타일을 해당 세트에 합쳤습니다.");
-        renderRack();
-        renderTable();
-    }
+		playSoundEffect('place');
+		selectedTiles = [];
+		showToast("타일을 해당 세트에 합쳤습니다.");
+		renderRack();
+		renderScratchpad(); // ★ 이 줄 추가
+		renderTable();
+	}
 
     function renderPlayers() {
         const panel = document.getElementById('panel-players');
@@ -941,11 +1130,55 @@
         const btnResetTurn = document.getElementById('btn-reset-turn');
         const btnSubmitTurn = document.getElementById('btn-submit-turn');
         const btnCopyLink = document.getElementById('btn-copy-link');
-		const btnZoomOut = document.getElementById('btn-zoom-out');
+
+        const btnZoomOut = document.getElementById('btn-zoom-out');
         const btnZoomIn = document.getElementById('btn-zoom-in');
         const btnZoomAuto = document.getElementById('btn-zoom-auto');
         const tableBoard = document.getElementById('table-sets-container');
+		
+        // 임시작업대 토글 및 컨트롤 버튼 바인딩
+        const btnToggleScratch = document.getElementById('btn-toggle-scratchpad');
+        const btnCloseScratch = document.getElementById('btn-close-scratchpad');
+        const btnAddSlot = document.getElementById('btn-add-scratch-slot');
+        const btnDeployScratch = document.getElementById('btn-scratchpad-deploy');
 
+        if (btnToggleScratch) btnToggleScratch.onclick = () => toggleScratchpad();
+        if (btnCloseScratch) btnCloseScratch.onclick = () => toggleScratchpad(false);
+        if (btnAddSlot) {
+            btnAddSlot.onclick = (e) => {
+                e.stopPropagation();
+                if (localScratchSlots.length >= 4) {
+                    showToast("임시 작업대 슬롯은 최대 4개까지 생성할 수 있습니다.");
+                    return;
+                }
+                localScratchSlots.push([]);
+                renderScratchpad();
+            };
+        }
+        if (btnDeployScratch) {
+            btnDeployScratch.onclick = (e) => {
+                e.stopPropagation();
+                deployAllScratchSlotsToTable();
+            };
+        }
+
+        // 빈 슬롯 삭제 이벤트 위임
+        const scratchContainer = document.getElementById('scratchpad-container');
+        if (scratchContainer) {
+            scratchContainer.onclick = (e) => {
+                const delBtn = e.target.closest('.scratch-slot-del-btn');
+                if (delBtn) {
+                    e.stopPropagation();
+                    const idx = parseInt(delBtn.getAttribute('data-slot'));
+                    if (!isNaN(idx) && localScratchSlots[idx] && localScratchSlots[idx].length === 0) {
+                        localScratchSlots.splice(idx, 1);
+                        renderScratchpad();
+                    }
+                }
+            };
+        }
+
+        // 줌 위젯 바인딩
         if (btnZoomOut) {
             btnZoomOut.onclick = (e) => {
                 e.stopPropagation();
@@ -1026,10 +1259,12 @@
 
                 localRack = JSON.parse(JSON.stringify(initialTurnRack));
                 localTableSets = JSON.parse(JSON.stringify(initialTurnTableSets));
+                localScratchSlots = [[]]; // 턴 시작 상태로 임시 보관함 초기화
 
                 selectedTiles = [];
                 applyRackSort();
                 renderRack();
+                renderScratchpad();
                 renderTable();
                 showToast("이번 턴에 조작한 내용을 턴 시작 상태로 되돌렸습니다.");
             };
@@ -1039,6 +1274,14 @@
             btnSubmitTurn.onclick = () => {
                 if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) {
                     showToast("내 턴일 때만 조작할 수 있습니다!");
+                    return;
+                }
+
+                // 안전 가드: 다중 슬롯 전체 타일 검증
+                const totalScratchTiles = localScratchSlots.flat().length;
+                if (totalScratchTiles > 0) {
+                    showToast("⚠️ 임시 작업대에 타일이 남아있습니다! 거치대나 테이블로 이동 후 턴을 마쳐주세요.");
+                    toggleScratchpad(true); // 비울 수 있도록 자동으로 서랍 열기
                     return;
                 }
 

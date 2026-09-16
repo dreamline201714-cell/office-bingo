@@ -169,18 +169,40 @@
                 <div class="board-container">
                     <div class="rummikub-table-board" id="table-sets-container"></div>
 
+                    <!-- 1단: 보드 유틸리티 바 (배율 줌 + 임시 작업대) -->
+                    <div class="board-utility-bar">
+                        <div class="table-zoom-widget">
+                            <button type="button" class="zoom-btn" id="btn-zoom-out" title="축소">－</button>
+                            <span class="zoom-level-text" id="zoom-level-text">100%</span>
+                            <button type="button" class="zoom-btn" id="btn-zoom-in" title="확대">＋</button>
+                            <button type="button" class="zoom-btn" id="btn-zoom-auto" title="자동 맞춤">AUTO</button>
+                        </div>
+                        <button type="button" class="secondary-btn 3d-btn" id="btn-toggle-scratchpad">
+                            임시 작업대 <span id="scratchpad-badge" class="badge-count" style="display:none;">0</span>
+                        </button>
+                    </div>
+
+                    <!-- 플로팅 임시 작업대 드로어 (열렸을 때 유틸리티 바 바로 아래에 펼쳐짐) -->
+                    <div class="scratchpad-floating-drawer" id="scratchpad-panel">
+                        <div class="scratchpad-header">
+                            <div class="scratchpad-title-zone">
+                                <span class="scratchpad-title">멀티 임시 작업대</span>
+                                <span class="scratchpad-desc">묶음별로 타일을 나누어 조합해보세요</span>
+                            </div>
+                            <div class="scratchpad-header-actions">
+                                <button type="button" class="scratchpad-tool-btn" id="btn-add-scratch-slot">＋ 새 묶음</button>
+                                <button type="button" class="scratchpad-deploy-btn" id="btn-scratchpad-deploy" style="display: none;">완성 세트 일괄 등록</button>
+                                <button type="button" class="scratchpad-close-btn" id="btn-close-scratchpad">✕</button>
+                            </div>
+                        </div>
+                        <div class="scratchpad-multi-slots-container" id="scratchpad-container"></div>
+                    </div>
+
+                    <!-- 2단: 플레이 핵심 액션 바 (본래의 깔끔한 1열 구조 복원) -->
                     <div class="board-footer" id="board-footer">
                         <div id="footer-waiting-controls">
                             <div class="footer-left-zone">
                                 <button class="primary-btn 3d-btn" id="btn-toggle-ready">준비 완료</button>
-                                
-                                <!-- ★ 줌 컨트롤러를 하단 버튼 바로 이동하여 타일 가림 완벽 해결 -->
-                                <div class="table-zoom-widget">
-                                    <button type="button" class="zoom-btn" id="btn-zoom-out" title="축소">－</button>
-                                    <span class="zoom-level-text" id="zoom-level-text">100%</span>
-                                    <button type="button" class="zoom-btn" id="btn-zoom-in" title="확대">＋</button>
-                                    <button type="button" class="zoom-btn" id="btn-zoom-auto" title="세트 수에 맞춰 자동 배율 맞춤">AUTO</button>
-                                </div>
                             </div>
                             
                             <div class="footer-right-zone">
