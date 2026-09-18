@@ -1,141 +1,277 @@
 <!DOCTYPE html>
-<html lang="ko" data-theme="light">
+<html lang="ko" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Office Live Games Hub</title>
-    <link rel="stylesheet" href="common.css?v=20260813_v1">
+    <title>Office Live Games Hub (v3 Arcade Pro Edition)</title>
+    <link rel="stylesheet" href="common.css?v=20260918_v3">
     <style>
-        body { margin: 0; padding: 0; overflow-x: hidden; }
-
-        /* 접히는 메뉴 영역 애니메이션 */
-        .collapsible-top-menu {
-            transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease, transform 0.3s ease;
-            max-height: 200px;
-            opacity: 1;
-            overflow: hidden;
+        body { 
+            margin: 0; 
+            padding: 0; 
+            overflow: hidden; 
+            background-color: var(--bg-primary); 
         }
 
-        /* 메뉴가 접혔을 때 (게임 진행 중 자동 또는 사용자 토글) */
+        /* 슬라이딩 상단 메뉴 영역 (네비게이션 + 게임 선택 탭 통합) */
+        .collapsible-top-menu {
+            transition: max-height 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease, transform 0.35s ease;
+            max-height: 140px;
+            opacity: 1;
+            overflow: hidden;
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--border-block);
+            backdrop-filter: var(--glass-blur);
+            position: relative;
+            z-index: 1000;
+        }
+
+        /* 메뉴 접힘 상태: 상단 메뉴 전체가 100% 숨겨지고 게임이 100vh 차지 */
         body.top-menu-collapsed .collapsible-top-menu {
             max-height: 0 !important;
             opacity: 0 !important;
-            transform: translateY(-100%);
-            pointer-events: none;
+            transform: translateY(-100%) !important;
+            pointer-events: none !important;
+            border-bottom: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
         }
 
-        .game-tab-container { display: flex; gap: 8px; margin: 12px 16px; }
+        /* 모던 필(Pill) 슬라이딩 탭 컨테이너 */
+        .game-tab-wrapper {
+            display: flex;
+            justify-content: center;
+            padding: 5px 16px 8px 16px;
+        }
+
+        .game-tab-container { 
+            display: inline-flex; 
+            gap: 6px; 
+            background: var(--bg-card);
+            padding: 4px;
+            border-radius: 12px;
+            border: 1px solid var(--border-block);
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+            max-width: 100%;
+            overflow-x: auto;
+        }
+
         .game-tab-btn {
-            flex: 1; padding: 10px 14px; border: 1px solid var(--border-block, #e4e4e7);
-            border-radius: 8px; background: var(--bg-surface, #ffffff); cursor: pointer;
-            font-weight: 600; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; gap: 6px;
-            color: var(--text-primary);
-        }
-        .game-tab-btn.active {
-            background: var(--primary-color, #2563eb); color: #ffffff; border-color: var(--primary-color, #2563eb);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 8px 18px;
+            border: none;
+            border-radius: 10px;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 0.88rem;
+            white-space: nowrap;
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
         }
 
-        /* 접기/펴기 버튼 위치 고정 및 스타일 지정 */
+        .game-tab-btn:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .game-tab-btn.active {
+            background: var(--primary-color);
+            color: #ffffff;
+            box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
+            transform: scale(1.02);
+        }
+
+        /* 각 게임별 고유 악센트 테마 */
+        .game-tab-btn[data-game="bingo"].active {
+            background: linear-gradient(135deg, #10b981, #059669);
+            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+        }
+        .game-tab-btn[data-game="rummikub"].active {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
+        }
+        .game-tab-btn[data-game="seotda"].active {
+            background: linear-gradient(135deg, #e11d48, #be123c);
+            box-shadow: 0 4px 14px rgba(225, 29, 72, 0.4);
+        }
+        .game-tab-btn[data-game="gostop"].active {
+            background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+            box-shadow: 0 4px 14px rgba(139, 92, 246, 0.4);
+        }
+
+        .game-tab-badge {
+            font-size: 0.68rem;
+            padding: 1px 6px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            font-weight: 800;
+        }
+
+        /* 상단 메뉴 인라인 토글 버튼 (메뉴가 펼쳐져 있을 때 nav-controls 내부 배치) */
         .top-menu-toggle-btn {
-            position: absolute;
-            top: 12px;
-            right: 140px; /* 오른쪽 컨트롤 버튼들(📊🔊🌙) 옆에 배치 */
-            z-index: 9999;
-            background: var(--bg-surface, #f7f6f3);
-            color: var(--text-primary, #37352f);
-            border: 1px solid var(--border-block, #e9e9e8);
-            border-radius: 4px;
-            padding: 0 8px;
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-block);
+            border-radius: 18px;
+            padding: 3px 10px;
             height: 28px;
-            font-size: 0.75rem;
-            font-weight: 600;
+            font-size: 0.76rem;
+            font-weight: 700;
             cursor: pointer;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.2s;
+            gap: 4px;
+            transition: all 0.2s ease;
+            backdrop-filter: var(--glass-blur);
         }
 
         .top-menu-toggle-btn:hover {
-            background: var(--border-block, #e9e9e8);
+            background: var(--border-block);
+            color: var(--text-primary);
+            border-color: var(--border-hover);
         }
 
-        /* 메뉴가 접혔을 때 오른쪽 상단에 '▼ 상단 메뉴 펼치기' 고정 표시 */
-        body.top-menu-collapsed .top-menu-toggle-btn {
+        /* 메뉴가 접혔을 때 우상단에 작게 뜨는 복원 버튼 */
+        .restore-top-menu-btn {
             position: fixed;
-            top: 6px;
-            right: 12px;
-            background: var(--bg-card, #ffffff);
-            border: 1px solid var(--border-accent, #2563eb);
-            color: var(--border-accent, #2563eb);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-        }
-        
-        .iframe-wrapper { 
-            position: relative;
-            width: 100%; 
-            height: calc(100vh - 110px); 
-            background-color: var(--bg-primary, #ffffff);
-            transition: height 0.3s ease;
+            top: 8px;
+            right: 14px;
+            z-index: 10001;
+            background: var(--primary-color);
+            border: 1px solid var(--primary-color);
+            color: #ffffff;
+            border-radius: 20px;
+            padding: 4px 12px;
+            height: 30px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
+            transition: all 0.2s ease;
         }
 
-        /* 메뉴가 접혔을 때 iframe 높이 최대로 확장 */
+        .restore-top-menu-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 18px rgba(59, 130, 246, 0.6);
+        }
+
+        body.top-menu-collapsed .restore-top-menu-btn {
+            display: inline-flex !important;
+        }
+
+        /* iFrame 뷰포트 */
+        .iframe-wrapper { 
+            position: relative; 
+            width: 100%; 
+            height: calc(100vh - 86px); 
+            background-color: var(--bg-primary); 
+            transition: height 0.35s cubic-bezier(0.16, 1, 0.3, 1); 
+        }
+
         body.top-menu-collapsed .iframe-wrapper {
             height: 100vh !important;
         }
 
         .game-iframe { 
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%; 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
             border: none; 
-            display: none;
+            display: none; 
         }
+
         .game-iframe.active {
             display: block;
         }
 
+        .shortcut-badge {
+            font-size: 0.65rem;
+            opacity: 0.7;
+            margin-left: 2px;
+        }
+
         @media screen and (max-width: 768px) {
-            .game-tab-container { margin: 6px 8px !important; gap: 4px !important; }
-            .game-tab-btn { padding: 6px 8px !important; font-size: 0.78rem !important; border-radius: 6px !important; }
-            .iframe-wrapper { height: calc(100vh - 85px) !important; }
+            .game-tab-wrapper { padding: 4px 6px 6px 6px; }
+            .game-tab-container { gap: 4px; border-radius: 10px; }
+            .game-tab-btn { padding: 4px 8px; font-size: 0.76rem; border-radius: 7px; gap: 4px; }
+            .iframe-wrapper { height: calc(100vh - 78px); }
+        }
+
+        /* 14인치 / 서브모니터 / 세로 해상도 낮은 환경 감응형 대응 */
+        @media screen and (max-height: 850px) {
+            .navbar { padding: 3px 10px !important; }
+            .brand { font-size: 0.90rem !important; }
+            .game-tab-wrapper { padding: 2px 6px 4px 6px !important; }
+            .game-tab-btn { padding: 3px 8px !important; font-size: 0.76rem !important; gap: 3px !important; height: 26px !important; }
+            .collapsible-top-menu { max-height: 72px !important; }
+            .iframe-wrapper { height: calc(100vh - 72px) !important; }
         }
     </style>
 </head>
 <body>
-    <!-- 1. 버튼을 collapsible-top-menu 밖(위)으로 이동 -->
-    <button class="top-menu-toggle-btn" id="btn-toggle-top-menu" onclick="toggleTopMenu()">▲ 접기</button>
+    <!-- 메뉴 접힘 시 우상단에 표시되는 복원 버튼 (오버랩 없음) -->
+    <button class="restore-top-menu-btn" id="btn-restore-top-menu" onclick="toggleTopMenu()" title="상단 메뉴 열기">
+        <span>▼ 메뉴 열기</span>
+    </button>
 
     <div class="collapsible-top-menu" id="top-menu-wrapper">
         <header class="navbar">
             <a href="index.html" class="brand">
-                <div class="brand-icon">🎮</div>
-                <span>Office Live Games <small style="font-size:0.65rem; color:var(--accent); vertical-align:super;">HUB</small></span>
+                <div class="brand-icon">
+                    <svg viewBox="0 0 24 24"><path d="M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-10 7H8v3H6v-3H3v-2h3V8h2v3h3v2zm4.5 2c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm4-3c-.83 0-1.5-.67-1.5-1.5S18.67 9 19.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+                </div>
+                <span>Office Live Games <small class="v3-badge" style="font-size:0.68rem; background: linear-gradient(135deg, #ec4899, #8b5cf6); color: #fff; padding: 2px 7px; border-radius: 6px; vertical-align:middle; font-weight:800; letter-spacing:0.8px; margin-left:6px; box-shadow: 0 0 10px rgba(236,72,153,0.4);">V3 PRO</small></span>
             </a>
             <div class="nav-controls">
-                <button class="icon-btn" id="btn-global-stealth" title="스텔스 모드" onclick="toggleGlobalStealth()">📊</button>
+                <button class="top-menu-toggle-btn" id="btn-toggle-top-menu" onclick="toggleTopMenu()" title="상단 메뉴 접기">
+                    <span>▲ 접기</span>
+                </button>
                 <button class="icon-btn" id="btn-global-sound" title="사운드 설정" onclick="toggleGlobalSound()">🔊</button>
-                <button class="icon-btn" id="btn-global-theme" title="테마 변경" onclick="toggleGlobalTheme()">🌙</button>
+                <button class="icon-btn" id="btn-global-theme" title="테마 변경 (다크/라이트)" onclick="toggleGlobalTheme()">🌙</button>
             </div>
         </header>
 
-        <div class="game-tab-container">
-            <button class="game-tab-btn active" data-game="bingo" data-target="iframe-bingo" onclick="switchGameTab(this)">🎯 빙고</button>
-            <button class="game-tab-btn" data-game="rummikub" data-target="iframe-rummikub" onclick="switchGameTab(this)">🧩 루미큐브</button>
-            <button class="game-tab-btn" data-game="seotda" data-target="iframe-seotda" onclick="switchGameTab(this)">🃏 섯다</button>
-            <button class="game-tab-btn" data-game="gostop" data-target="iframe-gostop" onclick="switchGameTab(this)">🎴 고스톱</button>
+        <div class="game-tab-wrapper">
+            <div class="game-tab-container">
+                <button class="game-tab-btn active" data-game="bingo" data-target="iframe-bingo" onclick="switchGameTab(this)">
+                    🎯 빙고 <span class="game-tab-badge">BINGO</span>
+                </button>
+                <button class="game-tab-btn" data-game="rummikub" data-target="iframe-rummikub" onclick="switchGameTab(this)">
+                    🧩 루미큐브 <span class="game-tab-badge">RUMMI</span>
+                </button>
+                <button class="game-tab-btn" data-game="seotda" data-target="iframe-seotda" onclick="switchGameTab(this)">
+                    🃏 섯다 <span class="game-tab-badge">SEOTDA</span>
+                </button>
+                <button class="game-tab-btn" data-game="gostop" data-target="iframe-gostop" onclick="switchGameTab(this)">
+                    🎴 고스톱 <span class="game-tab-badge">GOSTOP</span>
+                </button>
+            </div>
         </div>
     </div>
 
     <div class="iframe-wrapper">
-        <iframe id="iframe-bingo" class="game-iframe active" src="bingo.html"></iframe>
-        <iframe id="iframe-rummikub" class="game-iframe" src="rummikub.html"></iframe>
-        <iframe id="iframe-seotda" class="game-iframe" src="seotda.html"></iframe>
-        <iframe id="iframe-gostop" class="game-iframe" src="gostop.html"></iframe>
+        <iframe id="iframe-bingo" class="game-iframe active" src="bingo.html?v=20260918_v3" data-src="bingo.html?v=20260918_v3"></iframe>
+        <iframe id="iframe-rummikub" class="game-iframe" data-src="rummikub.html?v=20260918_v3"></iframe>
+        <iframe id="iframe-seotda" class="game-iframe" data-src="seotda.html?v=20260918_v3"></iframe>
+        <iframe id="iframe-gostop" class="game-iframe" data-src="gostop.html?v=20260918_v3"></iframe>
     </div>
 
+    <script src="common_fx.js?v=20260917_v2"></script>
     <script>
-        // iFrame에서 게임 진행 상태(status) 수신
+        // iFrame에서 게임 진행 상태(status) 수신하여 자동 메뉴 접기
         window.addEventListener('message', (event) => {
             if (event.data && event.data.type === 'GAME_STATUS_CHANGE') {
                 if (event.data.status === 'PLAYING') {
@@ -152,20 +288,19 @@
         }
 
         function setTopMenuCollapsed(collapsed) {
-            const btn = document.getElementById('btn-toggle-top-menu');
             if (collapsed) {
                 document.body.classList.add('top-menu-collapsed');
-                if(btn) btn.innerText = '▼ 상단 메뉴 펼치기';
             } else {
                 document.body.classList.remove('top-menu-collapsed');
-                if(btn) btn.innerText = '▲ 상단 메뉴 접기';
             }
         }
 
         window.addEventListener('DOMContentLoaded', () => {
             const iframes = document.querySelectorAll('.game-iframe');
             iframes.forEach(iframe => {
-                iframe.addEventListener('load', () => syncThemeToAllIframes());
+                iframe.addEventListener('load', () => {
+                    syncThemeToAllIframes();
+                });
             });
 
             const urlParams = new URLSearchParams(window.location.search);
@@ -179,6 +314,8 @@
                 if (targetIframe && targetTab) {
                     if (roomParam) {
                         targetIframe.src = `${gameParam}.html?room=${roomParam}`;
+                    } else if (!targetIframe.src && targetIframe.getAttribute('data-src')) {
+                        targetIframe.src = targetIframe.getAttribute('data-src');
                     }
                     switchGameTab(targetTab);
                 }
@@ -186,12 +323,23 @@
         });
 
         function switchGameTab(element) {
+            if (window.GameFX && window.GameFX.audio) {
+                window.GameFX.audio.playPop(800, 0.05);
+            }
             document.querySelectorAll('.game-tab-btn').forEach(tab => tab.classList.remove('active'));
             element.classList.add('active');
             
             const targetId = element.getAttribute('data-target');
             document.querySelectorAll('.game-iframe').forEach(iframe => {
                 if (iframe.id === targetId) {
+                    // ⚡ 온디맨드 Lazy Loading: 아직 src가 주입되지 않았다면 data-src에서 로드
+                    if (!iframe.src || iframe.src === 'about:blank' || iframe.getAttribute('data-loaded') !== 'true') {
+                        const dataSrc = iframe.getAttribute('data-src');
+                        if (dataSrc && (!iframe.src || !iframe.src.includes('.html'))) {
+                            iframe.src = dataSrc;
+                            iframe.setAttribute('data-loaded', 'true');
+                        }
+                    }
                     iframe.classList.add('active');
                 } else {
                     iframe.classList.remove('active');
@@ -200,13 +348,15 @@
         }
 
         function toggleGlobalTheme() {
-            const currentTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            const currentTheme = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
             document.documentElement.setAttribute('data-theme', currentTheme);
+            const themeBtn = document.getElementById('btn-global-theme');
+            if (themeBtn) themeBtn.innerText = currentTheme === 'dark' ? '🌙' : '☀️';
             syncThemeToAllIframes();
         }
 
         function syncThemeToAllIframes() {
-            const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+            const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
             const iframes = document.querySelectorAll('.game-iframe');
 
             iframes.forEach(iframe => {
@@ -224,28 +374,22 @@
             });
         }
 
-        function toggleGlobalStealth() {
-            document.body.classList.toggle('excel-stealth-mode');
-            const iframes = document.querySelectorAll('.game-iframe');
-
-            iframes.forEach(iframe => {
-                try {
-                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-                    if (iframeDoc && iframeDoc.body) {
-                        iframeDoc.body.classList.toggle('excel-stealth-mode');
-                    }
-                } catch (e) {}
-            });
-        }
-
+        let isSoundMuted = false;
         function toggleGlobalSound() {
+            isSoundMuted = !isSoundMuted;
+            const soundBtn = document.getElementById('btn-global-sound');
+            if (soundBtn) soundBtn.innerText = isSoundMuted ? '🔇' : '🔊';
+
+            if (window.GameFX && window.GameFX.audio) {
+                window.GameFX.audio.setMuted(isSoundMuted);
+            }
+
             const iframes = document.querySelectorAll('.game-iframe');
             iframes.forEach(iframe => {
                 try {
-                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-                    if (iframeDoc) {
-                        const soundBtn = iframeDoc.getElementById('sound-toggle-btn');
-                        if (soundBtn) soundBtn.click();
+                    const iframeWindow = iframe.contentWindow;
+                    if (iframeWindow && iframeWindow.GameFX && iframeWindow.GameFX.audio) {
+                        iframeWindow.GameFX.audio.setMuted(isSoundMuted);
                     }
                 } catch (e) {}
             });

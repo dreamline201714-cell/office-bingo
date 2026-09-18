@@ -676,12 +676,15 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
             target_lines = int(data.get('target_lines', room['config'].get('target_lines', size)))
             word_pool = data.get('word_pool', room['config'].get('word_pool', []))
 
+            game_mode = data.get('game_mode', room['config'].get('game_mode', 'LOSER'))
+
             room['config']['size'] = size
             room['config']['topic'] = topic
             room['config']['target_lines'] = target_lines
             room['config']['word_pool'] = word_pool
+            room['config']['game_mode'] = game_mode
 
-            room['chat_logs'].append({'system': True, 'text': f"⚙️ 방장에 의해 빙고 설정이 변경되었습니다. ({size}x{size}, 주제: {topic})"})
+            room['chat_logs'].append({'system': True, 'text': f"⚙️ 방장에 의해 설정이 변경되었습니다. ({size}x{size}, 탈출 목표: {target_lines}줄, 주제: {topic})"})
             await broadcast_to_room(current_room_id, {'type': 'ROOM_UPDATED', 'state': None})
 
     elif msg_type == 'MARK_CELL':
@@ -748,21 +751,33 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
 
                             remaining_players = [p for p in room['players'].values() if not p.get('is_escaped', False)]
 
-                            if len(remaining_players) <= 1:
-                                loser_name = remaining_players[0]['nickname'] if remaining_players else "전원 탈출"
-                                room['chat_logs'].append({'system': True, 'text': f"💣 [패자 결정] 끝까지 탈출하지 못한 [{loser_name}]님이 최종 벌칙 당첨자로 결정되었습니다!"})
-                                room['status'] = 'WAITING'
+                            # 1인 혼자 플레이/테스트 중인 경우
+                            if len(room['players']) <= 1:
+                                if not remaining_players:
+                                    # 목표 줄 달성하여 탈출 완료 (완승!)
+                                    room['chat_logs'].append({'system': True, 'text': f"🎉 축하합니다! [{player['nickname']}]님이 목표 ({target_lines}줄)를 달성하여 탈출(완승)하셨습니다!"})
+                                    room['status'] = 'WAITING'
+                                else:
+                                    # 아직 목표 미달성이므로 턴 유지하고 계속 진행
+                                    room['current_turn_index'] = 0
+                                    room['turn_start_time'] = time.time()
                             else:
-                                next_idx = (room['current_turn_index'] + 1) % len(room['turn_order'])
-                                for _ in range(len(room['turn_order'])):
-                                    candidate_ws = room['turn_order'][next_idx]
-                                    candidate_p = room['players'][candidate_ws]
-                                    if not candidate_p.get('is_escaped', False):
-                                        break
-                                    next_idx = (next_idx + 1) % len(room['turn_order'])
+                                # 2인 이상 다인전: 탈출자가 적어도 1명 이상 발생하고, 남은 사람이 1명 이하일 때만 패자 결정
+                                if already_escaped_count > 0 and len(remaining_players) <= 1:
+                                    loser_name = remaining_players[0]['nickname'] if remaining_players else "전원 탈출"
+                                    room['chat_logs'].append({'system': True, 'text': f"💣 [패자 결정] 끝까지 탈출하지 못한 [{loser_name}]님이 최종 벌칙 당첨자로 결정되었습니다!"})
+                                    room['status'] = 'WAITING'
+                                else:
+                                    next_idx = (room['current_turn_index'] + 1) % len(room['turn_order'])
+                                    for _ in range(len(room['turn_order'])):
+                                        candidate_ws = room['turn_order'][next_idx]
+                                        candidate_p = room['players'][candidate_ws]
+                                        if not candidate_p.get('is_escaped', False):
+                                            break
+                                        next_idx = (next_idx + 1) % len(room['turn_order'])
 
-                                room['current_turn_index'] = next_idx
-                                room['turn_start_time'] = time.time()
+                                    room['current_turn_index'] = next_idx
+                                    room['turn_start_time'] = time.time()
 
                         await broadcast_to_room(current_room_id, {'type': 'ROOM_UPDATED', 'state': None})
 
@@ -1447,6 +1462,34 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
                 room['chat_logs'].append(msg_obj)
                 await broadcast_to_room(current_room_id, {'type': 'CHAT_MESSAGE', 'chat': msg_obj})
 
+    elif msg_type == 'SEND_REACTION':
+        room = ROOMS.get(current_room_id)
+        if room:
+            p = room['players'].get(ws)
+            emoji = data.get('emoji', '🔥')
+            await broadcast_to_room(current_room_id, {
+                'type': 'FLOATING_REACTION',
+                'emoji': emoji,
+                'player_id': current_player_id,
+                'nickname': p['nickname'] if p else '익명'
+            })
+
+    elif msg_type == 'QUICK_CHAT':
+        room = ROOMS.get(current_room_id)
+        if room:
+            p = room['players'].get(ws)
+            text = str(data.get('text', '')).strip()
+            if text:
+                msg_obj = {'system': False, 'nickname': p['nickname'] if p else '익명', 'color': p['color'] if p else '#ccc', 'text': text}
+                room['chat_logs'].append(msg_obj)
+                await broadcast_to_room(current_room_id, {
+                    'type': 'QUICK_CHAT_BUBBLE',
+                    'player_id': current_player_id,
+                    'nickname': p['nickname'] if p else '익명',
+                    'text': text,
+                    'chat': msg_obj
+                })
+
     return current_room_id
 
 async def finish_gostop_turn(room, current_room_id):
@@ -1533,8 +1576,14 @@ try:
 
     async def handle_static_files(request):
         path = request.path
-        file_path = os.path.join(PUBLIC_DIR, 'index.html') if path in ('/', '/index.html') else os.path.join(PUBLIC_DIR, path.lstrip('/'))
+        if path in ('/', '/index.html'):
+            if os.path.exists(os.path.join(PUBLIC_DIR, 'v3', 'index.html')):
+                raise web.HTTPFound('/v3/index.html')
+            return web.FileResponse(os.path.join(PUBLIC_DIR, 'index.html'))
+        file_path = os.path.join(PUBLIC_DIR, path.lstrip('/'))
         if os.path.exists(file_path) and os.path.isfile(file_path): return web.FileResponse(file_path)
+        if os.path.exists(os.path.join(PUBLIC_DIR, 'v3', 'index.html')):
+            return web.FileResponse(os.path.join(PUBLIC_DIR, 'v3', 'index.html'))
         return web.FileResponse(os.path.join(PUBLIC_DIR, 'index.html'))
 
     def run_aiohttp_server():

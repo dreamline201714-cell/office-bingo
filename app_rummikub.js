@@ -32,47 +32,20 @@
     let timerSecondsLeft = 60;
     let soundEnabled = true;
 
-    let audioCtx = null;
     function playSoundEffect(type) {
         if (!soundEnabled) return;
-        try {
-            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-
-            const now = audioCtx.currentTime;
-
+        if (window.GameFX && window.GameFX.audio) {
+            if (window.GameFX.audio.isMuted) return;
             if (type === 'click') {
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(600, now);
-                osc.frequency.exponentialRampToValueAtTime(200, now + 0.05);
-                gain.gain.setValueAtTime(0.15, now);
-                gain.gain.linearRampToValueAtTime(0.01, now + 0.05);
-                osc.start(now);
-                osc.stop(now + 0.05);
+                window.GameFX.audio.playPop(600, 0.05);
             } else if (type === 'place') {
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(300, now);
-                osc.frequency.exponentialRampToValueAtTime(800, now + 0.08);
-                gain.gain.setValueAtTime(0.2, now);
-                gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
-                osc.start(now);
-                osc.stop(now + 0.08);
+                window.GameFX.audio.playPop(850, 0.08);
             } else if (type === 'turn') {
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(523.25, now);
-                osc.frequency.setValueAtTime(659.25, now + 0.08);
-                gain.gain.setValueAtTime(0.2, now);
-                gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
-                osc.start(now);
-                osc.stop(now + 0.2);
+                window.GameFX.audio.playTick();
+            } else if (type === 'win') {
+                window.GameFX.audio.playWinFanfare();
             }
-        } catch (err) {
-            console.error(err);
+            return;
         }
     }
 
@@ -150,6 +123,19 @@
             document.getElementById('lobby-section').style.display = 'none';
             document.getElementById('arena-section').style.display = 'block';
             updateUI(true);
+            if (window.GameFX) {
+                if (window.GameFX.mountDock) {
+                    window.GameFX.mountDock(
+                        (emoji) => sendMessage({ type: 'SEND_REACTION', room_id: currentRoomId, emoji: emoji }),
+                        (text) => sendMessage({ type: 'QUICK_CHAT', room_id: currentRoomId, text: text })
+                    );
+                }
+                if (window.GameFX.initTicker) {
+                    window.GameFX.initTicker((text) => {
+                        sendMessage({ type: 'CHAT_MESSAGE', room_id: currentRoomId, message: text });
+                    });
+                }
+            }
         } else if (msg.type === 'STARTING_DRAW') {
             showTurnOrderDrawModal(msg.turn_order_list);
             setTimeout(() => {
@@ -178,6 +164,28 @@
             roomState = msg.state;
             updateUI(false);
         } else if (msg.type === 'CHAT_MESSAGE') {
+            if (roomState && msg.chat) {
+                roomState.chat_logs.push(msg.chat);
+                renderChatLogs();
+            }
+            if (window.GameFX) {
+                GameFX.say(msg.chat.player_id || msg.chat.nickname, msg.chat.text);
+                GameFX.ticker(msg.chat.text, msg.chat.nickname, msg.chat.system);
+                GameFX.incrementUnread();
+            }
+        } else if (msg.type === 'FLOATING_REACTION') {
+            if (window.GameFX) {
+                if (window.GameFX.reactions) window.GameFX.reactions.spawn(msg.emoji, msg.nickname);
+                GameFX.say(msg.player_id || msg.nickname, msg.emoji);
+            }
+        } else if (msg.type === 'QUICK_CHAT_BUBBLE') {
+            if (window.GameFX) {
+                GameFX.say(msg.player_id || msg.nickname, msg.text);
+                GameFX.ticker(msg.text, msg.nickname);
+                window.GameFX.reactions.spawn('💬', msg.nickname);
+                if (window.GameFX.audio) window.GameFX.audio.playPop(850, 0.05);
+                GameFX.incrementUnread();
+            }
             if (roomState && msg.chat) {
                 roomState.chat_logs.push(msg.chat);
                 renderChatLogs();
@@ -390,9 +398,8 @@
         
         const gridInfoEl = document.getElementById('display-grid-info');
         if (gridInfoEl) {
-            const poolCount = roomState.tile_pool_count !== undefined ? roomState.tile_pool_count : '-';
-            const ruleText = roomState.rule_type === 'jaehee' ? '재히룰(단일 30점)' : '공식룰(합산 30점)';
-            gridInfoEl.innerText = `룰: ${ruleText} | 턴 제한: ${roomState.turn_time_limit || 60}초 | 남은 타일: ${poolCount}개`;
+            const ruleText = roomState.rule_type === 'jaehee' ? '재히룰(30점)' : '공식룰(30점)';
+            gridInfoEl.innerText = `${ruleText} · ${roomState.turn_time_limit || 60}초`;
         }
 
         if (status === 'WAITING') {
@@ -617,6 +624,22 @@
                 ${innerSymbolSvg}
             </svg>
         `;
+        div.draggable = true;
+        div.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', JSON.stringify({
+                id: tile.id,
+                color: tile.color,
+                number: tile.number,
+                is_joker: tile.is_joker
+            }));
+            div.classList.add('tile-dragging');
+            if (window.GameFX && window.GameFX.audio) {
+                window.GameFX.audio.playPop(750, 0.04);
+            }
+        });
+        div.addEventListener('dragend', () => {
+            div.classList.remove('tile-dragging');
+        });
 
         return div;
     }
@@ -691,6 +714,17 @@
           renderScratchpad();
           renderTable();
           showToast("타일을 거치대에 배치했습니다.");
+      };
+
+      container.ondragover = (e) => { e.preventDefault(); };
+      container.ondrop = (e) => {
+          e.preventDefault();
+          try {
+              const droppedTile = JSON.parse(e.dataTransfer.getData('text/plain'));
+              if (droppedTile && droppedTile.id) {
+                  handleTileDropOnRack(droppedTile);
+              }
+          } catch(err) {}
       };
     }
 	
@@ -931,7 +965,30 @@
         localTableSets.forEach((set, setIndex) => {
             const setEl = document.createElement('div');
             const isValid = isValidRummikubSet(set);
-            setEl.className = 'tile-group-set' + (isValid ? '' : ' invalid-set');
+            setEl.className = 'tile-group-set ' + (isValid ? 'valid-set' : 'invalid-set');
+
+            // 🎯 드래그 앤 드롭 타겟 (기존 세트에 타일 끼워넣기)
+            setEl.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                setEl.classList.add('drag-over-target');
+            });
+            setEl.addEventListener('dragleave', () => {
+                setEl.classList.remove('drag-over-target');
+            });
+            setEl.addEventListener('drop', (e) => {
+                e.preventDefault();
+                setEl.classList.remove('drag-over-target');
+                if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) {
+                    showToast("내 턴일 때만 테이블에 타일을 놓을 수 있습니다.");
+                    return;
+                }
+                try {
+                    const droppedTile = JSON.parse(e.dataTransfer.getData('text/plain'));
+                    if (droppedTile && droppedTile.id) {
+                        handleTileDropOnSet(droppedTile, setIndex);
+                    }
+                } catch(err) {}
+            });
 
             set.forEach((tile, tileIndex) => {
                 const isSel = selectedTiles.some(t => t.id === tile.id);
@@ -977,7 +1034,74 @@
             container.appendChild(setEl);
         });
 
+        // 🎯 테이블 빈 영역 드롭 시: 새 세트 생성
+        container.ondragover = (e) => { e.preventDefault(); };
+        container.ondrop = (e) => {
+            if (e.target.closest('.tile-group-set')) return;
+            e.preventDefault();
+            try {
+                const droppedTile = JSON.parse(e.dataTransfer.getData('text/plain'));
+                if (droppedTile && droppedTile.id) {
+                    handleTileDropOnEmptyTable(droppedTile);
+                }
+            } catch(err) {}
+        };
+
         updateSubmitButtonHighlight();
+    }
+
+    function handleTileDropOnSet(droppedTile, setIndex) {
+        const id = droppedTile.id;
+        localRack = localRack.filter(t => t.id !== id);
+        localTableSets = localTableSets.map(set => set.filter(t => t.id !== id)).filter(s => s && s.length > 0);
+        localScratchSlots = localScratchSlots.map(s => s.filter(t => t.id !== id));
+
+        if (localTableSets[setIndex]) {
+            localTableSets[setIndex].push(droppedTile);
+            localTableSets[setIndex] = sortTileSetAuto(localTableSets[setIndex]);
+        }
+        playSoundEffect('place');
+        renderRack();
+        renderScratchpad();
+        renderTable();
+    }
+
+    function handleTileDropOnEmptyTable(droppedTile) {
+        if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) {
+            showToast("내 턴일 때만 테이블에 타일을 놓을 수 있습니다.");
+            return;
+        }
+        const id = droppedTile.id;
+        localRack = localRack.filter(t => t.id !== id);
+        localTableSets = localTableSets.map(set => set.filter(t => t.id !== id)).filter(s => s && s.length > 0);
+        localScratchSlots = localScratchSlots.map(s => s.filter(t => t.id !== id));
+
+        localTableSets.push([droppedTile]);
+        playSoundEffect('place');
+        renderRack();
+        renderScratchpad();
+        renderTable();
+    }
+
+    function handleTileDropOnRack(droppedTile) {
+        const id = droppedTile.id;
+        const isMyTurn = (String(myPlayerId) === String(roomState?.current_turn_player_id) && roomState?.status === 'PLAYING');
+        const isFromTable = localTableSets.some(set => set.some(t => t.id === id));
+        if (isFromTable && !isMyTurn) {
+            showToast("상대방의 턴에는 바닥 타일을 회수할 수 없습니다.");
+            return;
+        }
+
+        localRack = localRack.filter(t => t.id !== id);
+        localTableSets = localTableSets.map(set => set.filter(t => t.id !== id)).filter(s => s && s.length > 0);
+        localScratchSlots = localScratchSlots.map(s => s.filter(t => t.id !== id));
+
+        localRack.push(droppedTile);
+        applyRackSort();
+        playSoundEffect('place');
+        renderRack();
+        renderScratchpad();
+        renderTable();
     }
 
     function updateSubmitButtonHighlight() {
@@ -1070,14 +1194,16 @@
             }
         }
 
+        // 1. 우측 콘솔 참가자 목록 갱신
         playersList.forEach(p => {
             const card = document.createElement('div');
             const isTurnPlayer = (String(p.player_id) === String(roomState.current_turn_player_id) && roomState.status === 'PLAYING');
-            card.className = 'player-card' + (isTurnPlayer ? ' active-turn' : '');
+            card.className = 'console-player-item speech-bubble-anchor' + (isTurnPlayer ? ' is-turn' : '');
+            card.setAttribute('data-player-id', p.player_id);
 
             const nickname = String(p.nickname || '참여자');
             const firstLetter = nickname.charAt(0).toUpperCase();
-            const avatarColor = p.color || 'var(--bg-surface)';
+            const avatarColor = p.color || '#3b82f6';
             const tileCount = p.tile_count || 0;
 
             const isDanger = (roomState.status === 'PLAYING' && tileCount > 0 && tileCount <= 3);
@@ -1085,18 +1211,75 @@
 
             let statusHtml = (roomState.status === 'WAITING' || !roomState.status)
                 ? (p.is_ready ? '<span style="color:#16a34a; font-weight:bold; font-size:0.75rem;">준비 완료</span>' : '<span style="color:#94a3b8; font-size:0.75rem;">대기 중</span>')
-                : `<span style="font-size:0.75rem; font-weight:bold; color:var(--brand-blue);">${tileCount}장 ${isTurnPlayer ? '🎯' : ''}</span> ${dangerBadge}`;
+                : `<span style="font-size:0.75rem; font-weight:bold; color:var(--brand-blue);">${tileCount}장 ${isTurnPlayer ? '⏳' : ''}</span> ${dangerBadge}`;
 
             card.innerHTML = `
-                <div class="player-info">
-                    <div class="player-avatar" style="background-color: ${avatarColor};">${firstLetter}</div>
-                    <div class="player-name">${escapeHtml(nickname)} ${p.is_host ? '<span style="font-size:0.65rem; color:var(--brand-blue); border:1px solid; border-radius:3px; padding:0 2px;">방장</span>' : ''}</div>
+                <div class="console-player-avatar ${isTurnPlayer ? 'turn-pulse' : ''}" style="background-color: ${avatarColor};">${firstLetter}</div>
+                <div class="console-player-info">
+                    <div class="console-player-nick">${escapeHtml(nickname)} ${p.is_host ? '<span style="font-size:0.65rem; color:var(--border-accent); border:1px solid; border-radius:3px; padding:0 2px;">방장</span>' : ''}</div>
+                    <div class="console-player-sub">${statusHtml}</div>
                 </div>
-                <div>${statusHtml}</div>
             `;
             panel.appendChild(card);
         });
+
+        // 2. 대국 스타디움 상단 방사형 좌석 포드 (Opponents Stadium Pods) 렌더링
+        const oppStadium = document.getElementById('opponents-stadium');
+        if (oppStadium) {
+            oppStadium.innerHTML = '';
+            const opponents = playersList.filter(p => String(p.player_id) !== String(myPlayerId));
+
+            oppStadium.className = 'opponents-stadium';
+            if (opponents.length <= 1) {
+                oppStadium.classList.add('players-2');
+            } else if (opponents.length === 2) {
+                oppStadium.classList.add('players-3');
+            } else {
+                oppStadium.classList.add('players-4');
+            }
+
+            opponents.forEach(opp => {
+                const isOppTurn = (String(opp.player_id) === String(roomState.current_turn_player_id) && roomState.status === 'PLAYING');
+                const pod = document.createElement('div');
+                pod.className = 'stadium-pod speech-bubble-anchor' + (isOppTurn ? ' is-active-turn' : '');
+                pod.setAttribute('data-player-id', opp.player_id);
+
+                const oppNick = String(opp.nickname || '상대방');
+                const firstLetter = oppNick.charAt(0).toUpperCase();
+                const avatarColor = opp.color || '#3b82f6';
+                const oppTiles = opp.tile_count || 0;
+                const isDanger = (roomState.status === 'PLAYING' && oppTiles > 0 && oppTiles <= 3);
+
+                let statText = (roomState.status === 'WAITING' || !roomState.status)
+                    ? (opp.is_ready ? '🟢 준비 완료' : '⚪ 대기 중')
+                    : (opp.has_opened ? '🔓 첫등록 완료' : '🔒 첫등록 전');
+
+                pod.innerHTML = `
+                    <div class="pod-avatar-wrapper">
+                        <div class="pod-avatar-circle" style="background-color: ${avatarColor};">${firstLetter}</div>
+                        <div class="pod-glow-ring"></div>
+                        <span class="pod-turn-label">TURN</span>
+                    </div>
+                    <div class="pod-meta-zone">
+                        <div class="pod-nickname">
+                            <span>${escapeHtml(oppNick)}</span>
+                            ${opp.is_host ? '<span style="font-size:0.62rem; color:var(--border-accent); border:1px solid; border-radius:3px; padding:0 3px;">방장</span>' : ''}
+                        </div>
+                        <div class="pod-stat-line">
+                            <span>${statText}</span>
+                            ${isDanger ? `<strong style="color:#ef4444; margin-left:4px;">⚠️${oppTiles}장 남음!</strong>` : ''}
+                        </div>
+                    </div>
+                    <div class="pod-cards-fan" title="남은 타일: ${oppTiles}장">
+                        <span class="pod-card-icon">🎴</span>
+                        <span class="pod-cards-count">${oppTiles}</span>
+                    </div>
+                `;
+                oppStadium.appendChild(pod);
+            });
+        }
     }
+
 
     function renderChatLogs() {
         const chatBox = document.getElementById('chat-messages');
@@ -1163,6 +1346,12 @@
                 <p style="font-size: 0.8rem; color: var(--text-muted);">잠시 후 대기실로 이동합니다...</p>
             </div>
         `;
+        if (window.GameFX && window.GameFX.audio) {
+            window.GameFX.audio.playWin();
+        }
+        if (typeof confetti === 'function') {
+            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+        }
         modal.classList.add('active');
         setTimeout(() => { if (modal) modal.classList.remove('active'); }, 3500);
     }

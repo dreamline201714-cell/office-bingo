@@ -90,7 +90,54 @@ function getClassicHwatuImgPath(card) {
 
 const wsUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
 
+function sendMsg(payload) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(payload));
+    }
+}
+
+function connectWS(callback) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        if (callback) callback();
+        return;
+    }
+    if (ws && ws.readyState === WebSocket.CONNECTING) {
+        if (callback) {
+            ws.addEventListener('open', () => callback(), { once: true });
+        }
+        return;
+    }
+
+    ws = new WebSocket(wsUrl);
+    ws.onopen = () => { 
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+        if (statusDot) statusDot.className = 'status-dot connected';
+        if (statusText) statusText.innerText = '연결됨';
+        if (callback) callback(); 
+    };
+    ws.onmessage = (e) => {
+        try {
+            handleMessage(JSON.parse(e.data));
+        } catch (err) {
+            console.error('[GoStop] Message error:', err);
+        }
+    };
+    ws.onerror = (err) => {
+        console.warn('[GoStop] WebSocket error:', err);
+    };
+    ws.onclose = () => {
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+        if (statusDot) statusDot.className = 'status-dot';
+        if (statusText) statusText.innerText = '재연결 중...';
+        setTimeout(() => connectWS(), 2000);
+    };
+}
+
 window.addEventListener('DOMContentLoaded', () => {
+    connectWS();
+
     const urlParams = new URLSearchParams(window.location.search);
     const roomParam = urlParams.get('room');
     if (roomParam) {
@@ -99,25 +146,6 @@ window.addEventListener('DOMContentLoaded', () => {
         if (codeInput) codeInput.value = roomParam.toUpperCase();
     }
 });
-
-function connectWS(callback) {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        if (callback) callback();
-        return;
-    }
-    ws = new WebSocket(wsUrl);
-    ws.onopen = () => { 
-        document.getElementById('status-dot').className = 'status-dot connected';
-        document.getElementById('status-text').innerText = '연결됨';
-        if (callback) callback(); 
-    };
-    ws.onmessage = (e) => handleMessage(JSON.parse(e.data));
-    ws.onclose = () => {
-        document.getElementById('status-dot').className = 'status-dot';
-        document.getElementById('status-text').innerText = '재연결 중...';
-        setTimeout(() => connectWS(), 2000);
-    };
-}
 
 function switchTab(tab) {
     const createTab = document.getElementById('create-tab');
@@ -325,12 +353,32 @@ function onTableCardClick(targetCard) {
     if (!gameState || gameState.status !== 'PLAYING' || gameState.current_turn_player_id !== myPlayerId) return;
 
     if (gameState.turn_phase === 'PLAY_HAND' && pendingPlayedCardId) {
+        if (window.GameFX) {
+            if (window.GameFX.audio) window.GameFX.audio.playSlam();
+            window.GameFX.shake(5, 250);
+        }
+        const mat = document.querySelector('.board-mat-center');
+        if (mat) {
+            mat.classList.add('card-slap-slam');
+            setTimeout(() => mat.classList.remove('card-slap-slam'), 300);
+        }
+        clearTableMatchHighlight();
         ws.send(JSON.stringify({ type: 'PLAY_HAND_CARD', card_id: pendingPlayedCardId, target_card_id: targetCard ? targetCard.id : null }));
         pendingPlayedCardId = null;
         return;
     }
 
     if (gameState.turn_phase === 'DRAW_DECK_CHOICE' && targetCard) {
+        if (window.GameFX) {
+            if (window.GameFX.audio) window.GameFX.audio.playSlam();
+            window.GameFX.shake(4, 200);
+        }
+        const mat = document.querySelector('.board-mat-center');
+        if (mat) {
+            mat.classList.add('card-slap-slam');
+            setTimeout(() => mat.classList.remove('card-slap-slam'), 300);
+        }
+        clearTableMatchHighlight();
         ws.send(JSON.stringify({ type: 'CONFIRM_DECK_DRAW', target_card_id: targetCard.id }));
     }
 }
@@ -340,6 +388,7 @@ function onDeckClick() {
     if (gameState.current_turn_player_id !== myPlayerId) return showToast('당신의 턴이 아닙니다!');
     if (gameState.turn_phase !== 'DRAW_DECK') return showToast('먼저 손패를 선택하고 바닥을 눌러 내주세요!');
 
+    if (window.GameFX && window.GameFX.audio) window.GameFX.audio.playPop(750, 0.05);
     ws.send(JSON.stringify({ type: 'DRAW_DECK_CARD' }));
 }
 
@@ -347,6 +396,10 @@ function onTableEmptyClick() {
     if (!gameState || gameState.status !== 'PLAYING' || gameState.current_turn_player_id !== myPlayerId) return;
 
     if (gameState.turn_phase === 'PLAY_HAND' && pendingPlayedCardId) {
+        if (window.GameFX) {
+            if (window.GameFX.audio) window.GameFX.audio.playSlam();
+            window.GameFX.shake(4, 200);
+        }
         ws.send(JSON.stringify({ type: 'PLAY_HAND_CARD', card_id: pendingPlayedCardId, target_card_id: null }));
         pendingPlayedCardId = null;
         return;
@@ -360,8 +413,8 @@ function onTableEmptyClick() {
 function sendChat() {
     const input = document.getElementById('chat-input');
     const text = input ? input.value.trim() : '';
-    if (text && ws) {
-        ws.send(JSON.stringify({ type: 'CHAT_MESSAGE', message: text }));
+    if (text && ws && currentRoomId) {
+        ws.send(JSON.stringify({ type: 'CHAT_MESSAGE', room_id: currentRoomId, message: text }));
         input.value = '';
     }
 }
@@ -437,9 +490,19 @@ function highlightTableMatches(targetMonth) {
         const cardMonth = parseInt(el.getAttribute('data-card-month'), 10);
         if (cardMonth === targetMonth) {
             el.classList.add('selectable');
+            el.classList.add('matching-floor-card');
         } else {
             el.classList.remove('selectable');
+            el.classList.remove('matching-floor-card');
         }
+    });
+}
+
+function clearTableMatchHighlight() {
+    const tableCards = document.querySelectorAll('.board-mat-center .hwatu-card');
+    tableCards.forEach(el => {
+        el.classList.remove('selectable');
+        el.classList.remove('matching-floor-card');
     });
 }
 
@@ -464,17 +527,57 @@ function handleMessage(msg) {
     if (msg.type === 'ROOM_JOINED') {
         currentRoomId = msg.room_id;
         myPlayerId = msg.player_id;
+        window.myPlayerId = myPlayerId;
         isHost = msg.is_host;
         document.getElementById('lobby-card').style.display = 'none';
-        document.getElementById('arena').style.display = 'grid';
+        document.getElementById('arena').style.display = 'flex';
         document.getElementById('room-code-display').innerText = currentRoomId;
+
+        if (window.GameFX) {
+            if (window.GameFX.mountDock) {
+                window.GameFX.mountDock(
+                    (emoji) => sendMsg({ type: 'SEND_REACTION', room_id: currentRoomId, emoji: emoji }),
+                    (text) => sendMsg({ type: 'QUICK_CHAT', room_id: currentRoomId, text: text })
+                );
+            }
+            if (window.GameFX.initTicker) {
+                window.GameFX.initTicker((text) => {
+                    sendMsg({ type: 'CHAT_MESSAGE', room_id: currentRoomId, message: text });
+                });
+            }
+        }
     }
 
     if (msg.type === 'ROOM_UPDATED' || msg.type === 'ROOM_JOINED') {
         if (msg.state) updateUI(msg.state);
     }
 
-    if (msg.type === 'CHAT_MESSAGE') appendChat(msg.chat);
+    if (msg.type === 'CHAT_MESSAGE') {
+        appendChat(msg.chat);
+        if (window.GameFX) {
+            GameFX.say(msg.chat.player_id || msg.chat.nickname, msg.chat.text);
+            GameFX.ticker(msg.chat.text, msg.chat.nickname, msg.chat.system);
+            GameFX.incrementUnread();
+        }
+    }
+
+    if (msg.type === 'FLOATING_REACTION') {
+        if (window.GameFX) {
+            if (window.GameFX.reactions) window.GameFX.reactions.spawn(msg.emoji, msg.nickname);
+            GameFX.say(msg.player_id || msg.nickname, msg.emoji);
+        }
+    }
+
+    if (msg.type === 'QUICK_CHAT_BUBBLE') {
+        if (window.GameFX) {
+            window.GameFX.say(msg.player_id || msg.nickname, msg.text);
+            window.GameFX.ticker(msg.text, msg.nickname);
+            window.GameFX.reactions.spawn('💬', msg.nickname);
+            if (window.GameFX.audio) window.GameFX.audio.playPop(850, 0.05);
+            GameFX.incrementUnread();
+        }
+        if (msg.chat) appendChat(msg.chat);
+    }
 }
 
 function updateUI(state) {
@@ -603,22 +706,50 @@ function updateUI(state) {
     const oppContainer = document.getElementById('opponents-container');
     if (oppContainer) {
         oppContainer.innerHTML = '';
+        oppContainer.className = 'opponents-stadium';
+        if (opponents.length <= 1) {
+            oppContainer.classList.add('players-2');
+        } else if (opponents.length === 2) {
+            oppContainer.classList.add('players-3');
+        } else {
+            oppContainer.classList.add('players-4');
+        }
+
         opponents.forEach(opp => {
+            const isOppTurn = (state.current_turn_player_id === opp.player_id && state.status === 'PLAYING');
             const box = document.createElement('div');
-            box.className = 'player-box';
+            box.className = 'stadium-pod speech-bubble-anchor' + (isOppTurn ? ' is-active-turn' : '');
+            box.setAttribute('data-player-id', opp.player_id);
+
+            const nick = opp.nickname || '상대방';
+            const firstLetter = nick.charAt(0).toUpperCase();
+            const handCount = (opp.hand_count !== undefined) ? opp.hand_count : (opp.hand ? opp.hand.length : 7);
+
             box.innerHTML = `
-                <div class="player-header">
-                    <span>${opp.nickname} ${opp.is_spectator ? '<small>(관전)</small>' : ''}</span>
-                    <div>
-                        <span class="chip-badge">${(opp.chips || 0).toLocaleString()} 칩</span>
-                        <span style="margin-left:6px; color:#e53935; font-weight:bold;">${opp.score || 0}점</span>
+                <div class="pod-avatar-wrapper">
+                    <div class="pod-avatar-circle" style="background: linear-gradient(135deg, #e11d48, #be123c);">${firstLetter}</div>
+                    <div class="pod-glow-ring"></div>
+                    <span class="pod-turn-label">TURN</span>
+                </div>
+                <div class="pod-meta-zone">
+                    <div class="pod-nickname">
+                        <span>${nick} ${opp.is_spectator ? '<small>(관전)</small>' : ''}</span>
+                        ${opp.is_host ? '<span style="font-size:0.62rem; color:var(--border-accent); border:1px solid; border-radius:3px; padding:0 3px;">방장</span>' : ''}
                     </div>
+                    <div class="pod-stat-line">
+                        <span class="chip-badge" style="font-size:0.72rem; padding:1px 6px;">${(opp.chips || 0).toLocaleString()} 칩</span>
+                        <span style="color:#ef4444; font-weight:800; font-size:0.78rem;">${opp.score || 0}점</span>
+                    </div>
+                    <div style="font-size:0.68rem; color:var(--text-secondary); margin-top:2px; display:flex; justify-content:space-between; align-items:center;">
+                        <span>📥 획득패</span>
+                        <small style="color:var(--border-accent); cursor:pointer;" onclick="openCapturedDetailModal('${opp.player_id}')">🔍 크게보기</small>
+                    </div>
+                    <div id="captured-${opp.player_id}" class="captured-mat-box" style="margin-top:2px; padding:2px;" onclick="openCapturedDetailModal('${opp.player_id}')"></div>
                 </div>
-                <div style="font-size:0.72rem; color:var(--text-secondary); margin-bottom:3px; display:flex; justify-content:space-between;">
-                    <span>📥 획득한 패</span>
-                    <small style="color:var(--border-accent); cursor:pointer;" onclick="openCapturedDetailModal('${opp.player_id}')">🔍 크게보기</small>
+                <div class="pod-cards-fan" title="남은 손패: ${handCount}장">
+                    <span class="pod-card-icon">🎴</span>
+                    <span class="pod-cards-count">${handCount}</span>
                 </div>
-                <div id="captured-${opp.player_id}" class="captured-mat-box" onclick="openCapturedDetailModal('${opp.player_id}')"></div>
             `;
             oppContainer.appendChild(box);
             renderCategorizedCapturedStacked(`captured-${opp.player_id}`, opp.captured || [], opp.player_id);
@@ -635,16 +766,22 @@ function updateUI(state) {
             sortedHand.forEach(card => {
                 const handSameMonthCnt = myInfo.hand.filter(c => c.month === card.month).length;
                 const tableSameMonthCnt = (state.table_cards || []).filter(c => c.month === card.month).length;
-                const isBombable = isMyTurn && state.turn_phase === 'PLAY_HAND' && (handSameMonthCnt === 3 && tableSameMonthCnt === 1);
-                const isMatchedWithTable = isMyTurn && state.turn_phase === 'PLAY_HAND' && tableMonths.has(card.month);
-                
-                const isSelected = (pendingPlayedCardId === card.id);
 
-                const cardNode = renderHwatuCard(card, (c) => playCard(c.id), false, isBombable, isMatchedWithTable);
-                if (isSelected) {
-                    cardNode.classList.add('selected');
-                }
-                myHandEl.appendChild(cardNode);
+                const isBombable = isMyTurn && (state.turn_phase === 'PLAY_HAND') && (handSameMonthCnt >= 3) && (tableSameMonthCnt >= 1);
+                const isSelectable = isMyTurn && (state.turn_phase === 'PLAY_HAND');
+
+                const cardEl = renderHwatuCard(card, (c) => onHandCardClick(c), isSelectable, isBombable);
+                if (pendingPlayedCardId === card.id) cardEl.classList.add('selected');
+
+                // 🎴 바닥패 스마트 매칭 가이드: 손패 호버 시 바닥의 동일 월 패 자동 하이라이트
+                cardEl.addEventListener('mouseenter', () => {
+                    highlightTableMatches(card.month);
+                });
+                cardEl.addEventListener('mouseleave', () => {
+                    if (!pendingPlayedCardId) clearTableMatchHighlight();
+                });
+
+                myHandEl.appendChild(cardEl);
             });
         }
     }
@@ -653,7 +790,11 @@ function updateUI(state) {
         const myNameEl = document.getElementById('my-name');
         const myChipsEl = document.getElementById('my-chips');
         const myScoreEl = document.getElementById('my-score');
-        if (myNameEl) myNameEl.innerText = myInfo.nickname;
+        if (myNameEl) {
+            myNameEl.innerText = myInfo.nickname;
+            myNameEl.setAttribute('data-player-id', myPlayerId);
+            myNameEl.classList.add('speech-bubble-anchor');
+        }
         if (myChipsEl) myChipsEl.innerText = `${(myInfo.chips || 0).toLocaleString()} 칩`;
         if (myScoreEl) myScoreEl.innerText = `${myInfo.score || 0}점`;
         renderMyCategorizedCapturedStacked(myInfo.captured || []);
@@ -663,21 +804,27 @@ function updateUI(state) {
 	if (mobileCountSpan && state.players) {
 		mobileCountSpan.innerText = state.players.length;
 	}
+    const fixedPlayerCount = document.getElementById('player-count');
+    if (fixedPlayerCount && state.players) {
+        fixedPlayerCount.innerText = state.players.length;
+    }
 	const playerListEl = document.getElementById('player-list');
     if (playerListEl) {
         playerListEl.innerHTML = '';
         state.players.forEach(p => {
+            const isTurnP = (state.current_turn_player_id === p.player_id && state.status === 'PLAYING');
             const item = document.createElement('div');
-            item.className = 'player-card';
+            item.className = 'console-player-item speech-bubble-anchor' + (isTurnP ? ' is-turn' : '');
+            item.setAttribute('data-player-id', p.player_id);
             item.innerHTML = `
-                <div class="player-info">
-                    <div class="player-avatar" style="color:${p.color};">${p.nickname[0]}</div>
-                    <div style="display:flex; flex-direction:column;">
-                        <span class="player-name">${p.nickname}</span>
-                        <small style="color:#f59e0b; font-weight:bold; font-size:0.7rem;">${(p.chips || 0).toLocaleString()} 칩</small>
+                <div class="console-player-avatar ${isTurnP ? 'turn-pulse' : ''}" style="background-color:${p.color || '#3b82f6'};">${(p.nickname || '?')[0]}</div>
+                <div class="console-player-info">
+                    <div class="console-player-nick">${p.nickname} ${p.is_host ? '<span style="font-size:0.62rem; color:var(--border-accent); border:1px solid; border-radius:3px; padding:0 2px;">방장</span>' : ''}</div>
+                    <div class="console-player-sub">
+                        <span style="color:#f59e0b; font-weight:bold;">${(p.chips || 0).toLocaleString()} 칩</span>
+                        <span style="margin-left:4px; color:${p.is_ready ? '#10b981' : '#94a3b8'}; font-weight:700;">${p.is_ready ? '준비완료' : '대기중'}</span>
                     </div>
                 </div>
-                <span class="ready-tag ${p.is_ready ? 'ready' : 'waiting'}">${p.is_ready ? '준비완료' : '대기중'}</span>
             `;
             playerListEl.appendChild(item);
         });
@@ -914,7 +1061,7 @@ function renderKukjinMoveUI(myInfo) {
    ========================================== */
 window.addEventListener('DOMContentLoaded', () => {
     const mobileFabBtn = document.getElementById('mobile-fab-btn');
-    const mobileSidebar = document.getElementById('mobile-sidebar');
+    const mobileSidebar = document.getElementById('sidebar-panel') || document.getElementById('mobile-sidebar');
     const mobileSidebarClose = document.getElementById('mobile-sidebar-close');
 
     if (mobileFabBtn && mobileSidebar) {

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko" data-theme="light">
+<html lang="ko" data-theme="dark">
 <head>
     <script>
         // 단독 접속 시 index.html로 자동 리다이렉트
@@ -7,19 +7,18 @@
             const urlParams = new URLSearchParams(window.location.search);
             const roomCode = urlParams.get('room');
             const currentGame = window.location.pathname.split('/').pop().replace('.html', '');
-            
-            let targetUrl = `/index.html?game=${currentGame}`;
+            const basePath = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
+            let targetUrl = `${basePath}/index.html?game=${currentGame}`;
             if (roomCode) targetUrl += `&room=${roomCode}`;
-            
             window.location.href = targetUrl;
         }
     </script>
 	<meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>26년 재무상태표.xlsx - Excel</title>
+    <title>Office Live Games - 섯다 (v2 Arcade)</title>
     
-    <link rel="stylesheet" href="common.css?v=20260814_v8">
-    <link rel="stylesheet" href="style_seotda.css?v=20260814_v8">
+    <link rel="stylesheet" href="common.css?v=20260917_v3">
+    <link rel="stylesheet" href="style_seotda.css?v=20260917_v3">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
@@ -27,28 +26,16 @@
     <canvas id="confetti-canvas"></canvas>
     <div id="toast-container" class="toast-container"></div>
 
-    
-
     <header class="navbar-slim" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 12px;">
 		<div class="status-badge">
 			<span class="status-dot" id="status-dot"></span>
 			<span id="status-text">연결 대기 중</span>
 		</div>
 		
-		<div class="nav-controls" style="display: flex; align-items: center; gap: 6px;">
-			<!-- ★ 모바일/좁은 화면 전용 대화 버튼 추가 ★ -->
-			<button class="icon-btn mobile-header-chat-btn" id="mobile-fab-btn" title="대화 / 참가자 목록">
-				💬 <span id="mobile-player-count">0</span>
-			</button>
+		<div class="nav-controls" style="display: flex; align-items: center; gap: 8px;">
 			<button class="icon-btn" id="btn-help" title="게임 방법" onclick="openHelpModal()">❓</button>
 		</div>
 	</header>
-
-    <div class="excel-formula-bar excel-only-bar">
-        <div class="excel-cell-name">C3</div>
-        <div class="excel-fx">fx</div>
-        <input type="text" class="excel-formula-input" value='=SUM(B2:B10) + SEOTDA_HAND("26년 재무상태표", "자산총계")' readonly>
-    </div>
 
     <main class="container">
         <!-- 1. 로비 섹션 -->
@@ -126,125 +113,133 @@
             </div>
         </section>
 
-        <!-- 2. 섯다 아레나 섹션 -->
+        <!-- 2. 섯다 아레나 섹션 (혁신적 스타디움 아레나 & 일체형 아케이드 콘솔) -->
         <section id="arena-section" style="display: none;">
-            <div class="arena-header">
-                <div class="topic-banner">
-                    <div class="topic-info">
-                        <span class="topic-tag">섯다</span>
-                        <span class="room-state-badge waiting" id="room-state-badge">대기 중</span>
-                        <h2 id="display-topic-title">실시간 섯다</h2>
-                        <span style="font-size: 0.78rem; color: var(--text-secondary);" id="display-chips-info">시작 자금: 10,000칩 | 기본 판돈: 100칩</span>
-                    </div>
-
-                    <div class="room-share-box">
-                        <div class="room-code-badge" id="display-room-code">------</div>
-                        <button class="secondary-btn" id="btn-copy-link">링크 복사</button>
-                        <button class="secondary-btn" id="btn-show-qr">QR 코드</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 독립 방장 박스 -->
-            <div id="host-controls" class="host-controls-box" style="display: none;">
-                <button class="start-game-btn" id="btn-host-start">게임 시작하기!</button>
-            </div>
-
-            <!-- 선(딜러) 박스 -->
-            <div id="dealer-controls" class="host-controls-box" style="display: none;">
-                <span style="font-size:0.8rem; font-weight:600; color:var(--border-accent); margin-right:6px;">👑 이번 판 선</span>
-                <button class="start-game-btn" id="btn-dealer-start">다음 판 패 섞고 나누기</button>
-            </div>
-
-            <div class="turn-banner" id="turn-banner" style="display: none;">
-                <div class="turn-banner-header">
-                    <div class="turn-banner-left">
-                        <span>현재 배팅 턴:</span>
-                        <span class="turn-player-badge" id="turn-player-badge">홍길동님</span>
-                    </div>
-                    <div class="turn-banner-right">
-                        <span class="turn-timer-text"><span id="turn-timer-num">15</span>초</span>
-                        <div class="turn-timer-track">
-                            <div class="turn-timer-fill" id="turn-timer-fill"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="arena-main">
-                <div class="board-container">
-                    <div class="seotda-table-board" id="seotda-table-board">
-                        <div class="pot-center-box" id="pot-center-box">
-                            <div class="pot-title">TOTAL POT</div>
-                            <div class="pot-amount" id="total-pot-amount">0 칩</div>
+            <div class="arena-main" id="arena-main">
+                <!-- 좌측 76%: 섯다 스타디움 경기장 (Stadium Arena) -->
+                <div class="stadium-arena" id="stadium-arena">
+                    <!-- ⚡ 초슬림 단일 일체형 경기 HUD (40px) -->
+                    <div class="compact-match-hud" id="compact-match-hud">
+                        <!-- 좌측: 메타 정보 칩 (종목, 대기상태, 판돈) -->
+                        <div class="hud-meta-group">
+                            <span class="hud-tag">섯다</span>
+                            <span class="room-state-badge waiting" id="room-state-badge">대기 중</span>
+                            <span class="hud-rule-chip" id="display-chips-info">기본 판돈: 100칩</span>
                         </div>
 
-                        <div class="other-players-grid" id="other-players-grid"></div>
+                        <!-- 우측: 실시간 배팅 턴 & 타이머 바 (단일 HUD 통합) -->
+                        <div class="hud-turn-group" id="turn-banner" style="display: none;">
+                            <span class="hud-turn-label">배팅 턴:</span>
+                            <span class="hud-turn-badge" id="turn-player-badge">홍길동님</span>
+                            <div class="hud-timer-zone">
+                                <span class="hud-timer-sec"><span id="turn-timer-num">15</span>초</span>
+                                <div class="hud-timer-bar">
+                                    <div class="hud-timer-fill" id="turn-timer-fill" style="width: 100%;"></div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
-                    <div id="footer-waiting-controls" style="display: flex; justify-content: flex-start; margin-top: 10px;">
-                        <button class="primary-btn" id="btn-toggle-ready" style="width: auto; padding: 6px 14px; margin: 0; font-size:0.85rem;">준비 완료</button>
+                    <!-- 독립 방장 박스 -->
+                    <div id="host-controls" class="host-controls-box" style="display: none; margin-bottom: 6px;">
+                        <button class="start-game-btn" id="btn-host-start">게임 시작하기!</button>
                     </div>
 
-                    <div class="quick-speech-bar">
-                        <span style="font-size:0.78rem; font-weight:600; color:var(--text-secondary);">💬 퀵 도발:</span>
-                        <button class="quick-btn" data-msg="이거 삼팔광땡 각인데? 👑">😈 삼팔광땡</button>
-                        <button class="quick-btn" data-msg="죽으려면 지금 죽어~ 💸">💸 지금 죽어</button>
-                        <button class="quick-btn" data-msg="쫄리면 죽으시든가! 😜">😜 쫄리시나</button>
-                        <button class="quick-btn" data-msg="죽어도 고! 올인 간다! 🎲">🎲 올인 간다</button>
-                        <button class="quick-btn" data-msg="아... 끗인데 잘못 왔네 😭">😭 끗이네</button>
+                    <!-- 선(딜러) 박스 -->
+                    <div id="dealer-controls" class="host-controls-box" style="display: none; margin-bottom: 6px;">
+                        <span style="font-size:0.8rem; font-weight:600; color:var(--border-accent); margin-right:6px;">👑 이번 판 선</span>
+                        <button class="start-game-btn" id="btn-dealer-start">다음 판 패 섞고 나누기</button>
                     </div>
 
-                    <div class="my-seotda-hand-panel">
-                        <div class="my-hand-header">
-							<div style="display:flex; align-items:center; gap:8px;">
-								<span>내 화투패</span>
-								<button class="theme-select-btn" onclick="setCardTheme('notion')">🎨 노션</button>
-								<button class="theme-select-btn" onclick="setCardTheme('classic')">🎴 레트로</button>
-							</div>
-							<span class="my-jokbo-badge" id="my-jokbo-badge">패 대기 중...</span>
-						</div>
-                        
-                        <div class="my-cards-container" id="my-cards-container">
-                            <div class="hwatu-card card-back"></div>
-                            <div class="hwatu-card card-back"></div>
+                    <div class="board-container">
+                        <div class="seotda-table-board" id="seotda-table-board">
+                            <div class="pot-center-box" id="pot-center-box">
+                                <div class="pot-title">TOTAL POT</div>
+                                <div class="pot-amount" id="total-pot-amount">0 칩</div>
+                            </div>
+
+                            <div class="other-players-grid" id="other-players-grid"></div>
                         </div>
 
-                        <div class="betting-action-group" id="betting-action-group">
-                            <button class="bet-btn bet-bing" data-action="BING">삥 (기본)</button>
-                            <button class="bet-btn bet-tadang" data-action="TADANG">따당 (2배)</button>
-                            <button class="bet-btn bet-half" data-action="HALF">하프 (50%)</button>
-                            <button class="bet-btn bet-call" data-action="CALL">콜 (CALL)</button>
-                            <button class="bet-btn bet-die" data-action="DIE">다이 (기권)</button>
+                        <div id="footer-waiting-controls" style="display: flex; justify-content: flex-start; margin-top: 6px;">
+                            <button class="primary-btn" id="btn-toggle-ready" style="width: auto; padding: 6px 14px; margin: 0; font-size:0.85rem;">준비 완료</button>
+                        </div>
+
+                        <div class="quick-speech-bar">
+                            <span style="font-size:0.78rem; font-weight:600; color:var(--text-secondary);">💬 퀵 도발:</span>
+                            <button class="quick-btn" data-msg="이거 삼팔광땡 각인데? 👑">😈 삼팔광땡</button>
+                            <button class="quick-btn" data-msg="죽으려면 지금 죽어~ 💸">💸 지금 죽어</button>
+                            <button class="quick-btn" data-msg="쫄리면 죽으시든가! 😜">😜 쫄리시나</button>
+                            <button class="quick-btn" data-msg="죽어도 고! 올인 간다! 🎲">🎲 올인 간다</button>
+                            <button class="quick-btn" data-msg="아... 끗인데 잘못 왔네 😭">😭 끗이네</button>
+                        </div>
+
+                        <div class="my-seotda-hand-panel">
+                            <div class="my-hand-header">
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <span>내 화투패</span>
+                                    <button class="theme-select-btn" onclick="setCardTheme('notion')">🎨 노션</button>
+                                    <button class="theme-select-btn" onclick="setCardTheme('classic')">🎴 레트로</button>
+                                </div>
+                                <span class="my-jokbo-badge" id="my-jokbo-badge">패 대기 중...</span>
+                            </div>
+                            
+                            <div class="my-cards-container" id="my-cards-container">
+                                <div class="hwatu-card card-back"></div>
+                                <div class="hwatu-card card-back"></div>
+                            </div>
+
+                            <div class="betting-action-group" id="betting-action-group">
+                                <button class="bet-btn bet-bing" data-action="BING">삥 (기본)</button>
+                                <button class="bet-btn bet-tadang" data-action="TADANG">따당 (2배)</button>
+                                <button class="bet-btn bet-half" data-action="HALF">하프 (50%)</button>
+                                <button class="bet-btn bet-call" data-action="CALL">콜 (CALL)</button>
+                                <button class="bet-btn bet-die" data-action="DIE">다이 (기권)</button>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="sidebar-panel glass-card" id="mobile-sidebar">
-                    <button class="mobile-sidebar-close" id="mobile-sidebar-close">▼ 창 닫기</button>
-                    
-                    <div class="sidebar-players-fixed">
-                        <div class="sidebar-section-title">
-                            <span>👥 참가자 목록</span>
-                            <span class="player-count-badge">(<span id="player-count">0</span>명)</span>
+                <!-- 우측 24%: 일체형 아케이드 콘솔 (Integrated Arcade Console) -->
+                <div class="arcade-console sidebar-panel" id="sidebar-panel">
+                    <div class="console-header-bar">
+                        <div class="console-title-zone">
+                            <span>🎮 매치</span>
+                            <span class="console-room-code-badge" id="display-room-code" title="방 코드 복사" onclick="document.getElementById('btn-copy-link').click()">------</span>
+                        </div>
+                        <div class="console-actions-zone">
+                            <button class="console-action-pill" id="btn-copy-link" title="방 초대 링크 복사">초대 복사</button>
+                            <button class="console-action-pill" id="btn-show-qr" title="QR 코드 보기">QR</button>
+                            <button type="button" class="console-collapse-btn" onclick="GameFX.toggleConsole()" title="콘솔 접기/펼치기">✕</button>
+                        </div>
+                    </div>
+
+                    <!-- 1구역: 참가자 현황 -->
+                    <div class="console-players-deck">
+                        <div class="console-section-label">
+                            <span>👥 참가자 (<span id="player-count">0</span>명)</span>
                         </div>
                         <div id="panel-players" class="player-list-scroll"></div>
                     </div>
 
-                    <div class="sidebar-tabbed-area">
-                        <div class="sidebar-tabs">
-                            <button class="sidebar-tab-btn active" style="width:100%;">실시간 대화</button>
-                        </div>
+                    <!-- 2구역: 실시간 대화 피드 -->
+                    <div class="console-chat-zone">
+                        <div class="console-chat-stream" id="chat-messages"></div>
+                    </div>
 
-                        <div class="sidebar-content">
-                            <div id="panel-chat" class="chat-container">
-                                <div class="chat-messages" id="chat-messages"></div>
-                                <form id="chat-form" class="chat-input-box">
-                                    <input type="text" id="chat-input" class="chat-input" placeholder="메세지를 입력하세요..." autocomplete="off">
-                                    <button type="submit" class="chat-send-btn">전송</button>
-                                </form>
-                            </div>
+                    <!-- 3구역: 퀵 리액션 알약 & 정규 우하단 입력창 -->
+                    <div class="console-bottom-dock">
+                        <div class="quick-reactions-bar">
+                            <button type="button" class="reaction-pill" onclick="GameFX.quickReaction('👏 굿!')">👏 굿!</button>
+                            <button type="button" class="reaction-pill" onclick="GameFX.quickReaction('🔥 나이스')">🔥 나이스</button>
+                            <button type="button" class="reaction-pill" onclick="GameFX.quickReaction('😱 헉')">😱 헉</button>
+                            <button type="button" class="reaction-pill" onclick="GameFX.quickReaction('😈 쫄?')">😈 쫄?</button>
+                            <button type="button" class="reaction-pill" onclick="GameFX.quickReaction('💸 올인!')">💸 올인</button>
                         </div>
+                        <form id="chat-form" class="console-input-bar">
+                            <input type="text" id="chat-input" class="console-text-input" placeholder="대화 입력 (Enter)..." autocomplete="off" maxlength="100">
+                            <button type="submit" class="console-send-btn">전송</button>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -341,6 +336,7 @@
         </div>
     </div>
 
-    <script src="app_seotda.js?v=20260814_v8"></script>
+    <script src="common_fx.js?v=20260917_v2"></script>
+    <script src="app_seotda.js?v=20260917_v2"></script>
 </body>
 </html>

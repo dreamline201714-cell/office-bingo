@@ -1,5 +1,34 @@
 /* style_gostop.css - Cleaned & Dark Mode Fully Supported Stylesheet */
 
+#arena {
+    position: fixed !important;
+    top: 38px !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    z-index: 20 !important;
+    background: var(--bg-body) !important;
+    overflow: hidden !important;
+}
+
+.stadium-arena {
+    height: 100% !important;
+    min-height: 0 !important;
+    flex: 1 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding: 8px 12px 12px 12px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+    box-sizing: border-box !important;
+}
+
 /* ==========================================
    1. 중앙 화투판 & 덱/오픈패 레이아웃
    ========================================== */
@@ -8,7 +37,7 @@
     border: 1px solid var(--border-block);
     border-radius: 8px;
     padding: 10px 12px;
-    margin-bottom: 10px;
+    margin-bottom: 6px;
     box-sizing: border-box;
 }
 
@@ -158,6 +187,43 @@
     cursor: pointer;
 }
 
+/* 바닥패 스마트 매칭 하이라이트 (Matching Glow Assistant) */
+.hwatu-card.matching-floor-card {
+    border: 2px solid #fbbf24 !important;
+    box-shadow: 0 0 14px rgba(251, 191, 36, 0.9), 0 0 24px rgba(245, 158, 11, 0.4) !important;
+    transform: translateY(-4px) scale(1.08) !important;
+    z-index: 50 !important;
+    animation: matchingCardPulse 0.9s infinite alternate ease-in-out !important;
+}
+
+@keyframes matchingCardPulse {
+    0% { transform: translateY(-3px) scale(1.05); box-shadow: 0 0 10px rgba(251, 191, 36, 0.7); }
+    100% { transform: translateY(-6px) scale(1.1); box-shadow: 0 0 18px rgba(251, 191, 36, 1); }
+}
+
+/* 착! 달라붙는 슬랩 모션 (Slap Slam Effect) */
+.card-slap-slam {
+    animation: slapSlamAnim 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+}
+
+@keyframes slapSlamAnim {
+    0% { transform: scale(1.4) rotate(-12deg); opacity: 0.7; }
+    60% { transform: scale(0.92) rotate(3deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0deg); }
+}
+
+/* 고 vs 스톱 긴장감 모달 네온 효과 */
+#decision-modal .modal-content, .decision-modal-card {
+    border: 2px solid #f59e0b !important;
+    box-shadow: 0 0 35px rgba(245, 158, 11, 0.45) !important;
+    animation: heartbeatDecision 1.5s infinite ease-in-out !important;
+}
+
+@keyframes heartbeatDecision {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 25px rgba(245, 158, 11, 0.35); }
+    50% { transform: scale(1.02); box-shadow: 0 0 45px rgba(239, 68, 68, 0.6); }
+}
+
 /* ==========================================
    3. 획득 패 4분할 및 계단식 포개기(Overlap)
    ========================================== */
@@ -216,14 +282,26 @@
 }
 
 /* ==========================================
-   4. 내 손패 거치대 & 수평 정렬 헤더
+   4. 내 손패 거치대 & 수평 정렬 헤더 (중앙 정렬 밸런스 덱)
    ========================================== */
+.player-hand-zone {
+    width: 100% !important;
+    max-width: 760px !important;
+    margin: 6px auto 0 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+    box-sizing: border-box !important;
+}
+
 .hand-tray-container {
     background: var(--bg-surface, #f9f9f8);
     border: 2px solid var(--border-accent, #2eaadc);
     border-radius: 10px;
     padding: 10px 12px;
-    margin-top: 10px;
+    margin-top: 4px;
+    width: 100% !important;
+    box-sizing: border-box !important;
 }
 
 .hand-tray-header {

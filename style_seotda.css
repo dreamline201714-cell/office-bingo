@@ -1,5 +1,42 @@
 /* style_seotda.css - Fixed Betting Button Display Control & Shared Hwatu Card Design */
 
+#arena-section {
+    position: fixed !important;
+    top: 38px !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    z-index: 20 !important;
+    background: var(--bg-body) !important;
+    overflow: hidden !important;
+}
+
+.stadium-arena {
+    height: 100% !important;
+    min-height: 0 !important;
+    flex: 1 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding: 8px 12px 12px 12px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+    box-sizing: border-box !important;
+}
+
+.board-container {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 !important;
+    gap: 8px !important;
+    min-height: 0 !important;
+}
+
 .seotda-table-board {
     width: 100%; max-width: 100%; min-height: 230px; margin: 0 auto;
     background: radial-gradient(circle, #1b4d32 0%, #0e2f1f 100%);
@@ -137,7 +174,26 @@
     transform: none !important;
 }
 
-.my-seotda-hand-panel { background: var(--bg-surface); border: 1px solid var(--border-block); border-radius: 8px; padding: 12px; margin-top: 10px; }
+.quick-speech-bar { 
+    width: 100% !important; 
+    max-width: 580px !important; 
+    margin: 6px auto 0 auto !important; 
+    display: flex; 
+    align-items: center; 
+    gap: 6px; 
+    box-sizing: border-box; 
+}
+.my-seotda-hand-panel { 
+    background: var(--bg-surface); 
+    border: 1px solid var(--border-block); 
+    border-radius: 10px; 
+    padding: 12px; 
+    margin: 8px auto 0 auto !important; 
+    width: 100% !important; 
+    max-width: 580px !important; 
+    box-sizing: border-box !important; 
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
 .my-hand-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-weight: 600; font-size: 0.88rem; }
 .my-jokbo-badge { background: rgba(46, 170, 220, 0.15); color: var(--border-accent); padding: 3px 8px; border: 1px solid var(--border-accent); border-radius: 4px; font-size: 0.8rem; font-weight: 600; }
 .my-cards-container { display: flex; justify-content: center; gap: 10px; margin: 8px 0; }
@@ -309,4 +365,112 @@
     background: rgba(229, 57, 53, 0.12);
     border-color: #e53935;
     color: #e53935;
+}
+
+/* ==========================================
+   🃏 섯다 전설의 패 쪼기 (Card Squeeze Mode)
+   ========================================== */
+.squeeze-container {
+    position: relative !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    touch-action: none !important;
+    user-select: none !important;
+}
+
+.squeeze-cover-card {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: 5px !important;
+    z-index: 10 !important;
+    background: linear-gradient(135deg, #991b1b 0%, #450a0a 100%) !important;
+    border: 2px solid #ef4444 !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: #fef08a !important;
+    font-size: 0.65rem !important;
+    font-weight: 800 !important;
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease !important;
+    cursor: grab !important;
+}
+
+.squeeze-cover-card:active {
+    cursor: grabbing !important;
+}
+
+.squeeze-cover-card.revealed {
+    transform: translateY(-80px) rotate(-10deg) !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+.squeeze-guide-badge {
+    font-size: 0.62rem !important;
+    background: rgba(0, 0, 0, 0.6) !important;
+    color: #fde047 !important;
+    padding: 2px 6px !important;
+    border-radius: 4px !important;
+    margin-top: 4px !important;
+    animation: squeezePulse 1.2s infinite ease-in-out !important;
+}
+
+@keyframes squeezePulse {
+    0%, 100% { transform: scale(1); opacity: 0.9; }
+    50% { transform: scale(1.08); opacity: 1; color: #ffffff; }
+}
+
+.quick-reveal-btn {
+    font-size: 0.68rem !important;
+    background: rgba(239, 68, 68, 0.15) !important;
+    border: 1px solid rgba(239, 68, 68, 0.4) !important;
+    color: #f87171 !important;
+    border-radius: 12px !important;
+    padding: 2px 8px !important;
+    cursor: pointer !important;
+    font-weight: 700 !important;
+    margin-left: 6px !important;
+    transition: all 0.15s ease !important;
+}
+
+.quick-reveal-btn:hover {
+    background: #ef4444 !important;
+    color: #ffffff !important;
+}
+
+/* 3D Flying Chip & Pot Bounce */
+.flying-chip {
+    position: fixed !important;
+    width: 24px !important;
+    height: 24px !important;
+    border-radius: 50% !important;
+    background: radial-gradient(circle at 30% 30%, #fbbf24, #d97706) !important;
+    border: 2px solid #ffffff !important;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35) !important;
+    z-index: 10000 !important;
+    pointer-events: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 0.6rem !important;
+    font-weight: 900 !important;
+    color: #78350f !important;
+    transition: all 0.45s cubic-bezier(0.25, 1, 0.5, 1) !important;
+}
+
+.pot-center-box.pot-bounce {
+    animation: potBounceAnim 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+}
+
+@keyframes potBounceAnim {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.12); filter: drop-shadow(0 0 12px #fbbf24); }
+    100% { transform: scale(1); }
 }

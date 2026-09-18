@@ -138,39 +138,7 @@
         }
     }
 
-    function initStealthMode() {
-        const btnStealthToggle = document.getElementById('btn-stealth-toggle');
-        const stealthOpacityBox = document.getElementById('stealth-opacity-box');
-        const stealthOpacityRange = document.getElementById('stealth-opacity-range');
-        const brandTitleEl = document.getElementById('brand-title-el');
-        const brandIconEl = document.getElementById('brand-icon-el');
 
-        if (btnStealthToggle) {
-            btnStealthToggle.onclick = function (e) {
-                e.preventDefault();
-                document.body.classList.toggle('excel-stealth-mode');
-                const isStealth = document.body.classList.contains('excel-stealth-mode');
-
-                if (stealthOpacityBox) stealthOpacityBox.style.display = isStealth ? 'flex' : 'none';
-
-                if (isStealth) {
-                    if (brandIconEl) brandIconEl.innerText = '📊';
-                    if (brandTitleEl) brandTitleEl.innerHTML = '26년 재무상태표.xlsx <small style="font-size:0.65rem; color:#fff; vertical-align:super;">- Excel</small>';
-                } else {
-                    document.body.style.opacity = '1';
-                    if (stealthOpacityRange) stealthOpacityRange.value = '100';
-                    if (brandIconEl) brandIconEl.innerText = '🃏';
-                    if (brandTitleEl) brandTitleEl.innerHTML = 'Office Seotda <small style="font-size:0.65rem; color:var(--border-accent); vertical-align:super;">LIVE</small>';
-                }
-            };
-        }
-
-        if (stealthOpacityRange) {
-            stealthOpacityRange.oninput = function (e) {
-                document.body.style.opacity = (e.target.value / 100).toString();
-            };
-        }
-    }
 
     function initMobileSidebar() {
         const mobileFabBtn = document.getElementById('mobile-fab-btn');
@@ -317,6 +285,19 @@
             document.getElementById('lobby-section').style.display = 'none';
             document.getElementById('arena-section').style.display = 'block';
             updateUI();
+            if (window.GameFX) {
+                if (window.GameFX.mountDock) {
+                    window.GameFX.mountDock(
+                        (emoji) => sendMessage({ type: 'SEND_REACTION', room_id: currentRoomId, emoji: emoji }),
+                        (text) => sendMessage({ type: 'QUICK_CHAT', room_id: currentRoomId, text: text })
+                    );
+                }
+                if (window.GameFX.initTicker) {
+                    window.GameFX.initTicker((text) => {
+                        sendMessage({ type: 'CHAT_MESSAGE', room_id: currentRoomId, message: text });
+                    });
+                }
+            }
         } else if (msg.type === 'STARTING_DRAW') {
             showTurnOrderDrawModal(msg.turn_order_list);
             setTimeout(() => {
@@ -326,9 +307,40 @@
                 updateUI();
             }, 2500);
         } else if (msg.type === 'ROOM_UPDATED') {
+            const oldStatus = roomState ? roomState.status : 'WAITING';
             roomState = msg.state;
             updateUI();
+
+            // 쇼다운 전환 시 슬램 사운드 및 화면 흔들림 효과
+            if (oldStatus === 'PLAYING' && roomState.status === 'SHOWDOWN') {
+                if (window.GameFX) {
+                    if (window.GameFX.audio) window.GameFX.audio.playSlam();
+                    window.GameFX.shake(6, 300);
+                }
+            }
         } else if (msg.type === 'CHAT_MESSAGE') {
+            if (roomState && msg.chat) {
+                roomState.chat_logs.push(msg.chat);
+                renderChatLogs();
+            }
+            if (window.GameFX) {
+                GameFX.say(msg.chat.player_id || msg.chat.nickname, msg.chat.text);
+                GameFX.ticker(msg.chat.text, msg.chat.nickname, msg.chat.system);
+                GameFX.incrementUnread();
+            }
+        } else if (msg.type === 'FLOATING_REACTION') {
+            if (window.GameFX) {
+                if (window.GameFX.reactions) window.GameFX.reactions.spawn(msg.emoji, msg.nickname);
+                GameFX.say(msg.player_id || msg.nickname, msg.emoji);
+            }
+        } else if (msg.type === 'QUICK_CHAT_BUBBLE') {
+            if (window.GameFX) {
+                GameFX.say(msg.player_id || msg.nickname, msg.text);
+                GameFX.ticker(msg.text, msg.nickname);
+                window.GameFX.reactions.spawn('💬', msg.nickname);
+                if (window.GameFX.audio) window.GameFX.audio.playPop(850, 0.05);
+                GameFX.incrementUnread();
+            }
             if (roomState && msg.chat) {
                 roomState.chat_logs.push(msg.chat);
                 renderChatLogs();
@@ -354,7 +366,7 @@
 
         document.getElementById('display-room-code').innerText = roomState.room_id;
         document.getElementById('total-pot-amount').innerText = `${(roomState.pot || 0).toLocaleString()} 칩`;
-        document.getElementById('display-chips-info').innerText = `시작 자금: ${(roomState.start_chips || 10000).toLocaleString()}칩 | 기본 판돈: ${(roomState.base_ante || 100).toLocaleString()}칩`;
+        document.getElementById('display-chips-info').innerText = `기본 판돈: ${(roomState.base_ante || 100).toLocaleString()}칩`;
         
         const titleEl = document.getElementById('display-topic-title');
         if (titleEl && roomState.title) titleEl.innerText = roomState.title;
@@ -403,16 +415,7 @@
             if (previousStatus !== 'SHOWDOWN') {
                 const winnerId = roomState.dealer_player_id;
                 animatePotSweepToWinner(winnerId);
-
-                const isStealth = document.body.classList.contains('excel-stealth-mode');
-                if (isStealth) {
-                    const formulaInput = document.querySelector('.excel-formula-input');
-                    if (formulaInput) {
-                        formulaInput.value = `=PROFIT_JACKPOT(+${(roomState.pot || 0).toLocaleString()}_CHIPS)`;
-                    }
-                } else {
-                    showToast(`🏆 라운드 종료! 우승자가 판돈 ${(roomState.pot || 0).toLocaleString()} 칩을 싹쓸이했습니다!`);
-                }
+                showToast(`🏆 라운드 종료! 우승자가 판돈 ${(roomState.pot || 0).toLocaleString()} 칩을 싹쓸이했습니다!`);
             }
         } 
         else {
@@ -447,6 +450,45 @@
         renderChatLogs();
     }
 
+    let isSecondCardRevealed = false;
+
+    function animateChipToss(originBtn) {
+        const potEl = document.getElementById('pot-center-box') || document.querySelector('.pot-center-box');
+        if (!potEl) return;
+
+        const rectFrom = originBtn ? originBtn.getBoundingClientRect() : { left: window.innerWidth / 2, top: window.innerHeight - 100 };
+        const rectTo = potEl.getBoundingClientRect();
+
+        for (let i = 0; i < 4; i++) {
+            setTimeout(() => {
+                const chip = document.createElement('div');
+                chip.className = 'flying-chip';
+                chip.innerText = '🪙';
+                chip.style.left = `${rectFrom.left + (Math.random() - 0.5) * 40}px`;
+                chip.style.top = `${rectFrom.top + (Math.random() - 0.5) * 20}px`;
+                document.body.appendChild(chip);
+
+                if (window.GameFX && window.GameFX.audio) {
+                    window.GameFX.audio.playChip(1.0 + i * 0.15);
+                }
+
+                requestAnimationFrame(() => {
+                    chip.style.left = `${rectTo.left + rectTo.width / 2 + (Math.random() - 0.5) * 30}px`;
+                    chip.style.top = `${rectTo.top + rectTo.height / 2 + (Math.random() - 0.5) * 20}px`;
+                    chip.style.transform = 'scale(0.8) rotate(360deg)';
+                    chip.style.opacity = '0.9';
+                });
+
+                setTimeout(() => {
+                    chip.remove();
+                    potEl.classList.remove('pot-bounce');
+                    void potEl.offsetWidth;
+                    potEl.classList.add('pot-bounce');
+                }, 460);
+            }, i * 85);
+        }
+    }
+
     function renderMyHand(myPlayer) {
         const cardsBox = document.getElementById('my-cards-container');
         const jokboBadge = document.getElementById('my-jokbo-badge');
@@ -455,35 +497,115 @@
         cardsBox.innerHTML = '';
         const hand = myPlayer.hand || [];
 
-        if (jokboBadge) {
-            jokboBadge.innerText = myPlayer.jokbo_name || '패 대기 중...';
-        }
-
         if (hand.length === 0) {
+            isSecondCardRevealed = false;
             cardsBox.innerHTML = '<div class="hwatu-card card-back"></div><div class="hwatu-card card-back"></div>';
+            if (jokboBadge) jokboBadge.innerText = '패 대기 중...';
             return;
         }
 
-        hand.forEach((card) => {
-            const div = document.createElement('div');
-            const typeClass = card.is_kwang ? 'kwang' : 'pi';
-            div.className = `hwatu-card theme-${currentCardTheme} ${typeClass}`;
+        // 1번째 패: 기본 오픈
+        const card1 = hand[0];
+        const div1 = document.createElement('div');
+        div1.className = `hwatu-card theme-${currentCardTheme} ${card1.is_kwang ? 'kwang' : 'pi'}`;
+        if (currentCardTheme === 'classic') {
+            const imgPath = getSeotdaCardImgPath(card1);
+            div1.innerHTML = `<img src="${imgPath}" alt="${card1.month}월" class="card-img">`;
+        } else {
+            div1.innerHTML = `
+                <div class="card-top">
+                    <span class="card-month">${card1.month}월</span>
+                    <span class="card-badge">${card1.is_kwang ? '광' : '피'}</span>
+                </div>
+                <div class="card-icon">${card1.is_kwang ? '☀' : '🍃'}</div>
+                <div class="card-name-sub">${card1.name || ''}</div>
+            `;
+        }
+        cardsBox.appendChild(div1);
 
+        // 2번째 패: 전설의 '패 쪼기 (Card Squeeze)' 모드
+        if (hand.length >= 2) {
+            const card2 = hand[1];
+            const squeezeContainer = document.createElement('div');
+            squeezeContainer.className = 'squeeze-container';
+
+            const div2 = document.createElement('div');
+            div2.className = `hwatu-card theme-${currentCardTheme} ${card2.is_kwang ? 'kwang' : 'pi'}`;
             if (currentCardTheme === 'classic') {
-                const imgPath = getSeotdaCardImgPath(card);
-                div.innerHTML = `<img src="${imgPath}" alt="${card.month}월" class="card-img">`;
+                const imgPath = getSeotdaCardImgPath(card2);
+                div2.innerHTML = `<img src="${imgPath}" alt="${card2.month}월" class="card-img">`;
             } else {
-                div.innerHTML = `
+                div2.innerHTML = `
                     <div class="card-top">
-                        <span class="card-month">${card.month}월</span>
-                        <span class="card-badge">${card.is_kwang ? '광' : '피'}</span>
+                        <span class="card-month">${card2.month}월</span>
+                        <span class="card-badge">${card2.is_kwang ? '광' : '피'}</span>
                     </div>
-                    <div class="card-icon">${card.is_kwang ? '☀' : '🍃'}</div>
-                    <div class="card-name-sub">${card.name || ''}</div>
+                    <div class="card-icon">${card2.is_kwang ? '☀' : '🍃'}</div>
+                    <div class="card-name-sub">${card2.name || ''}</div>
                 `;
             }
-            cardsBox.appendChild(div);
-        });
+            squeezeContainer.appendChild(div2);
+
+            const coverCard = document.createElement('div');
+            coverCard.className = `squeeze-cover-card ${isSecondCardRevealed ? 'revealed' : ''}`;
+            coverCard.innerHTML = `
+                <span>🎴</span>
+                <span class="squeeze-guide-badge">👆 밀어서 쪼기!</span>
+            `;
+
+            const revealCard = () => {
+                if (isSecondCardRevealed) return;
+                isSecondCardRevealed = true;
+                coverCard.classList.add('revealed');
+                if (window.GameFX && window.GameFX.audio) {
+                    window.GameFX.audio.playSlam();
+                }
+                if (jokboBadge) {
+                    jokboBadge.innerText = myPlayer.jokbo_name || '확인 완료';
+                }
+                const jokbo = myPlayer.jokbo_name || '';
+                if (jokbo.includes('광땡') || jokbo.includes('장땡') || jokbo.includes('땡') || jokbo.includes('암행어사') || jokbo.includes('알리')) {
+                    if (window.GameFX) {
+                        window.GameFX.cutIn(`🔥 ${jokbo} 완성!`, `${myPlayer.nickname}님의 승부패!`, '#f59e0b');
+                        window.GameFX.shake(8, 400);
+                    }
+                }
+            };
+
+            coverCard.addEventListener('click', (e) => {
+                e.stopPropagation();
+                revealCard();
+            });
+
+            let startY = 0;
+            coverCard.addEventListener('touchstart', (e) => {
+                startY = e.touches[0].clientY;
+            }, { passive: true });
+            coverCard.addEventListener('touchmove', (e) => {
+                const diff = startY - e.touches[0].clientY;
+                if (diff > 20) revealCard();
+            }, { passive: true });
+
+            squeezeContainer.appendChild(coverCard);
+            cardsBox.appendChild(squeezeContainer);
+
+            if (!isSecondCardRevealed) {
+                const quickBtn = document.createElement('button');
+                quickBtn.type = 'button';
+                quickBtn.className = 'quick-reveal-btn';
+                quickBtn.innerText = '⚡ 한번에 까기';
+                quickBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    revealCard();
+                    quickBtn.remove();
+                };
+                cardsBox.appendChild(quickBtn);
+            }
+        }
+
+        if (jokboBadge) {
+            jokboBadge.innerText = isSecondCardRevealed ? (myPlayer.jokbo_name || '패 대기 중...') : '??? (쪼기 진행 중)';
+        }
     }
 
     function renderOtherPlayers() {
@@ -564,7 +686,8 @@
 
         roomState.players.forEach(p => {
             const card = document.createElement('div');
-            card.className = 'player-card';
+            card.className = 'player-card speech-bubble-anchor';
+            card.setAttribute('data-player-id', p.player_id);
             
             let statusHtml = '';
             if (roomState.status === 'WAITING') {
@@ -699,7 +822,6 @@
         });
     }
 
-    initStealthMode();
     initMobileSidebar();
     initNavControls();
     initShareControls();

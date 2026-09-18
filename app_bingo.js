@@ -70,9 +70,10 @@
 
     let roomState = null;
     let selectedSize = 5;
-    let selectedGameMode = 'LOSER'; // ★ 기본 모드를 패자 결정전(LOSER)으로 고정
+    let selectedGameMode = 'LOSER'; // 빙고 전용 모드: 🏃‍♂️ 탈출 레이스 (1등 탈출 우승 & 꼴찌 벌칙)
     let spectatingPlayerId = null;
     let configModalSelectedSize = 5;
+    let configModalSelectedMode = 'LOSER';
 
     let timerInterval = null;
     let timerSecondsLeft = 15;
@@ -85,38 +86,7 @@
         }
     }
 
-    function initStealthMode() {
-        const btnStealthToggle = document.getElementById('btn-stealth-toggle');
-        const stealthOpacityBox = document.getElementById('stealth-opacity-box');
-        const stealthOpacityRange = document.getElementById('stealth-opacity-range');
-        const brandTitleEl = document.getElementById('brand-title-el');
-        const brandIconEl = document.getElementById('brand-icon-el');
 
-        if (btnStealthToggle) {
-            btnStealthToggle.onclick = function (e) {
-                e.preventDefault();
-                document.body.classList.toggle('excel-stealth-mode');
-                const isStealth = document.body.classList.contains('excel-stealth-mode');
-                if (stealthOpacityBox) stealthOpacityBox.style.display = isStealth ? 'flex' : 'none';
-
-                if (isStealth) {
-                    if (brandIconEl) brandIconEl.innerText = '📊';
-                    if (brandTitleEl) brandTitleEl.innerHTML = '26년 재무상태표.xlsx <small style="font-size:0.65rem; color:#fff; vertical-align:super;">- Excel</small>';
-                } else {
-                    document.body.style.opacity = '1';
-                    if (stealthOpacityRange) stealthOpacityRange.value = '100';
-                    if (brandIconEl) brandIconEl.innerText = '🎯';
-                    if (brandTitleEl) brandTitleEl.innerHTML = 'Office Bingo <small style="font-size:0.65rem; color:var(--accent); vertical-align:super;">LIVE</small>';
-                }
-            };
-        }
-
-        if (stealthOpacityRange) {
-            stealthOpacityRange.oninput = function (e) {
-                document.body.style.opacity = (e.target.value / 100).toString();
-            };
-        }
-    }
 
     function initMobileSidebar() {
         const mobileFabBtn = document.getElementById('mobile-fab-btn');
@@ -203,7 +173,7 @@
         for (let i = 1; i <= maxLines; i++) {
             const opt = document.createElement('option');
             opt.value = i;
-            opt.innerText = (i === maxLines) ? `${i} 줄 완성 (올빙고 완승)` : `${i} 줄 완성 승리`;
+            opt.innerText = (i === maxLines) ? `${i} 줄 전체 완성 (올빙고 탈출)` : `${i} 줄 완성 시 탈출`;
             if (i === size) opt.selected = true;
             selectEl.appendChild(opt);
         }
@@ -308,25 +278,25 @@
         const isWinnerMode = (roomState.config.game_mode !== 'LOSER');
         const targetLines = roomState.config.target_lines || roomState.config.size;
 
-        if (isWinnerMode) {
-            const winners = roomState.players.filter(p => (p.score || 0) >= targetLines);
-            const winnerNames = winners.map(w => w.nickname).join(', ');
-            const isMeWinner = winners.some(w => w.player_id === myPlayerId);
+        const remaining = roomState.players.filter(p => !p.is_escaped);
+        const isSolo = (roomState.players.length <= 1);
+        const myPlayer = roomState.players.find(p => p.player_id === myPlayerId);
 
-            if (isMeWinner) {
+        if (isSolo) {
+            if (myPlayer && (myPlayer.is_escaped || (myPlayer.score || 0) >= targetLines)) {
                 recordTodayResult(true, false);
-                triggerStampAnimation("APPROVED<br><span style='font-size:0.8rem;'>1등 승리 확정!</span>", false);
-                if (iconEl) iconEl.innerText = '🏆';
-                if (titleEl) titleEl.innerText = '승리!';
-                if (msgEl) msgEl.innerText = `축하합니다! 승리 목표를 달성하셨습니다!`;
+                triggerStampAnimation("APPROVED<br><span style='font-size:0.8rem;'>탈출 성공!</span>", false);
+                if (iconEl) iconEl.innerText = '🎉';
+                if (titleEl) titleEl.innerText = '탈출 성공!';
+                if (msgEl) msgEl.innerText = `축하합니다! 목표 (${targetLines}줄)를 달성하여 무사히 탈출하셨습니다!`;
+                if (window.GameFX && window.GameFX.audio) window.GameFX.audio.playWin();
                 fireConfetti();
             } else {
-                if (iconEl) iconEl.innerText = '👑';
+                if (iconEl) iconEl.innerText = '🏁';
                 if (titleEl) titleEl.innerText = '게임 종료';
-                if (msgEl) msgEl.innerText = `[${winnerNames}] 님이 우승하셨습니다.`;
+                if (msgEl) msgEl.innerText = `게임이 종료되었습니다.`;
             }
         } else {
-            const remaining = roomState.players.filter(p => !p.is_escaped);
             const loser = remaining.length > 0 ? remaining[0] : null;
             const isMeLoser = loser && (loser.player_id === myPlayerId);
 
@@ -337,12 +307,22 @@
                 if (titleEl) titleEl.innerText = '벌칙 당첨!';
                 if (msgEl) msgEl.innerText = `아쉽게도 끝까지 탈출하지 못하여 최종 벌칙 당첨자가 되셨습니다!`;
             } else {
-                const myPlayer = roomState.players.find(p => p.player_id === myPlayerId);
                 const rankText = myPlayer && myPlayer.escape_rank ? `${myPlayer.escape_rank}등 ` : '';
-                triggerStampAnimation(`APPROVED<br><span style='font-size:0.8rem;'>${rankText}탈출 성공!</span>`, false);
-                if (iconEl) iconEl.innerText = '🎉';
-                if (titleEl) titleEl.innerText = '탈출 성공!';
-                if (msgEl) msgEl.innerText = `축하합니다! 무사히 탈출하셨습니다. (벌칙 당첨자: ${loser ? loser.nickname : '없음'})`;
+                const isFirst = (myPlayer && myPlayer.escape_rank === 1);
+
+                if (isFirst) {
+                    recordTodayResult(true, false);
+                    triggerStampAnimation(`APPROVED<br><span style='font-size:0.8rem;'>1등 탈출 우승!</span>`, false);
+                    if (iconEl) iconEl.innerText = '🏆';
+                    if (titleEl) titleEl.innerText = '1등 탈출 우승!';
+                    if (msgEl) msgEl.innerText = `가장 먼저 탈출에 성공하여 오늘의 빙고왕에 등극하셨습니다! (벌칙 당첨자: ${loser ? loser.nickname : '없음'})`;
+                } else {
+                    triggerStampAnimation(`APPROVED<br><span style='font-size:0.8rem;'>${rankText}탈출 성공!</span>`, false);
+                    if (iconEl) iconEl.innerText = '🎉';
+                    if (titleEl) titleEl.innerText = '탈출 성공!';
+                    if (msgEl) msgEl.innerText = `축하합니다! 무사히 탈출하셨습니다. (벌칙 당첨자: ${loser ? loser.nickname : '없음'})`;
+                }
+                if (window.GameFX && window.GameFX.audio) window.GameFX.audio.playWin();
                 fireConfetti();
             }
         }
@@ -378,6 +358,19 @@
                 document.getElementById('lobby-section').style.display = 'none';
                 document.getElementById('arena-section').style.display = 'block';
                 updateArenaUI();
+                if (window.GameFX) {
+                    if (window.GameFX.mountDock) {
+                        window.GameFX.mountDock(
+                            (emoji) => sendMessage({ type: 'SEND_REACTION', room_id: currentRoomId, emoji: emoji }),
+                            (text) => sendMessage({ type: 'QUICK_CHAT', room_id: currentRoomId, text: text })
+                        );
+                    }
+                    if (window.GameFX.initTicker) {
+                        window.GameFX.initTicker((text) => {
+                            sendMessage({ type: 'CHAT_MESSAGE', room_id: currentRoomId, message: text });
+                        });
+                    }
+                }
                 break;
             case 'STARTING_DRAW':
                 showTurnOrderDrawModal(msg.turn_order_list);
@@ -400,6 +393,30 @@
                 if (spectatingPlayerId) renderSpectateBoard(spectatingPlayerId);
                 break;
             case 'CHAT_MESSAGE':
+                if (roomState && msg.chat) {
+                    roomState.chat_logs.push(msg.chat);
+                    renderChatLogs();
+                }
+                if (window.GameFX) {
+                    GameFX.say(msg.chat.player_id || msg.chat.nickname, msg.chat.text);
+                    GameFX.ticker(msg.chat.text, msg.chat.nickname, msg.chat.system);
+                    GameFX.incrementUnread();
+                }
+                break;
+            case 'FLOATING_REACTION':
+                if (window.GameFX) {
+                    if (window.GameFX.reactions) window.GameFX.reactions.spawn(msg.emoji, msg.nickname);
+                    GameFX.say(msg.player_id || msg.nickname, msg.emoji);
+                }
+                break;
+            case 'QUICK_CHAT_BUBBLE':
+                if (window.GameFX) {
+                    GameFX.say(msg.player_id || msg.nickname, msg.text);
+                    GameFX.ticker(msg.text, msg.nickname);
+                    window.GameFX.reactions.spawn('💬', msg.nickname);
+                    if (window.GameFX.audio) window.GameFX.audio.playPop(850, 0.05);
+                    GameFX.incrementUnread();
+                }
                 if (roomState && msg.chat) {
                     roomState.chat_logs.push(msg.chat);
                     renderChatLogs();
@@ -457,8 +474,9 @@
         const roomStateBadge = document.getElementById('room-state-badge');
         const displayGameMode = document.getElementById('display-game-mode');
 
-        if (displayGameMode && config) {
-            displayGameMode.innerText = '패자 결정전';
+        if (displayGameMode) {
+            displayGameMode.innerText = '탈출 레이스';
+            displayGameMode.className = 'mode-tag';
         }
         const footerWaitingControls = document.getElementById('footer-waiting-controls');
         const footerPlayingControls = document.getElementById('footer-playing-controls');
@@ -470,7 +488,7 @@
         const turnPlayerBadge = document.getElementById('turn-player-badge');
 
         if (displayTopicTitle) displayTopicTitle.innerText = config.topic;
-        if (displayGridInfo) displayGridInfo.innerText = `${config.size}x${config.size} 빙고 | 완성 목표: ${config.target_lines || config.size}줄 (패자 결정전)`;
+        if (displayGridInfo) displayGridInfo.innerText = `${config.size}x${config.size} 빙고 | 탈출 목표: ${config.target_lines || config.size}줄 (1등 우승 & 꼴찌 벌칙)`;
         if (displayRoomCode) displayRoomCode.innerText = roomState.room_id;
 
         if (status === 'WAITING') {
@@ -546,6 +564,8 @@
         renderChatLogs();
     }
 
+    let previousCompletedLines = 0;
+
     function renderBingoBoard(board, markedIndices, size, status) {
         const bingoBoardGrid = document.getElementById('bingo-board-grid');
         if (!bingoBoardGrid) return;
@@ -554,15 +574,77 @@
         bingoBoardGrid.innerHTML = '';
         const markedSet = new Set(markedIndices || []);
 
+        // ⚡ 줄 완성 검사 및 레이저 슬래시 셀 감지
+        const completedLineIndices = new Set();
+        let currentCompletedLines = 0;
+
+        // 1) 가로 행 검사
+        for (let r = 0; r < size; r++) {
+            let rowComplete = true;
+            for (let c = 0; c < size; c++) {
+                if (!markedSet.has(r * size + c)) { rowComplete = false; break; }
+            }
+            if (rowComplete) {
+                currentCompletedLines++;
+                for (let c = 0; c < size; c++) completedLineIndices.add(r * size + c);
+            }
+        }
+
+        // 2) 세로 열 검사
+        for (let c = 0; c < size; c++) {
+            let colComplete = true;
+            for (let r = 0; r < size; r++) {
+                if (!markedSet.has(r * size + c)) { colComplete = false; break; }
+            }
+            if (colComplete) {
+                currentCompletedLines++;
+                for (let r = 0; r < size; r++) completedLineIndices.add(r * size + c);
+            }
+        }
+
+        // 3) 대각선 1 검사 (\)
+        let diag1Complete = true;
+        for (let i = 0; i < size; i++) {
+            if (!markedSet.has(i * size + i)) { diag1Complete = false; break; }
+        }
+        if (diag1Complete) {
+            currentCompletedLines++;
+            for (let i = 0; i < size; i++) completedLineIndices.add(i * size + i);
+        }
+
+        // 4) 대각선 2 검사 (/)
+        let diag2Complete = true;
+        for (let i = 0; i < size; i++) {
+            if (!markedSet.has(i * size + (size - 1 - i))) { diag2Complete = false; break; }
+        }
+        if (diag2Complete) {
+            currentCompletedLines++;
+            for (let i = 0; i < size; i++) completedLineIndices.add(i * size + (size - 1 - i));
+        }
+
+        // 새 줄 완성 레이저 사운드 & 컷인
+        if (currentCompletedLines > previousCompletedLines && status === 'PLAYING') {
+            if (window.GameFX && window.GameFX.audio) {
+                window.GameFX.audio.playLaser(true);
+            }
+            if (window.GameFX) window.GameFX.shake(6, 300);
+            showToast(`⚡ 빙고 ${currentCompletedLines}줄 완성!`);
+        }
+        previousCompletedLines = currentCompletedLines;
+
         board.forEach((text, index) => {
             const cell = document.createElement('div');
             const hasText = text && text.trim().length > 0;
             const isMarked = markedSet.has(index);
+            const isLineCompleted = completedLineIndices.has(index);
 
-            cell.className = 'bingo-cell' + (isMarked ? ' marked' : '');
+            cell.className = 'bingo-cell' + (isMarked ? ' marked' : '') + (isLineCompleted ? ' line-completed' : '');
             cell.innerText = hasText ? text : `(${index + 1}번)`;
 
             cell.onclick = () => {
+                if (window.GameFX && window.GameFX.audio) {
+                    window.GameFX.audio.playPop(680, 0.05);
+                }
                 if (status === 'WAITING') {
                     const inputVal = prompt("빙고 칸에 넣을 단어를 입력하세요:", text || "");
                     if (inputVal !== null) {
@@ -739,7 +821,8 @@
 			}
 
 			const card = document.createElement('div');
-			card.className = 'player-card' + (p.is_escaped && status !== 'WAITING' ? ' player-escaped' : '');
+			card.className = 'player-card speech-bubble-anchor' + (p.is_escaped && status !== 'WAITING' ? ' player-escaped' : '');
+			card.setAttribute('data-player-id', p.player_id);
 			card.innerHTML = `
 				<div class="player-info">
 					<div class="player-avatar" style="background-color: ${p.color};">${p.nickname.charAt(0)}</div>
@@ -829,6 +912,7 @@
                     const configTargetLinesSelect = document.getElementById('config-target-lines');
 
                     configModalSelectedSize = roomState.config.size || 5;
+                    configModalSelectedMode = roomState.config.game_mode || 'WINNER';
 
                     if (configTopicInput) configTopicInput.value = roomState.config.topic || '자유 주제';
                     if (configWordsInput) configWordsInput.value = (roomState.config.word_pool || []).join('\n');
@@ -841,18 +925,6 @@
                     if (configTargetLinesSelect) configTargetLinesSelect.value = roomState.config.target_lines || configModalSelectedSize;
 
                     configModal.classList.add('active');
-                }
-                return;
-            }
-
-            const modeBtn = e.target.closest('.mode-btn');
-            if (modeBtn) {
-                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('selected'));
-                modeBtn.classList.add('selected');
-                selectedGameMode = modeBtn.getAttribute('data-mode') || 'LOSER';
-                const displayGameMode = document.getElementById('display-game-mode');
-                if (displayGameMode) {
-                    displayGameMode.innerText = '패자 결정전';
                 }
                 return;
             }
@@ -988,7 +1060,7 @@
                 const newTargetLines = configTargetLinesSelect ? parseInt(configTargetLinesSelect.value) : configModalSelectedSize;
 
                 sendMessage({
-                    type: 'UPDATE_CONFIG', room_id: currentRoomId, topic: newTopic, size: configModalSelectedSize || 5, target_lines: newTargetLines, word_pool: newWords, player_id: myPlayerId
+                    type: 'UPDATE_CONFIG', room_id: currentRoomId, topic: newTopic, size: configModalSelectedSize || 5, target_lines: newTargetLines, word_pool: newWords, game_mode: configModalSelectedMode || 'WINNER', player_id: myPlayerId
                 });
 
                 const newTotalCells = (configModalSelectedSize || 5) * (configModalSelectedSize || 5);
@@ -1124,7 +1196,6 @@
         }
     }
 
-    initStealthMode();
     initMobileSidebar();
     initNavControls();
     initPresetSelects();

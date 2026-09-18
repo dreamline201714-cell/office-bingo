@@ -13,22 +13,21 @@
     --wood-top: #deb887;
     --wood-mid: #b87c42;
     --wood-lip: #8c5625;
-    --wood-groove: rgba(45, 20, 5, 0.45);
 }
 
 [data-theme="dark"] {
     --brand-blue: #38bdf8;
     --brand-blue-hover: #0284c7;
 
-    --mat-bg: radial-gradient(circle at 50% 35%, #252b36 0%, #1a1e26 70%, #12151b 100%);
-    --mat-border: #333a46;
-    --mat-shadow: inset 0 4px 16px rgba(0, 0, 0, 0.65), 0 4px 12px rgba(0, 0, 0, 0.3);
+    /* 펠트 테이블 매트: 깊이감과 가독성이 확실한 미드나잇 사파이어 펠트 */
+    --mat-bg: radial-gradient(circle at 50% 38%, #182a3d 0%, #101d2b 60%, #0c1520 100%);
+    --mat-border: #2d4563;
+    --mat-shadow: inset 0 6px 24px rgba(0, 0, 0, 0.75), 0 8px 24px rgba(0, 0, 0, 0.5);
 
-    /* 원목 거치대 (다크: 차분한 딥 다크 월넛) */
-    --wood-top: #382e2b;
-    --wood-mid: #28211f;
-    --wood-lip: #191413;
-    --wood-groove: rgba(10, 8, 8, 0.85);
+    /* 원목 거치대 (다크: 따뜻한 톤과 광택이 살아있는 프리미엄 월넛) */
+    --wood-top: #653b1e;
+    --wood-mid: #462511;
+    --wood-lip: #2a1408;
 }
 
 /* ==========================================
@@ -36,7 +35,7 @@
    ========================================== */
 .arena-header {
     width: 100% !important;
-    margin-bottom: 12px !important;
+    margin-bottom: 6px !important;
 }
 
 .topic-banner {
@@ -44,65 +43,87 @@
     box-sizing: border-box !important;
 }
 
-.arena-main {
-    display: flex !important;
-    flex-direction: row !important;
-    gap: 16px !important;
+#arena-section {
+    position: fixed !important;
+    top: 38px !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
     width: 100% !important;
-    align-items: flex-start !important;
-    box-sizing: border-box !important;
-    font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif !important;
+    height: auto !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    z-index: 20 !important;
+    background: var(--bg-body) !important;
+    overflow: hidden !important;
 }
 
-.board-container {
-    flex: 1 1 0 !important;
-    min-width: 0 !important;
-    width: 100% !important;
-    position: relative !important;
+.stadium-arena {
+    height: 100% !important;
+    max-height: 100% !important;
+    min-height: 0 !important;
+    flex: 1 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding: 6px 10px 10px 10px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 3px !important;
+    box-sizing: border-box !important;
+}
+
+.arena-header {
+    flex-shrink: 0 !important;
 }
 
 /* ==========================================
-   🏟️ 2. 공유 테이블 매트 (가변 배율 지원)
+   🏟️ 2. 공유 테이블 매트 (가변 배율 지원 & 화면 감응형 flex)
    ========================================== */
 .rummikub-table-board,
 #table-sets-container {
     --rummi-scale: 1;
     width: 100% !important;
-    min-height: 420px !important;
-    max-height: 520px !important;
-    margin-bottom: 4px !important;
-    padding: calc(16px * var(--rummi-scale)) !important;
+    flex: 1 1 100px !important;
+    min-height: 70px !important;
+    max-height: none !important;
+    margin-bottom: 3px !important;
+    padding: calc(8px * var(--rummi-scale)) !important;
     background: var(--mat-bg) !important;
     border: 2px solid var(--mat-border) !important;
-    border-radius: 14px !important;
+    border-radius: 12px !important;
     box-shadow: var(--mat-shadow) !important;
     
     display: flex !important;
     flex-wrap: wrap !important;
     align-content: flex-start !important;
     align-items: flex-start !important;
-    gap: calc(10px * var(--rummi-scale)) calc(12px * var(--rummi-scale)) !important;
+    gap: calc(8px * var(--rummi-scale)) calc(10px * var(--rummi-scale)) !important;
     overflow-y: auto !important;
     box-sizing: border-box !important;
     transition: padding 0.15s ease, gap 0.15s ease;
+    overscroll-behavior: contain;
 }
 
 .table-empty-guide {
     width: 100% !important;
     text-align: center !important;
-    padding: 90px 20px !important;
+    padding: clamp(10px, 2.5vh, 28px) 14px !important;
     color: var(--text-muted, #64748b) !important;
-    font-size: 0.95rem !important;
+    font-size: 0.88rem !important;
     font-weight: 700 !important;
-    line-height: 1.6 !important;
+    line-height: 1.4 !important;
     border: 2px dashed var(--mat-border) !important;
-    border-radius: 12px !important;
+    border-radius: 10px !important;
     background: rgba(255, 255, 255, 0.4) !important;
     box-sizing: border-box !important;
 }
 
 [data-theme="dark"] .table-empty-guide {
-    background: rgba(0, 0, 0, 0.2) !important;
+    background: rgba(14, 23, 36, 0.65) !important;
+    border: 2px dashed rgba(56, 189, 248, 0.35) !important;
+    color: #94a3b8 !important;
+    box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.35) !important;
 }
 
 /* ==========================================
@@ -169,6 +190,49 @@
     0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.25); }
     50% { box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12); }
     100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.25); }
+}
+
+/* 유효 완성 세트 실시간 글로우 (Valid Set Smart Glow) */
+.tile-group-set.valid-set {
+    border: 1.5px solid #10b981 !important;
+    background: rgba(236, 253, 245, 0.7) !important;
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.3), inset 0 1px 2px rgba(255, 255, 255, 0.8) !important;
+}
+
+[data-theme="dark"] .tile-group-set.valid-set {
+    background: rgba(6, 78, 59, 0.35) !important;
+    border: 1.5px solid #34d399 !important;
+    box-shadow: 0 0 14px rgba(52, 211, 153, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.1) !important;
+}
+
+/* 드래그 앤 드롭 타겟 하이라이트 & 드래그 상태 */
+.tile-group-set.drag-over-target {
+    border: 2px dashed #3b82f6 !important;
+    background: rgba(239, 246, 255, 0.85) !important;
+    transform: scale(1.03) !important;
+    box-shadow: 0 0 16px rgba(59, 130, 246, 0.4) !important;
+}
+
+[data-theme="dark"] .tile-group-set.drag-over-target {
+    background: rgba(30, 58, 138, 0.5) !important;
+    border-color: #60a5fa !important;
+}
+
+.rummi-tile-wrapper {
+    cursor: grab !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    transition: transform 0.15s ease, filter 0.15s ease !important;
+}
+
+.rummi-tile-wrapper:active {
+    cursor: grabbing !important;
+}
+
+.rummi-tile-wrapper.tile-dragging {
+    opacity: 0.45 !important;
+    transform: scale(0.92) !important;
+    filter: grayscale(30%) !important;
 }
 
 /* ==========================================
@@ -444,8 +508,9 @@
 }
 
 [data-theme="dark"] .table-zoom-widget {
-    background: #2d333b !important;
-    border-color: #3f4754 !important;
+    background: #182334 !important;
+    border: 1px solid #2d3e58 !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3) !important;
 }
 
 .zoom-btn {
@@ -533,37 +598,56 @@
     display: block !important;
 }
 
+.rummi-tile-wrapper {
+    cursor: pointer;
+    transition: transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.16s ease !important;
+}
+
 .rummi-tile-wrapper:hover {
-    transform: translateY(-3px) !important;
+    transform: translateY(-5px) scale(1.05) !important;
+    filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.35));
 }
 
 .rummi-tile-wrapper.selected {
-    transform: translateY(-16px) scale(1.08) !important;
+    transform: translateY(-16px) scale(1.1) !important;
     z-index: 50 !important;
 }
 
 .rummi-tile-wrapper.selected .rummi-vector-tile {
-    filter: drop-shadow(0 14px 14px rgba(2, 132, 199, 0.45));
+    filter: drop-shadow(0 0 10px #38bdf8) drop-shadow(0 14px 16px rgba(0, 0, 0, 0.45));
 }
 
 /* ==========================================
-   🪵 8. 2단 원목 타일 랙
+   🪵 8. 플레이어 개인 랙 구역 (중앙 정렬 밸런스)
    ========================================== */
+.player-rack-zone {
+    width: 100% !important;
+    max-width: 860px !important;
+    margin: 4px auto 0 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+    box-sizing: border-box !important;
+    flex-shrink: 0 !important;
+}
+
 .rack-wood-panel {
+    width: 100% !important;
     background: linear-gradient(180deg, var(--wood-top) 0%, var(--wood-mid) 75%, var(--wood-lip) 100%) !important;
     border: 2px solid rgba(255, 255, 255, 0.45) !important;
     border-bottom: 5px solid rgba(0, 0, 0, 0.4) !important;
     border-radius: 12px 12px 6px 6px;
-    padding: 10px 14px 18px 14px !important;
+    padding: 8px 12px 14px 12px !important;
     box-shadow: 0 -4px 14px rgba(0, 0, 0, 0.2), inset 0 2px 4px rgba(255, 255, 255, 0.5);
-    margin-top: 8px;
+    margin-top: 4px;
     box-sizing: border-box;
+    flex-shrink: 0 !important;
 }
 
 [data-theme="dark"] .rack-wood-panel {
-    border: 1.5px solid rgba(255, 255, 255, 0.12) !important;
-    border-bottom: 5px solid rgba(0, 0, 0, 0.8) !important;
-    box-shadow: 0 -4px 14px rgba(0, 0, 0, 0.5), inset 0 1px 2px rgba(255, 255, 255, 0.08) !important;
+    border: 2px solid #7d4d29 !important;
+    border-bottom: 5px solid #1c0d05 !important;
+    box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.65), inset 0 2px 4px rgba(255, 205, 155, 0.25) !important;
 }
 
 .rack-wood-top-bar {
@@ -578,7 +662,8 @@
 }
 
 [data-theme="dark"] .rack-wood-top-bar {
-    color: #cbd5e1 !important;
+    color: #fed7aa !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
 }
 
 .wood-brand {
@@ -597,9 +682,16 @@
     max-height: 150px !important;
     overflow-y: auto !important;
     padding: 8px 10px !important;
-    background: var(--wood-groove) !important;
-    border-radius: 8px;
-    box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.55);
+    background: linear-gradient(180deg, #c89b6b 0%, #b88856 50%, #9e6d3a 100%) !important;
+    border-radius: 8px !important;
+    border: 1.5px solid #8c5625 !important;
+    box-shadow: inset 0 3px 8px rgba(60, 30, 10, 0.35), inset 0 1px 2px rgba(255, 255, 255, 0.4) !important;
+}
+
+[data-theme="dark"] .my-rack-container {
+    background: linear-gradient(180deg, #4a2914 0%, #3e200e 50%, #301708 100%) !important;
+    border: 1.5px solid #6b3917 !important;
+    box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.65), inset 0 1px 2px rgba(255, 185, 125, 0.2) !important;
 }
 
 .my-rack-container .rummi-tile-wrapper {
@@ -646,9 +738,15 @@
 }
 
 [data-theme="dark"] #btn-toggle-scratchpad {
-    background: #1e293b !important;
+    background: #182334 !important;
     color: #e2e8f0 !important;
-    border-color: #475569 !important;
+    border: 1px solid #2d3e58 !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme="dark"] #btn-toggle-scratchpad:hover {
+    background: #223046 !important;
+    border-color: #38bdf8 !important;
 }
 
 /* ==========================================
@@ -726,10 +824,17 @@
 [data-theme="dark"] #btn-sort-color,
 [data-theme="dark"] #btn-sort-number,
 [data-theme="dark"] .secondary-btn {
-    background: #2d333b !important;
-    color: #e2e8f0 !important;
-    border-color: #3f4754 !important;
-    box-shadow: 0 2px 0 #181c22 !important;
+    background: #1f2b3e !important;
+    color: #f1f5f9 !important;
+    border: 1px solid #334764 !important;
+    box-shadow: 0 2px 0 #131c29 !important;
+}
+
+[data-theme="dark"] #btn-sort-color:hover,
+[data-theme="dark"] #btn-sort-number:hover,
+[data-theme="dark"] .secondary-btn:hover {
+    background: #2a3b54 !important;
+    border-color: #38bdf8 !important;
 }
 
 #btn-reset-turn {
@@ -737,6 +842,19 @@
     color: #b91c1c !important;
     border: 1px solid #fca5a5 !important;
     box-shadow: 0 2px 0 #fca5a5 !important;
+}
+
+[data-theme="dark"] #btn-reset-turn {
+    background: rgba(225, 29, 72, 0.2) !important;
+    color: #fda4af !important;
+    border: 1px solid rgba(225, 29, 72, 0.5) !important;
+    box-shadow: 0 2px 0 #4c0519 !important;
+}
+
+[data-theme="dark"] #btn-reset-turn:hover {
+    background: rgba(225, 29, 72, 0.35) !important;
+    border-color: #f43f5e !important;
+    color: #ffffff !important;
 }
 
 #btn-submit-turn.highlight-submit {
@@ -748,18 +866,6 @@
 /* ==========================================
    💬 10. 상시 고정 우측 사이드바 & 채팅 디자인
    ========================================== */
-.sidebar-panel {
-    flex: 0 0 320px !important;
-    width: 320px !important;
-    height: 680px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 8px !important;
-    box-sizing: border-box !important;
-    padding: 12px !important;
-    overflow: hidden !important;
-}
-
 .mobile-sidebar-close {
     display: none !important;
 }
@@ -772,6 +878,7 @@
     border-radius: 8px !important;
     background: #fffbeb !important;
     border: 1px solid #fde68a !important;
+    margin-bottom: 8px !important;
     box-sizing: border-box !important;
 }
 
@@ -854,25 +961,31 @@
     flex-direction: column !important;
     flex: 1 1 0 !important;
     min-height: 0 !important;
-    border: 1px solid var(--mat-border, #e2e8f0) !important;
+    border: 1px solid #e2e8f0 !important;
     border-radius: 10px !important;
-    background: #f8fafc !important;
+    background: #ffffff !important;
     overflow: hidden !important;
 }
 
 [data-theme="dark"] .sidebar-tabbed-area {
-    background: #181b20 !important;
-    border-color: #333a44 !important;
+    background: #151d2b !important;
+    border-color: var(--border-card) !important;
 }
 
 .sidebar-tabs {
     padding: 8px 12px !important;
     font-size: 0.8rem !important;
     font-weight: 800 !important;
-    border-bottom: 1px solid var(--mat-border, #e2e8f0) !important;
-    background: rgba(0, 0, 0, 0.02) !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    background: #f8fafc !important;
     color: var(--text-secondary, #64748b) !important;
     flex-shrink: 0 !important;
+}
+
+[data-theme="dark"] .sidebar-tabs {
+    background: #111723 !important;
+    border-bottom-color: var(--border-block) !important;
+    color: #94a3b8 !important;
 }
 
 .chat-container {
@@ -882,6 +995,7 @@
     min-height: 0 !important;
     padding: 8px 10px 10px 10px !important;
     box-sizing: border-box !important;
+    background: transparent !important;
 }
 
 .chat-messages {
@@ -891,7 +1005,15 @@
     display: flex !important;
     flex-direction: column !important;
     gap: 4px !important;
-    padding-right: 4px !important;
+    padding: 8px !important;
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+}
+
+[data-theme="dark"] .chat-messages {
+    background: #0e1420 !important;
+    border: 1px solid var(--border-block) !important;
 }
 
 .chat-bubble-row {
@@ -1003,40 +1125,128 @@
 }
 
 /* ==========================================
-   📱 11. 모바일 전용 반응형
+   📱 11. 모바일 전용 반응형 (common.css와 통합)
    ========================================== */
-@media (max-width: 900px) {
-    .arena-main {
-        flex-direction: column !important;
-    }
 
-    .sidebar-panel {
-        position: fixed !important;
+/* ==========================================================================
+   📱 14인치 / 서브모니터 / 세로 해상도 감응형 자동 최적화 (@media max-height)
+   ========================================================================== */
+@media screen and (max-height: 850px) {
+    #arena-section {
+        top: 30px !important;
         bottom: 0 !important;
-        right: 0 !important;
-        width: 100vw !important;
-        height: 75vh !important;
-        z-index: 1800 !important;
-        background: var(--bg-surface, #ffffff) !important;
-        border-radius: 16px 16px 0 0 !important;
-        box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.2) !important;
-        transform: translateY(100%) !important;
-        transition: transform 0.25s ease !important;
+        height: auto !important;
+        overflow: hidden !important;
     }
 
-    .sidebar-panel.active {
-        transform: translateY(0) !important;
+    .stadium-arena {
+        padding: 4px 8px 8px 8px !important;
+        gap: 2px !important;
     }
 
-    .mobile-sidebar-close {
-        display: block !important;
-        background: transparent !important;
-        border: none !important;
-        font-weight: 800 !important;
-        font-size: 0.85rem !important;
-        color: var(--text-muted) !important;
+    .arena-header .topic-banner {
+        padding: 4px 10px !important;
+        margin-bottom: 2px !important;
+    }
+    .topic-banner h2 {
+        font-size: 0.95rem !important;
+    }
+    .today-rank-ticker {
+        display: flex !important;
+        padding: 2px 8px !important;
+        font-size: 0.72rem !important;
+    }
+
+    #host-controls {
+        margin-bottom: 2px !important;
+        padding: 3px 8px !important;
+    }
+    #host-controls .start-game-btn,
+    #host-controls .secondary-btn {
+        padding: 4px 10px !important;
+        font-size: 0.78rem !important;
+    }
+
+    .rummikub-table-board,
+    #table-sets-container {
+        flex: 1 1 80px !important;
+        min-height: 70px !important;
+        margin-bottom: 2px !important;
+        padding: 6px !important;
+    }
+
+    .table-empty-guide {
+        padding: 8px 12px !important;
+        font-size: 0.82rem !important;
+    }
+
+    .rummi-action-bridge {
+        padding: 3px 6px !important;
+        margin: 2px 0 !important;
+        gap: 3px !important;
+    }
+    .bridge-btn {
+        padding: 4px 8px !important;
+        font-size: 0.74rem !important;
+    }
+    .table-zoom-widget {
+        padding: 1px 4px !important;
+        font-size: 0.7rem !important;
+    }
+    .zoom-btn {
+        padding: 2px 5px !important;
+        font-size: 0.72rem !important;
+    }
+
+    .rack-wood-panel {
+        padding: 4px 8px 6px 8px !important;
+        margin-top: 1px !important;
+        border-radius: 8px 8px 4px 4px !important;
+    }
+    .rack-wood-top-bar {
+        font-size: 0.68rem !important;
+        margin-bottom: 2px !important;
+    }
+
+    .my-rack-container {
+        grid-template-columns: repeat(auto-fill, minmax(36px, 1fr)) !important;
+        grid-auto-rows: 50px !important;
+        gap: 3px 3px !important;
+        min-height: 104px !important;
+        max-height: 108px !important;
+        padding: 3px 4px !important;
+    }
+
+    .my-rack-container .rummi-tile-wrapper {
+        transform: scale(0.82);
+        transform-origin: center bottom;
+    }
+}
+
+@media screen and (max-height: 680px) {
+    #arena-section {
+        top: 26px !important;
+        bottom: 0 !important;
+        height: auto !important;
+        overflow: hidden !important;
+    }
+    .arena-header .topic-banner {
+        padding: 3px 6px !important;
+    }
+    #display-grid-info {
+        display: none !important;
+    }
+    .rummikub-table-board,
+    #table-sets-container {
+        min-height: 60px !important;
         padding: 4px !important;
-        text-align: right !important;
-        cursor: pointer !important;
+    }
+    .my-rack-container {
+        grid-auto-rows: 44px !important;
+        min-height: 92px !important;
+        max-height: 96px !important;
+    }
+    .my-rack-container .rummi-tile-wrapper {
+        transform: scale(0.72);
     }
 }
