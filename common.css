@@ -1425,20 +1425,72 @@ body.shake-active {
    ========================================================================== */
 @media screen and (max-width: 960px) {
     .arena-main {
-        grid-template-columns: 1fr 270px !important;
+        grid-template-columns: 1fr 280px !important;
     }
     .arena-main.console-collapsed {
         grid-template-columns: 1fr 0px !important;
     }
 }
 
-@media screen and (max-width: 720px) {
+/* ★ 모바일 전용 100% 풀스크린 + 슬라이드인 오프캔버스 드로어 레이아웃 ★ */
+@media screen and (max-width: 768px) {
     .arena-main {
-        grid-template-columns: 1fr 230px !important;
+        display: block !important;
+        position: relative !important;
+        width: 100% !important;
+        height: 100% !important;
+        overflow: hidden !important;
+        grid-template-columns: none !important;
+        grid-template-rows: none !important;
     }
     .arena-main.console-collapsed {
-        grid-template-columns: 1fr 0px !important;
+        grid-template-columns: none !important;
     }
+    .stadium-arena {
+        width: 100% !important;
+        max-width: 100% !important;
+        height: 100% !important;
+        padding: 4px 6px 8px 6px !important;
+        box-sizing: border-box !important;
+    }
+    .console-reopen-tab {
+        position: fixed !important;
+        bottom: 12px !important;
+        right: 12px !important;
+        top: auto !important;
+        transform: translateY(140%) !important;
+        border-radius: 24px !important;
+        border: 1px solid rgba(255, 255, 255, 0.25) !important;
+        padding: 7px 13px !important;
+        gap: 6px !important;
+        font-size: 0.78rem !important;
+        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5), 0 0 12px rgba(59, 130, 246, 0.4) !important;
+        background: rgba(15, 23, 42, 0.94) !important;
+        z-index: 9995 !important;
+    }
+    .console-reopen-tab.visible {
+        transform: translateY(0) !important;
+    }
+}
+
+/* 오프캔버스 드로어 배경 딤 처리 */
+.console-backdrop {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    background: rgba(0, 0, 0, 0.6) !important;
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
+    z-index: 9998 !important;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease !important;
+}
+.console-backdrop.active {
+    opacity: 1 !important;
+    pointer-events: auto !important;
 }
 
 /* 좌측 메인 테이블탑 경기장 (Stadium Arena - 유동 감응형 & 부드러운 스크롤) */
@@ -1504,10 +1556,29 @@ body.shake-active {
     }
 }
 
-@media screen and (max-width: 720px) {
+/* ★ 모바일/좁은 창 전용 슬라이드인 오프캔버스 드로어 (기본 레이아웃보다 뒤에 선언하여 cascade 우선 적용) ★ */
+@media screen and (max-width: 768px) {
     .arcade-console,
     .sidebar-panel {
-        max-width: 230px !important;
+        position: fixed !important;
+        top: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 88vw !important;
+        max-width: 380px !important;
+        height: 100% !important;
+        z-index: 10000 !important;
+        border-left: 1px solid rgba(255, 255, 255, 0.2) !important;
+        box-shadow: -10px 0 36px rgba(0, 0, 0, 0.75) !important;
+        transform: translateX(105%) !important;
+        transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        border-radius: 16px 0 0 16px !important;
+    }
+    .arena-main.console-open .arcade-console,
+    .arena-main.console-open .sidebar-panel,
+    .arena-main:not(.console-collapsed) .arcade-console,
+    .arena-main:not(.console-collapsed) .sidebar-panel {
+        transform: translateX(0) !important;
     }
 }
 
@@ -1778,20 +1849,22 @@ body.shake-active {
     background: rgba(255, 255, 255, 0.1);
 }
 
-/* 콘솔 1구역: 참가자 및 현황 (컴팩트 카드) */
+/* 콘솔 1구역: 참가자 및 현황 (상단 배치: 방 현황 즉시 확인) */
 .console-players-deck {
     flex-shrink: 0 !important;
     padding: 6px 10px !important;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
-    background: rgba(0, 0, 0, 0.1) !important;
-    max-height: 110px !important;
+    border-top: none !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    background: rgba(0, 0, 0, 0.18) !important;
+    max-height: 140px !important;
+    min-height: 75px !important;
     overflow-y: auto !important;
     box-sizing: border-box !important;
 }
 
 [data-theme="light"] .console-players-deck {
     background: #ffffff !important;
-    border-bottom-color: #f1f5f9 !important;
+    border-bottom-color: #e2e8f0 !important;
 }
 
 .console-section-label {
@@ -1948,13 +2021,14 @@ body.shake-active {
     font-style: italic;
 }
 
-/* 콘솔 3구역: 하단 고정 퀵 리액션 알약 & 절대 잘리지 않는 입력창 */
+/* 콘솔 2구역: 퀵 리액션 알약 & 대화 입력창 (참가자 바로 아래, 손패/조작선 높이에 배치) */
 .console-bottom-dock {
     flex-shrink: 0 !important;
-    margin-top: auto !important;
+    margin-top: 0 !important;
     padding: 6px 10px 8px 10px !important;
     background: rgba(15, 23, 42, 0.95) !important;
-    border-top: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-top: none !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.10) !important;
     display: flex !important;
     flex-direction: column !important;
     gap: 6px !important;
@@ -1964,7 +2038,7 @@ body.shake-active {
 
 [data-theme="light"] .console-bottom-dock {
     background: #ffffff !important;
-    border-top-color: #e2e8f0 !important;
+    border-bottom-color: #e2e8f0 !important;
 }
 
 /* 퀵 리액션 알약 바 */
@@ -2250,6 +2324,38 @@ body.shake-active {
     padding: 6px 10px !important;
     box-sizing: border-box !important;
     margin: 4px 0 !important;
+}
+
+@media screen and (max-width: 768px) {
+    .rummi-action-bridge {
+        flex-wrap: wrap !important;
+        gap: 5px !important;
+        padding: 4px 6px !important;
+    }
+    .bridge-group {
+        gap: 4px !important;
+    }
+    .bridge-group.center {
+        order: 3 !important;
+        width: 100% !important;
+        margin-top: 2px !important;
+        justify-content: space-between !important;
+    }
+    .bridge-btn {
+        padding: 5px 8px !important;
+        font-size: 0.74rem !important;
+    }
+    .compact-match-hud {
+        padding: 4px 8px !important;
+        gap: 4px !important;
+    }
+    .compact-match-hud .hud-turn-badge {
+        font-size: 0.74rem !important;
+        padding: 3px 8px !important;
+    }
+    .topic-banner h2 {
+        font-size: 0.88rem !important;
+    }
 }
 
 [data-theme="light"] .rummi-action-bridge {

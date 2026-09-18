@@ -204,10 +204,21 @@
         }
 
         @media screen and (max-width: 768px) {
-            .game-tab-wrapper { padding: 4px 6px 6px 6px; }
-            .game-tab-container { gap: 4px; border-radius: 10px; }
-            .game-tab-btn { padding: 4px 8px; font-size: 0.76rem; border-radius: 7px; gap: 4px; }
-            .iframe-wrapper { height: calc(100vh - 78px); }
+            .navbar { padding: 4px 8px !important; }
+            .brand span { font-size: 0.88rem !important; }
+            .brand-icon { width: 22px !important; height: 22px !important; }
+            .v3-badge { display: none !important; }
+            .nav-controls { gap: 4px !important; }
+            .top-menu-toggle-btn { padding: 2px 7px !important; font-size: 0.72rem !important; height: 26px !important; }
+            .icon-btn { width: 28px !important; height: 28px !important; font-size: 0.85rem !important; }
+            .game-tab-wrapper { padding: 3px 6px 5px 6px !important; overflow-x: auto !important; -webkit-overflow-scrolling: touch !important; }
+            .game-tab-container { gap: 4px !important; border-radius: 10px !important; overflow-x: auto !important; scrollbar-width: none !important; }
+            .game-tab-container::-webkit-scrollbar { display: none; }
+            .game-tab-btn { padding: 5px 10px !important; font-size: 0.75rem !important; border-radius: 8px !important; gap: 4px !important; flex-shrink: 0 !important; }
+            .game-tab-badge { font-size: 0.58rem !important; padding: 1px 4px !important; }
+            .collapsible-top-menu { max-height: 86px !important; }
+            .iframe-wrapper { height: calc(100vh - 84px) !important; }
+            .restore-top-menu-btn { top: 6px !important; right: 8px !important; padding: 3px 10px !important; font-size: 0.74rem !important; height: 28px !important; }
         }
 
         /* 14인치 / 서브모니터 / 세로 해상도 낮은 환경 감응형 대응 */
@@ -307,17 +318,32 @@
             const gameParam = urlParams.get('game');
             const roomParam = urlParams.get('room');
 
-            if (gameParam) {
-                const targetIframe = document.getElementById(`iframe-${gameParam}`);
-                const targetTab = document.querySelector(`.game-tab-btn[data-game="${gameParam}"]`);
+            // 방 초대 링크로 접속한 경우 (game 파라미터가 없어도 room이 있으면 기본값 또는 대상 게임 탭으로 활성화)
+            const targetGame = gameParam || (roomParam ? 'bingo' : null);
+            if (targetGame) {
+                const targetIframe = document.getElementById(`iframe-${targetGame}`);
+                const targetTab = document.querySelector(`.game-tab-btn[data-game="${targetGame}"]`);
 
                 if (targetIframe && targetTab) {
                     if (roomParam) {
-                        targetIframe.src = `${gameParam}.html?room=${roomParam}`;
+                        targetIframe.src = `${targetGame}.html?room=${encodeURIComponent(roomParam)}&v=20260918_v3`;
+                        targetIframe.setAttribute('data-loaded', 'true');
                     } else if (!targetIframe.src && targetIframe.getAttribute('data-src')) {
                         targetIframe.src = targetIframe.getAttribute('data-src');
                     }
                     switchGameTab(targetTab);
+
+                    // iFrame 로드 완료 시 postMessage로 방 코드 확실히 전달
+                    if (roomParam) {
+                        targetIframe.addEventListener('load', () => {
+                            try {
+                                targetIframe.contentWindow?.postMessage({
+                                    type: 'APPLY_ROOM_INVITE',
+                                    room: roomParam
+                                }, '*');
+                            } catch (e) {}
+                        });
+                    }
                 }
             }
         });

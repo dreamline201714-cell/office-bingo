@@ -189,19 +189,50 @@
         setTimeout(() => { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 2500);
     }
 
+    function applyRoomInvite(code) {
+        if (!code) return;
+        code = String(code).trim().toUpperCase();
+
+        const tabBtnCreate = document.getElementById('tab-btn-create');
+        const tabBtnJoin = document.getElementById('tab-btn-join');
+        if (tabBtnCreate) tabBtnCreate.classList.remove('active');
+        if (tabBtnJoin) tabBtnJoin.classList.add('active');
+
+        const createForm = document.getElementById('create-room-form');
+        const joinForm = document.getElementById('join-room-form');
+        if (createForm) createForm.style.display = 'none';
+        if (joinForm) joinForm.style.display = 'block';
+
+        const joinCodeInput = document.getElementById('join-room-code');
+        if (joinCodeInput) {
+            joinCodeInput.value = code;
+        }
+
+        const joinNickInput = document.getElementById('join-nickname');
+        if (joinNickInput && !joinNickInput.value) {
+            joinNickInput.focus();
+        }
+
+        showToast(`초대받은 방 코드 [${code}]가 자동 입력되었습니다!`);
+    }
+
     function checkUrlQueryParams() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const roomParam = urlParams.get('room');
+        let roomParam = new URLSearchParams(window.location.search).get('room');
+        if (!roomParam && window.parent && window.parent !== window) {
+            try {
+                roomParam = new URLSearchParams(window.parent.location.search).get('room');
+            } catch (e) {}
+        }
         if (roomParam) {
-            const joinTabBtn = document.getElementById('tab-btn-join');
-            if (joinTabBtn) joinTabBtn.click();
-
-            const joinCodeInput = document.getElementById('join-room-code');
-            if (joinCodeInput) joinCodeInput.value = roomParam.toUpperCase();
-
-            showToast("초대받은 방 코드가 입력되었습니다. 닉네임을 입력 후 입장해주세요!");
+            applyRoomInvite(roomParam);
         }
     }
+
+    window.addEventListener('message', (e) => {
+        if (e.data && e.data.type === 'APPLY_ROOM_INVITE' && e.data.room) {
+            applyRoomInvite(e.data.room);
+        }
+    });
 
     function connectNetwork() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -1087,7 +1118,9 @@
 		
         if (btnCopyLink) {
             btnCopyLink.onclick = () => {
-                const shareUrl = `${window.location.origin}${window.location.pathname}?room=${currentRoomId}`;
+                const fullPath = window.location.pathname;
+                const basePath = fullPath.substring(0, fullPath.lastIndexOf('/'));
+                const shareUrl = `${window.location.origin}${basePath}/index.html?game=bingo&room=${currentRoomId}`;
                 if (navigator.clipboard && navigator.clipboard.writeText) {
                     navigator.clipboard.writeText(shareUrl).then(() => showToast('초대 링크가 복사되었습니다!'))
                     .catch(() => prompt('아래 링크를 복사하세요:', shareUrl));
@@ -1099,7 +1132,9 @@
 
         if (btnShowQr) {
             btnShowQr.onclick = () => {
-                const shareUrl = `${window.location.origin}${window.location.pathname}?room=${currentRoomId}`;
+                const fullPath = window.location.pathname;
+                const basePath = fullPath.substring(0, fullPath.lastIndexOf('/'));
+                const shareUrl = `${window.location.origin}${basePath}/index.html?game=bingo&room=${currentRoomId}`;
                 const qrContainer = document.getElementById('qrcode');
                 if (qrContainer) {
                     qrContainer.innerHTML = '';
@@ -1203,5 +1238,6 @@
     initFormControls();
     initGameActionControls();
     updateTargetLinesOptions(selectedSize, document.getElementById('create-target-lines'));
+    checkUrlQueryParams();
     connectNetwork();
 })();

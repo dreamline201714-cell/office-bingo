@@ -138,12 +138,35 @@ function connectWS(callback) {
 window.addEventListener('DOMContentLoaded', () => {
     connectWS();
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const roomParam = urlParams.get('room');
+    checkUrlQueryParams();
+});
+
+function applyRoomInvite(code) {
+    if (!code) return;
+    code = String(code).trim().toUpperCase();
+    switchTab('join');
+    const codeInput = document.getElementById('room-code-input');
+    if (codeInput) codeInput.value = code;
+    const nickInput = document.getElementById('join-nickname-input');
+    if (nickInput && !nickInput.value) nickInput.focus();
+    showToast(`초대받은 방 코드 [${code}]가 자동 입력되었습니다!`);
+}
+
+function checkUrlQueryParams() {
+    let roomParam = new URLSearchParams(window.location.search).get('room');
+    if (!roomParam && window.parent && window.parent !== window) {
+        try {
+            roomParam = new URLSearchParams(window.parent.location.search).get('room');
+        } catch (e) {}
+    }
     if (roomParam) {
-        switchTab('join');
-        const codeInput = document.getElementById('room-code-input');
-        if (codeInput) codeInput.value = roomParam.toUpperCase();
+        applyRoomInvite(roomParam);
+    }
+}
+
+window.addEventListener('message', (e) => {
+    if (e.data && e.data.type === 'APPLY_ROOM_INVITE' && e.data.room) {
+        applyRoomInvite(e.data.room);
     }
 });
 
@@ -440,8 +463,15 @@ function closeModal(id) {
 
 function copyRoomLink() {
     if (!currentRoomId) return;
-    const roomUrl = `${window.location.origin}/index.html?game=gostop&room=${currentRoomId}`;
-    navigator.clipboard.writeText(roomUrl).then(() => showToast('초대 링크가 복사되었습니다!'));
+    const fullPath = window.location.pathname;
+    const basePath = fullPath.substring(0, fullPath.lastIndexOf('/'));
+    const roomUrl = `${window.location.origin}${basePath}/index.html?game=gostop&room=${currentRoomId}`;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(roomUrl).then(() => showToast('초대 링크가 복사되었습니다!'))
+        .catch(() => prompt('아래 링크를 복사하세요:', roomUrl));
+    } else {
+        prompt('아래 링크를 복사하세요:', roomUrl);
+    }
 }
 
 function renderHwatuCard(card, onClick, isSelectable = false, isBombable = false, isHandMatched = false) {

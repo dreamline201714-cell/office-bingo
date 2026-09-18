@@ -239,7 +239,7 @@
                         </div>
                     </div>
 
-                    <!-- 1구역: 참가자 및 오늘의 루미왕 현황 -->
+                    <!-- 1구역: 참가자 및 오늘의 루미왕 현황 (상단 배치: 방 현황 즉시 확인) -->
                     <div class="console-players-deck">
                         <div class="today-king-banner" id="today-king-banner">
                             <span class="king-title">👑 오늘의 루미왕</span>
@@ -251,12 +251,7 @@
                         <div id="panel-players" class="player-list-scroll"></div>
                     </div>
 
-                    <!-- 2구역: 실시간 대화 피드 -->
-                    <div class="console-chat-zone">
-                        <div class="console-chat-stream" id="chat-messages"></div>
-                    </div>
-
-                    <!-- 3구역: 퀵 리액션 알약 & 정규 우하단 입력창 -->
+                    <!-- 2구역: 퀵 리액션 알약 & 대화 입력창 (참가자 바로 아래, 손패/조작선 높이에 배치) -->
                     <div class="console-bottom-dock">
                         <div class="quick-reactions-bar">
                             <button type="button" class="reaction-pill" onclick="GameFX.quickReaction('👏 굿!')">👏 굿!</button>
@@ -269,6 +264,11 @@
                             <input type="text" id="chat-input" class="console-text-input" placeholder="대화 입력 (Enter)..." autocomplete="off" maxlength="100">
                             <button type="submit" class="console-send-btn">전송</button>
                         </form>
+                    </div>
+
+                    <!-- 3구역: 실시간 대화 피드 (입력창 아래에서 시원하게 펼쳐지며 스크롤) -->
+                    <div class="console-chat-zone">
+                        <div class="console-chat-stream" id="chat-messages"></div>
                     </div>
                 </div>
             </div>

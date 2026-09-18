@@ -325,6 +325,20 @@
     // -------------------------------------------------------------
     let unreadCount = 0;
 
+    function ensureConsoleBackdrop() {
+        let backdrop = document.getElementById('console-backdrop');
+        if (!backdrop && document.body) {
+            backdrop = document.createElement('div');
+            backdrop.id = 'console-backdrop';
+            backdrop.className = 'console-backdrop';
+            backdrop.addEventListener('click', () => {
+                toggleConsole(false);
+            });
+            document.body.appendChild(backdrop);
+        }
+        return backdrop;
+    }
+
     function ensureConsoleReopenTab() {
         let tab = document.getElementById('console-reopen-tab');
         if (!tab && document.body) {
@@ -332,10 +346,10 @@
             tab.id = 'console-reopen-tab';
             tab.className = 'console-reopen-tab';
             tab.type = 'button';
-            tab.title = '매치 콘솔 열기';
+            tab.title = '채팅 및 대기실 열기';
             tab.innerHTML = `
                 <span class="tab-icon">💬</span>
-                <span class="tab-label">매치</span>
+                <span class="tab-label">채팅 & 대기실</span>
                 <span class="tab-badge" id="reopen-tab-badge" style="display:none;">0</span>
             `;
             tab.addEventListener('click', (e) => {
@@ -354,13 +368,20 @@
         const isCollapsed = arenaMain.classList.contains('console-collapsed');
         const shouldCollapse = (forceState !== null) ? !forceState : !isCollapsed;
         const reopenTab = ensureConsoleReopenTab();
+        const backdrop = ensureConsoleBackdrop();
 
         if (shouldCollapse) {
             arenaMain.classList.add('console-collapsed');
+            arenaMain.classList.remove('console-open');
             if (reopenTab) reopenTab.classList.add('visible');
+            if (backdrop) backdrop.classList.remove('active');
         } else {
             arenaMain.classList.remove('console-collapsed');
+            arenaMain.classList.add('console-open');
             if (reopenTab) reopenTab.classList.remove('visible');
+            if (backdrop && window.innerWidth <= 768) {
+                backdrop.classList.add('active');
+            }
             unreadCount = 0;
             updateUnreadBadge();
         }
@@ -436,6 +457,32 @@
     // -------------------------------------------------------------
     const audioInstance = new WebAudioSynth();
     const reactionInstance = new FloatingReactionEngine();
+
+    // 모바일 접속 시 기본적으로 100% 풀스크린 게임판 제공 (콘솔 자동 닫힘)
+    if (typeof window !== 'undefined') {
+        const checkMobileInit = () => {
+            if (window.innerWidth <= 768) {
+                const arenaMain = document.getElementById('arena-main') || document.getElementById('arena') || document.querySelector('.arena-main');
+                if (arenaMain) {
+                    arenaMain.classList.add('console-collapsed');
+                    arenaMain.classList.remove('console-open');
+                    const tab = ensureConsoleReopenTab();
+                    if (tab) tab.classList.add('visible');
+                }
+            }
+        };
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', checkMobileInit);
+        } else {
+            checkMobileInit();
+        }
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 768) {
+                const backdrop = document.getElementById('console-backdrop');
+                if (backdrop) backdrop.classList.remove('active');
+            }
+        });
+    }
 
     window.GameFX = {
         audio: audioInstance,

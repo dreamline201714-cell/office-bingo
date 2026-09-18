@@ -1250,3 +1250,109 @@
         transform: scale(0.72);
     }
 }
+
+/* ==========================================================================
+   📱 모바일 전용 루미큐브 풀와이드 레이아웃 (@media max-width: 768px)
+   ========================================================================== */
+@media screen and (max-width: 768px) {
+    #arena-section {
+        top: 0 !important;
+        position: relative !important;
+        height: 100% !important;
+    }
+
+    .stadium-arena {
+        padding: 4px 6px 8px 6px !important;
+        gap: 4px !important;
+    }
+
+    .topic-banner {
+        padding: 4px 8px !important;
+    }
+
+    .topic-banner h2 {
+        font-size: 0.88rem !important;
+    }
+
+    .host-controls-box {
+        gap: 6px !important;
+        margin-bottom: 4px !important;
+    }
+    .host-controls-box.hidden,
+    .host-controls-box[style*="display: none"] {
+        display: none !important;
+    }
+
+    .start-game-btn,
+    .secondary-btn {
+        flex: 1 !important;
+        padding: 6px 10px !important;
+        font-size: 0.8rem !important;
+        height: 36px !important;
+    }
+
+    .rummikub-table-board,
+    #table-sets-container {
+        flex: 1 1 auto !important;
+        min-height: 120px !important;
+        padding: 6px !important;
+        gap: 6px !important;
+    }
+
+    .player-rack-zone {
+        margin-top: auto !important;
+        width: 100% !important;
+    }
+
+    .rack-wood-panel {
+        width: 100% !important;
+        padding: 6px 6px 8px 6px !important;
+        box-sizing: border-box !important;
+    }
+
+    .rack-wood-top-bar {
+        font-size: 0.7rem !important;
+        margin-bottom: 4px !important;
+    }
+
+    .my-rack-container {
+        grid-template-columns: repeat(auto-fill, minmax(36px, 1fr)) !important;
+        grid-auto-rows: 52px !important;
+        gap: 4px 3px !important;
+        min-height: 110px !important;
+        max-height: 120px !important;
+        padding: 4px 6px !important;
+    }
+
+    .my-rack-container .rummi-tile-wrapper {
+        transform: scale(0.85);
+        transform-origin: center bottom;
+    }
+
+    .bridge-group {
+        gap: 3px !important;
+    }
+
+    .bridge-btn {
+        padding: 4px 7px !important;
+        font-size: 0.72rem !important;
+        height: 30px !important;
+    }
+
+    .table-zoom-widget {
+        height: 28px !important;
+        padding: 0 4px !important;
+    }
+
+    .zoom-btn {
+        height: 24px !important;
+        line-height: 24px !important;
+        font-size: 0.72rem !important;
+        padding: 1px 4px !important;
+    }
+
+    .zoom-level-text {
+        font-size: 0.68rem !important;
+        min-width: 44px !important;
+    }
+}

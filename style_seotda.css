@@ -474,3 +474,41 @@
     40% { transform: scale(1.12); filter: drop-shadow(0 0 12px #fbbf24); }
     100% { transform: scale(1); }
 }
+
+/* ==========================================
+   📱 모바일 섯다 전용 반응형
+   ========================================== */
+@media screen and (max-width: 768px) {
+    #arena-section {
+        top: 0 !important;
+        position: relative !important;
+        height: 100% !important;
+    }
+
+    .stadium-arena {
+        padding: 4px 6px 8px 6px !important;
+    }
+
+    .seotda-table-board {
+        min-height: 180px !important;
+        padding: 8px !important;
+    }
+
+    .player-seat-card {
+        min-width: 80px !important;
+        padding: 4px 6px !important;
+    }
+
+    .betting-actions-box,
+    .seotda-actions-box {
+        gap: 4px !important;
+        flex-wrap: wrap !important;
+    }
+
+    .bet-btn {
+        flex: 1 1 28% !important;
+        min-width: 70px !important;
+        padding: 6px 4px !important;
+        font-size: 0.78rem !important;
+    }
+}

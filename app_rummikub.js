@@ -65,16 +65,50 @@
         setTimeout(() => { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 2500);
     }
 
+    function applyRoomInvite(code) {
+        if (!code) return;
+        code = String(code).trim().toUpperCase();
+
+        const createTabBtn = document.getElementById('tab-btn-create');
+        const joinTabBtn = document.getElementById('tab-btn-join');
+        if (createTabBtn) createTabBtn.classList.remove('active');
+        if (joinTabBtn) joinTabBtn.classList.add('active');
+
+        const createForm = document.getElementById('create-room-form');
+        const joinForm = document.getElementById('join-room-form');
+        if (createForm) createForm.style.display = 'none';
+        if (joinForm) joinForm.style.display = 'block';
+
+        const joinCodeInput = document.getElementById('join-room-code');
+        if (joinCodeInput) {
+            joinCodeInput.value = code;
+        }
+
+        const joinNickInput = document.getElementById('join-nickname');
+        if (joinNickInput && !joinNickInput.value) {
+            joinNickInput.focus();
+        }
+
+        showToast(`초대받은 방 코드 [${code}]가 자동 입력되었습니다!`);
+    }
+
     function checkUrlQueryParams() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const roomParam = urlParams.get('room');
+        let roomParam = new URLSearchParams(window.location.search).get('room');
+        if (!roomParam && window.parent && window.parent !== window) {
+            try {
+                roomParam = new URLSearchParams(window.parent.location.search).get('room');
+            } catch (e) {}
+        }
         if (roomParam) {
-            const joinTabBtn = document.getElementById('tab-btn-join');
-            if (joinTabBtn) joinTabBtn.click();
-            const joinCodeInput = document.getElementById('join-room-code');
-            if (joinCodeInput) joinCodeInput.value = roomParam.toUpperCase();
+            applyRoomInvite(roomParam);
         }
     }
+
+    window.addEventListener('message', (e) => {
+        if (e.data && e.data.type === 'APPLY_ROOM_INVITE' && e.data.room) {
+            applyRoomInvite(e.data.room);
+        }
+    });
 
     function connectNetwork() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -410,20 +444,28 @@
                 readyBtn.innerText = myPlayer?.is_ready ? '준비 완료됨 (해제)' : '준비 완료';
             }
 
-            if (myPlayer && myPlayer.is_host) {
-                if (hostControls) hostControls.style.display = 'flex';
-                if (hostStartBtn) {
-                    const allReady = roomState.players.every(p => p.is_ready);
-                    hostStartBtn.disabled = !allReady;
-                    hostStartBtn.innerText = allReady ? '게임 시작하기!' : '준비 대기 중...';
+            if (hostControls) {
+                if (myPlayer && myPlayer.is_host) {
+                    hostControls.style.display = 'flex';
+                    hostControls.classList.remove('hidden');
+                } else {
+                    hostControls.style.display = 'none';
+                    hostControls.classList.add('hidden');
                 }
-            } else {
-                if (hostControls) hostControls.style.display = 'none';
+            }
+
+            if (hostStartBtn) {
+                const allReady = roomState.players.every(p => p.is_ready);
+                hostStartBtn.disabled = !allReady;
+                hostStartBtn.innerText = allReady ? '게임 시작하기!' : '준비 대기 중...';
             }
         } else {
             if (roomBadge) { roomBadge.className = 'room-state-badge playing'; roomBadge.innerText = '게임 진행 중'; }
             if (turnBanner) turnBanner.style.display = 'flex';
-            if (hostControls) hostControls.style.display = 'none';
+            if (hostControls) {
+                hostControls.style.display = 'none';
+                hostControls.classList.add('hidden');
+            }
             if (readyBtn) readyBtn.style.display = 'none';
 
             const isMyTurn = (String(myPlayerId) === String(roomState.current_turn_player_id));
@@ -1581,11 +1623,14 @@
 
         if (btnCopyLink) {
             btnCopyLink.onclick = () => {
-                const shareUrl = `${window.location.origin}/index.html?game=rummikub&room=${currentRoomId}`;
-                if (navigator.clipboard) {
-                    navigator.clipboard.writeText(shareUrl).then(() => showToast('초대 링크가 복사되었습니다!'));
+                const fullPath = window.location.pathname;
+                const basePath = fullPath.substring(0, fullPath.lastIndexOf('/'));
+                const shareUrl = `${window.location.origin}${basePath}/index.html?game=rummikub&room=${currentRoomId}`;
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(shareUrl).then(() => showToast('초대 링크가 복사되었습니다!'))
+                    .catch(() => prompt('아래 초대 링크를 복사하세요:', shareUrl));
                 } else {
-                    prompt('초대 링크:', shareUrl);
+                    prompt('아래 초대 링크를 복사하세요:', shareUrl);
                 }
             };
         }
@@ -1602,6 +1647,8 @@
             if (cNick) cNick.value = savedNick;
             if (jNick) jNick.value = savedNick;
         }
+
+        checkUrlQueryParams();
 
         if (createForm) {
             createForm.onsubmit = (e) => {

@@ -556,23 +556,34 @@
    📱 11. 모바일/좁은 창 대응 반응형
    ========================================== */
 @media screen and (max-width: 768px) {
+    #arena-section {
+        top: 0 !important;
+        position: relative !important;
+        height: 100% !important;
+    }
+
     .today-rank-ticker {
         width: 100%;
         justify-content: space-around;
-        margin-top: 6px;
+        margin-top: 4px;
         padding: 4px 10px;
     }
 
     .bingo-board-grid,
     .board-grid,
     #bingo-board-grid {
-        gap: 3px !important;
-        padding: 4px !important;
+        gap: 4px !important;
+        padding: 6px !important;
         max-width: 100% !important;
+        width: 100% !important;
+        margin: 0 auto !important;
     }
 
     .bingo-cell {
-        padding: 1px !important;
-        font-size: clamp(0.5rem, 2.8vw, 0.72rem) !important;
+        padding: 4px 2px !important;
+        min-height: 44px !important;
+        font-size: clamp(0.7rem, 3.2vw, 0.92rem) !important;
+        font-weight: 700 !important;
+        border-radius: 8px !important;
     }
 }

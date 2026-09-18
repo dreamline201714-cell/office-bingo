@@ -642,6 +642,12 @@
    🎴 고스톱 모바일 한 화면 콤팩트 레이아웃
    ========================================== */
 @media screen and (max-width: 768px) {
+    #arena-section {
+        top: 0 !important;
+        position: relative !important;
+        height: 100% !important;
+    }
+
     /* 1. 중앙 화투판 크기 및 여백 축소 */
     .circle-mat-grid {
         min-height: 140px !important;
