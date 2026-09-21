@@ -819,7 +819,7 @@
 			}
 		}
 
-		playersList.forEach(p => {
+		playersList.forEach((p, pIdx) => {
 			let statusHtml = '';
 
 			if (status === 'WAITING') {
@@ -855,8 +855,9 @@
 			const isTurnPlayer = (roomState.status === 'PLAYING' && String(p.player_id) === String(roomState.current_turn_player_id));
 			card.className = 'console-player-item speech-bubble-anchor' + (isTurnPlayer ? ' is-turn' : '') + (p.is_escaped && status !== 'WAITING' ? ' player-escaped' : '');
 			card.setAttribute('data-player-id', p.player_id);
+			const avatarColor = (window.GameFX && window.GameFX.getPlayerColor) ? window.GameFX.getPlayerColor(p, pIdx) : (p.color || '#3b82f6');
 			card.innerHTML = `
-				<div class="console-player-avatar ${isTurnPlayer ? 'turn-pulse' : ''}" style="background-color: ${p.color || '#3b82f6'};">${p.nickname.charAt(0).toUpperCase()}</div>
+				<div class="console-player-avatar ${isTurnPlayer ? 'turn-pulse' : ''}" style="background-color: ${avatarColor};">${p.nickname.charAt(0).toUpperCase()}</div>
 				<div class="console-player-info">
 					<div class="console-player-nick-row">
 						<span class="console-player-nick">${escapeHtml(p.nickname)}</span>
@@ -920,6 +921,16 @@
         const chatMessagesBox = document.getElementById('chat-messages');
         if (!chatMessagesBox || !roomState) return;
         const myNick = getMyNickname();
+        if (roomState.chat_logs && roomState.players && window.GameFX) {
+            roomState.chat_logs.forEach(c => {
+                if (!c.color && c.nickname) {
+                    const pIdx = roomState.players.findIndex(pl => pl.nickname === c.nickname);
+                    if (pIdx >= 0) {
+                        c.color = window.GameFX.getPlayerColor(roomState.players[pIdx], pIdx);
+                    }
+                }
+            });
+        }
         if (window.GameFX && window.GameFX.renderChatStream) {
             window.GameFX.renderChatStream(chatMessagesBox, roomState.chat_logs, myNick);
         }

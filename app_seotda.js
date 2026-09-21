@@ -733,7 +733,7 @@
             }
         }
 
-        roomState.players.forEach(p => {
+        roomState.players.forEach((p, pIdx) => {
             const isTurnP = (roomState.status === 'PLAYING' && String(p.player_id) === String(roomState.current_turn_player_id));
             const card = document.createElement('div');
             card.className = 'console-player-item speech-bubble-anchor' + (isTurnP ? ' is-turn' : '');
@@ -756,8 +756,9 @@
                 winBadgeHtml = `<span class="win-pill">${winCount}승</span>`;
             }
 
+            const avatarColor = (window.GameFX && window.GameFX.getPlayerColor) ? window.GameFX.getPlayerColor(p, pIdx) : (p.color || '#3b82f6');
             card.innerHTML = `
-                <div class="console-player-avatar ${isTurnP ? 'turn-pulse' : ''}" style="background-color: ${p.color || '#3b82f6'};">${p.nickname.charAt(0).toUpperCase()}</div>
+                <div class="console-player-avatar ${isTurnP ? 'turn-pulse' : ''}" style="background-color: ${avatarColor};">${p.nickname.charAt(0).toUpperCase()}</div>
                 <div class="console-player-info">
                     <div class="console-player-nick-row">
                         <span class="console-player-nick">${escapeHtml(p.nickname)}</span>
@@ -786,6 +787,16 @@
         const chatBox = document.getElementById('chat-messages');
         if (!chatBox || !roomState) return;
         const myNick = getMyNickname();
+        if (roomState.chat_logs && roomState.players && window.GameFX) {
+            roomState.chat_logs.forEach(c => {
+                if (!c.color && c.nickname) {
+                    const pIdx = roomState.players.findIndex(pl => pl.nickname === c.nickname);
+                    if (pIdx >= 0) {
+                        c.color = window.GameFX.getPlayerColor(roomState.players[pIdx], pIdx);
+                    }
+                }
+            });
+        }
         if (window.GameFX && window.GameFX.renderChatStream) {
             window.GameFX.renderChatStream(chatBox, roomState.chat_logs, myNick);
         }

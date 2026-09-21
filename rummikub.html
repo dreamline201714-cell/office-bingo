@@ -202,6 +202,12 @@
 
                     <!-- 2구역: 실시간 대화 피드 (참가자 목록과 입력창 사이를 시원하게 채우며 위->아래 스택) -->
                     <div class="console-chat-zone">
+                        <div class="console-chat-header">
+                            <span class="console-chat-header-title">💬 실시간 대화</span>
+                            <button type="button" class="toggle-system-chat-btn" id="toggle-system-chat-btn" onclick="GameFX.toggleSystemMessages()" title="타일 획득/드로우 등 시스템 알림 켜기/끄기">
+                                <span class="filter-icon">🔔</span><span class="filter-label">시스템 알림</span>
+                            </button>
+                        </div>
                         <div class="console-chat-stream" id="chat-messages"></div>
                     </div>
 

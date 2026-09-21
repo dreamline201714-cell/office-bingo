@@ -436,13 +436,22 @@
             gridInfoEl.innerText = `${ruleText} · ${roomState.turn_time_limit || 60}초`;
         }
 
+        const rackPanel = document.querySelector('.rack-wood-panel');
+        const rackTitle = document.querySelector('.rack-wood-top-bar span:first-child');
+        const submitBtn = document.getElementById('btn-submit-turn');
+        const footerWaiting = document.getElementById('footer-waiting-controls');
+
         if (status === 'WAITING') {
             if (roomBadge) { roomBadge.className = 'room-state-badge waiting'; roomBadge.innerText = '대기 중'; }
             if (turnBanner) turnBanner.style.display = 'none';
+            if (footerWaiting) footerWaiting.style.setProperty('display', 'inline-flex', 'important');
             if (readyBtn) {
-                readyBtn.style.display = 'inline-block';
+                readyBtn.style.setProperty('display', 'inline-flex', 'important');
                 readyBtn.innerText = myPlayer?.is_ready ? '준비 완료됨 (해제)' : '준비 완료';
             }
+            if (rackPanel) rackPanel.classList.remove('my-turn-glow');
+            if (submitBtn) submitBtn.classList.remove('my-turn-pulse');
+            if (rackTitle) rackTitle.innerText = '내 거치대 (Rack) - 타일을 선택하여 테이블로 내세요';
 
             if (hostControls) {
                 if (myPlayer && myPlayer.is_host) {
@@ -466,10 +475,27 @@
                 hostControls.style.display = 'none';
                 hostControls.classList.add('hidden');
             }
-            if (readyBtn) readyBtn.style.display = 'none';
+            if (footerWaiting) footerWaiting.style.setProperty('display', 'none', 'important');
+            if (readyBtn) readyBtn.style.setProperty('display', 'none', 'important');
 
             const isMyTurn = (String(myPlayerId) === String(roomState.current_turn_player_id));
             const turnPlayer = roomState.players.find(p => String(p.player_id) === String(roomState.current_turn_player_id));
+
+            if (rackPanel) {
+                if (isMyTurn) {
+                    rackPanel.classList.add('my-turn-glow');
+                    if (rackTitle) rackTitle.innerHTML = '🔥 <strong style="color:#fbbf24;">내 차례입니다!</strong> 타일을 테이블로 내거나 [턴 마치기]를 누르세요';
+                } else {
+                    rackPanel.classList.remove('my-turn-glow');
+                    const turnName = turnPlayer ? turnPlayer.nickname : '상대방';
+                    if (rackTitle) rackTitle.innerHTML = `⏳ <span style="color:#94a3b8;">${escapeHtml(turnName)}님의 차례 진행 중... (대기 중)</span>`;
+                }
+            }
+
+            if (submitBtn) {
+                if (isMyTurn) submitBtn.classList.add('my-turn-pulse');
+                else submitBtn.classList.remove('my-turn-pulse');
+            }
 
             if (turnPlayerBadge) {
                 if (isMyTurn) {
@@ -477,7 +503,9 @@
                     turnPlayerBadge.innerText = '내 턴입니다! (타일을 자유롭게 이동/재조합하세요)';
                 } else {
                     turnPlayerBadge.className = 'turn-player-badge';
-                    turnPlayerBadge.innerHTML = `<span style="color:${turnPlayer?.color || 'var(--text-primary)'};">${escapeHtml(turnPlayer?.nickname || '참여자')}</span> 님의 턴`;
+                    const pIdx = roomState.players.indexOf(turnPlayer);
+                    const turnColor = (window.GameFX && window.GameFX.getPlayerColor) ? window.GameFX.getPlayerColor(turnPlayer, pIdx) : (turnPlayer?.color || 'var(--text-primary)');
+                    turnPlayerBadge.innerHTML = `<span style="color:${turnColor};">${escapeHtml(turnPlayer?.nickname || '참여자')}</span> 님의 턴`;
                 }
             }
 
@@ -668,6 +696,10 @@
         `;
         div.draggable = true;
         div.addEventListener('dragstart', (e) => {
+            if (!div.draggable) {
+                e.preventDefault();
+                return;
+            }
             e.dataTransfer.setData('text/plain', JSON.stringify({
                 id: tile.id,
                 color: tile.color,
@@ -681,6 +713,7 @@
         });
         div.addEventListener('dragend', () => {
             div.classList.remove('tile-dragging');
+            document.querySelectorAll('.tile-dragging').forEach(el => el.classList.remove('tile-dragging'));
         });
 
         return div;
@@ -1032,19 +1065,29 @@
                 } catch(err) {}
             });
 
+            const isMyTurn = (String(myPlayerId) === String(roomState?.current_turn_player_id) && roomState?.status === 'PLAYING');
+
             set.forEach((tile, tileIndex) => {
                 const isSel = selectedTiles.some(t => t.id === tile.id);
                 const div = createTileElement(tile, isSel);
+
+                if (!isMyTurn) {
+                    div.draggable = false;
+                    div.style.cursor = 'default';
+                }
 
                 if (newlyPlacedTileIds.has(tile.id)) {
                     div.classList.add('just-placed');
                 }
 
-                // 타일 클릭: 타일 단일 선택/해제 토글 (복수 선택 유지)
+                // 타일 클릭: 타일 단일 선택/해제 토글 (내 턴일 때만)
                 div.onclick = (e) => {
                     e.stopPropagation();
-                    if (String(myPlayerId) !== String(roomState?.current_turn_player_id)) {
-                        showToast("내 턴일 때만 조작할 수 있습니다.");
+                    if (!isMyTurn) {
+                        const currPlayer = roomState?.players?.find(p => String(p.player_id) === String(roomState?.current_turn_player_id));
+                        const currName = currPlayer ? currPlayer.nickname : '상대방';
+                        showToast(`⏳ 지금은 [${currName}]님의 차례입니다. 잠시만 기다려주세요!`);
+                        if (window.GameFX && window.GameFX.shake) window.GameFX.shake();
                         return;
                     }
 
@@ -1237,7 +1280,7 @@
         }
 
         // 1. 우측 콘솔 참가자 목록 갱신
-        playersList.forEach(p => {
+        playersList.forEach((p, pIdx) => {
             const card = document.createElement('div');
             const isTurnPlayer = (String(p.player_id) === String(roomState.current_turn_player_id) && roomState.status === 'PLAYING');
             card.className = 'console-player-item speech-bubble-anchor' + (isTurnPlayer ? ' is-turn' : '');
@@ -1245,7 +1288,7 @@
 
             const nickname = String(p.nickname || '참여자');
             const firstLetter = nickname.charAt(0).toUpperCase();
-            const avatarColor = p.color || '#3b82f6';
+            const avatarColor = (window.GameFX && window.GameFX.getPlayerColor) ? window.GameFX.getPlayerColor(p, pIdx) : (p.color || '#3b82f6');
             const tileCount = p.tile_count || 0;
 
             const isDanger = (roomState.status === 'PLAYING' && tileCount > 0 && tileCount <= 3);
@@ -1283,7 +1326,7 @@
                 oppStadium.classList.add('players-4');
             }
 
-            opponents.forEach(opp => {
+            opponents.forEach((opp, oppIdx) => {
                 const isOppTurn = (String(opp.player_id) === String(roomState.current_turn_player_id) && roomState.status === 'PLAYING');
                 const pod = document.createElement('div');
                 pod.className = 'stadium-pod speech-bubble-anchor' + (isOppTurn ? ' is-active-turn' : '');
@@ -1291,7 +1334,8 @@
 
                 const oppNick = String(opp.nickname || '상대방');
                 const firstLetter = oppNick.charAt(0).toUpperCase();
-                const avatarColor = opp.color || '#3b82f6';
+                const origIdx = playersList.findIndex(p => String(p.player_id) === String(opp.player_id));
+                const avatarColor = (window.GameFX && window.GameFX.getPlayerColor) ? window.GameFX.getPlayerColor(opp, origIdx >= 0 ? origIdx : oppIdx + 1) : (opp.color || '#3b82f6');
                 const oppTiles = opp.tile_count || 0;
                 const isDanger = (roomState.status === 'PLAYING' && oppTiles > 0 && oppTiles <= 3);
 
@@ -1299,14 +1343,17 @@
                     ? (opp.is_ready ? '🟢 준비 완료' : '⚪ 대기 중')
                     : (opp.has_opened ? '🔓 첫등록 완료' : '🔒 첫등록 전');
 
+                const turnBadge = isOppTurn ? '<span class="pod-turn-label">⏳ 상대방 차례</span>' : '';
+
                 pod.innerHTML = `
                     <div class="pod-avatar-wrapper">
                         <div class="pod-avatar-circle" style="background-color: ${avatarColor};">${firstLetter}</div>
                         <div class="pod-glow-ring"></div>
-                        <span class="pod-turn-label">TURN</span>
+                        ${turnBadge}
                     </div>
                     <div class="pod-meta-zone">
                         <div class="pod-nickname">
+                            <span style="font-size:0.65rem; font-weight:800; background:rgba(255,255,255,0.1); border-radius:3px; padding:1px 4px; margin-right:4px; color:#94a3b8;">상대</span>
                             <span>${escapeHtml(oppNick)}</span>
                             ${opp.is_host ? '<span style="font-size:0.62rem; color:var(--border-accent); border:1px solid; border-radius:3px; padding:0 3px;">방장</span>' : ''}
                         </div>
@@ -1330,6 +1377,16 @@
         const chatBox = document.getElementById('chat-messages');
         if (!chatBox || !roomState) return;
         const myNick = localStorage.getItem('office_rummikub_last_nickname');
+        if (roomState.chat_logs && roomState.players && window.GameFX) {
+            roomState.chat_logs.forEach(c => {
+                if (!c.color && c.nickname) {
+                    const pIdx = roomState.players.findIndex(pl => pl.nickname === c.nickname);
+                    if (pIdx >= 0) {
+                        c.color = window.GameFX.getPlayerColor(roomState.players[pIdx], pIdx);
+                    }
+                }
+            });
+        }
         if (window.GameFX && window.GameFX.renderChatStream) {
             window.GameFX.renderChatStream(chatBox, roomState.chat_logs, myNick);
         }

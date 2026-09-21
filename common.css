@@ -2147,6 +2147,72 @@ body.shake-active {
     background: #f8fafc !important;
 }
 
+/* 채팅 영역 상단 컨트롤 헤더 (시스템 알림 필터 토글) */
+.console-chat-header {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 3px 6px 7px 6px !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    flex-shrink: 0 !important;
+}
+
+[data-theme="light"] .console-chat-header {
+    border-bottom-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+.console-chat-header-title {
+    font-size: 0.74rem !important;
+    font-weight: 700 !important;
+    color: #94a3b8 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+}
+
+[data-theme="light"] .console-chat-header-title {
+    color: #64748b !important;
+}
+
+.toggle-system-chat-btn {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important;
+    color: #e2e8f0 !important;
+    border-radius: 12px !important;
+    padding: 2px 8px !important;
+    font-size: 0.68rem !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    transition: all 0.15s ease !important;
+    line-height: 1.2 !important;
+}
+
+.toggle-system-chat-btn:hover {
+    background: rgba(255, 255, 255, 0.16) !important;
+    color: #ffffff !important;
+}
+
+.toggle-system-chat-btn.is-muted {
+    background: rgba(239, 68, 68, 0.15) !important;
+    border-color: rgba(239, 68, 68, 0.4) !important;
+    color: #fca5a5 !important;
+}
+
+[data-theme="light"] .toggle-system-chat-btn {
+    background: #f1f5f9 !important;
+    border-color: #cbd5e1 !important;
+    color: #334155 !important;
+}
+
+[data-theme="light"] .toggle-system-chat-btn.is-muted {
+    background: #fee2e2 !important;
+    border-color: #fca5a5 !important;
+    color: #dc2626 !important;
+}
+
 .console-chat-stream {
     flex: 1 1 0 !important;
     overflow-y: auto !important;
@@ -2155,6 +2221,11 @@ body.shake-active {
     gap: 6px !important;
     padding-right: 4px !important;
     min-height: 0 !important;
+}
+
+/* 시스템 알림 숨김 모드 */
+.console-chat-stream.hide-system .console-chat-row.system {
+    display: none !important;
 }
 
 /* 통일된 대화 말풍선 행 */
@@ -2443,19 +2514,25 @@ body.shake-active {
     box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.3);
 }
 
+.stadium-pod.is-active-turn {
+    border-color: rgba(245, 158, 11, 0.8) !important;
+    background: rgba(245, 158, 11, 0.12) !important;
+    box-shadow: 0 0 16px rgba(245, 158, 11, 0.35) !important;
+}
+
 .stadium-pod.is-active-turn .pod-avatar-circle {
-    background: linear-gradient(135deg, #f59e0b, #d97706);
+    box-shadow: 0 0 12px #f59e0b, inset 0 2px 4px rgba(255, 255, 255, 0.4) !important;
 }
 
 .pod-glow-ring {
     display: none;
     position: absolute;
-    top: -4px;
-    left: -4px;
-    right: -4px;
-    bottom: -4px;
+    top: -5px;
+    left: -5px;
+    right: -5px;
+    bottom: -5px;
     border-radius: 50%;
-    border: 2px dashed #f59e0b;
+    border: 2.5px dashed #f59e0b;
     animation: turnRingSpin 3s linear infinite;
 }
 
@@ -2466,21 +2543,45 @@ body.shake-active {
 .pod-turn-label {
     display: none;
     position: absolute;
-    bottom: -6px;
+    bottom: -8px;
     left: 50%;
     transform: translateX(-50%);
-    background: #f59e0b;
-    color: #000000;
-    font-size: 0.62rem;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: #ffffff;
+    font-size: 0.60rem;
     font-weight: 800;
-    padding: 1px 5px;
+    padding: 1px 6px;
     border-radius: 8px;
     white-space: nowrap;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    letter-spacing: 0.02em;
 }
 
 .stadium-pod.is-active-turn .pod-turn-label {
     display: block;
+}
+
+/* ==========================================================================
+   🔥 내 턴(MY TURN) 강조 효과 (거치대 네온 빔 & 버튼 펄스)
+   ========================================================================== */
+.rack-wood-panel.my-turn-glow {
+    border: 1.5px solid #f59e0b !important;
+    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.5), 0 0 24px rgba(245, 158, 11, 0.4) !important;
+    animation: myTurnRackGlow 1.8s ease-in-out infinite alternate !important;
+}
+
+@keyframes myTurnRackGlow {
+    0% { box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.3), 0 0 14px rgba(245, 158, 11, 0.25); }
+    100% { box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.8), 0 0 28px rgba(251, 191, 36, 0.55); }
+}
+
+.bridge-btn.primary.my-turn-pulse {
+    animation: myTurnSubmitPulse 1.4s infinite !important;
+}
+
+@keyframes myTurnSubmitPulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.5); }
+    50% { transform: scale(1.03); box-shadow: 0 0 14px rgba(59, 130, 246, 0.85); }
 }
 
 /* 포드 정보 구역 */

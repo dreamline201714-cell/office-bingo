@@ -853,7 +853,7 @@ function updateUI(state) {
 	const playerListEl = document.getElementById('player-list') || document.getElementById('panel-players');
     if (playerListEl && state.players) {
         playerListEl.innerHTML = '';
-        state.players.forEach(p => {
+        state.players.forEach((p, pIdx) => {
             const isTurnP = (state.current_turn_player_id === p.player_id && state.status === 'PLAYING');
             const item = document.createElement('div');
             item.className = 'console-player-item speech-bubble-anchor' + (isTurnP ? ' is-turn' : '');
@@ -861,7 +861,7 @@ function updateUI(state) {
 
             const nickname = String(p.nickname || '?');
             const firstLetter = nickname.charAt(0).toUpperCase();
-            const avatarColor = p.color || '#3b82f6';
+            const avatarColor = (window.GameFX && window.GameFX.getPlayerColor) ? window.GameFX.getPlayerColor(p, pIdx) : (p.color || '#3b82f6');
             const statusHtml = (state.status === 'WAITING' || !state.status)
                 ? (p.is_ready ? '<span class="status-pill ready">준비완료</span>' : '<span class="status-pill waiting">대기중</span>')
                 : `<span class="status-pill ${isTurnP ? 'turn' : 'ready'}">${isTurnP ? '턴 진행' : '대기'}</span>`;
@@ -1022,6 +1022,12 @@ function appendChat(chat) {
     }
 
     if (window.GameFX && window.GameFX.appendChatBubble) {
+        if (!chat.color && chat.nickname && gameState && gameState.players) {
+            const pIdx = gameState.players.findIndex(pl => pl.nickname === chat.nickname);
+            if (pIdx >= 0 && window.GameFX.getPlayerColor) {
+                chat.color = window.GameFX.getPlayerColor(gameState.players[pIdx], pIdx);
+            }
+        }
         const myPlayer = (gameState && gameState.players && myPlayerId) ? gameState.players.find(p => p.player_id === myPlayerId) : null;
         const myNick = myPlayer ? myPlayer.nickname : (localStorage.getItem('office_gostop_last_nickname') || '');
         window.GameFX.appendChatBubble(container, chat, myNick);

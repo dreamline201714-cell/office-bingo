@@ -541,6 +541,80 @@
         container.scrollTop = container.scrollHeight;
     }
 
+    // -------------------------------------------------------------
+    // 10. Player Color Palette & System Notification Filters
+    // -------------------------------------------------------------
+    const PLAYER_PALETTE = [
+        '#3b82f6', // 1: Blue
+        '#10b981', // 2: Emerald Green
+        '#f59e0b', // 3: Amber / Warm Gold
+        '#ec4899', // 4: Pink / Rose
+        '#8b5cf6', // 5: Violet / Purple
+        '#06b6d4', // 6: Cyan
+        '#f97316', // 7: Orange
+        '#14b8a6'  // 8: Teal
+    ];
+
+    function getPlayerColor(player, index) {
+        if (player && typeof player.color === 'string' && player.color) return player.color;
+        if (typeof index === 'number' && index >= 0) {
+            return PLAYER_PALETTE[index % PLAYER_PALETTE.length];
+        }
+        const idStr = String(player?.player_id || player?.nickname || player || '');
+        let hash = 0;
+        for (let i = 0; i < idStr.length; i++) {
+            hash = (hash << 5) - hash + idStr.charCodeAt(i);
+            hash |= 0;
+        }
+        return PLAYER_PALETTE[Math.abs(hash) % PLAYER_PALETTE.length];
+    }
+
+    function isSystemMessagesVisible() {
+        return localStorage.getItem('show_system_chat') !== 'false';
+    }
+
+    function toggleSystemMessages() {
+        const current = isSystemMessagesVisible();
+        const newState = !current;
+        localStorage.setItem('show_system_chat', newState ? 'true' : 'false');
+        applySystemMessagesState();
+        return newState;
+    }
+
+    function applySystemMessagesState() {
+        const show = isSystemMessagesVisible();
+        const chatBoxes = document.querySelectorAll('.console-chat-stream, #chat-messages');
+        chatBoxes.forEach(box => {
+            if (show) {
+                box.classList.remove('hide-system');
+            } else {
+                box.classList.add('hide-system');
+            }
+        });
+        const btns = document.querySelectorAll('.toggle-system-chat-btn, #toggle-system-chat-btn');
+        btns.forEach(btn => {
+            btn.innerHTML = show 
+                ? '<span class="filter-icon">🔔</span><span class="filter-label">시스템 알림</span>'
+                : '<span class="filter-icon">🔕</span><span class="filter-label">시스템 끔</span>';
+            if (show) btn.classList.remove('is-muted');
+            else btn.classList.add('is-muted');
+        });
+    }
+
+    // 전역 안전망: 드래그/마우스업 유실 시 고착 상태 강제 해제
+    window.addEventListener('mouseup', () => {
+        document.querySelectorAll('.tile-dragging').forEach(el => el.classList.remove('tile-dragging'));
+    });
+    window.addEventListener('dragend', () => {
+        document.querySelectorAll('.tile-dragging').forEach(el => el.classList.remove('tile-dragging'));
+    });
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', applySystemMessagesState);
+    } else {
+        applySystemMessagesState();
+    }
+
     window.GameFX = {
         audio: audioInstance,
         reactions: reactionInstance,
@@ -554,7 +628,11 @@
         cutIn: triggerCutInBanner,
         mountDock: mountSocialDock,
         renderChatStream: renderChatStream,
-        appendChatBubble: appendChatBubble
+        appendChatBubble: appendChatBubble,
+        getPlayerColor: getPlayerColor,
+        toggleSystemMessages: toggleSystemMessages,
+        applySystemMessagesState: applySystemMessagesState,
+        isSystemMessagesVisible: isSystemMessagesVisible
     };
 })();
 
