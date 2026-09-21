@@ -897,18 +897,13 @@
 				mvpEl.innerText = '집계 중...';
 			}
 
-			const sortedByWinsAsc = [...playersList].sort((a, b) => (a.wins || 0) - (b.wins || 0));
-			const minWins = sortedByWinsAsc[0]?.wins || 0;
-
-			if (maxWins > 0) {
-				const bottomPlayers = sortedByWinsAsc.filter(p => (p.wins || 0) === minWins);
-				if (bottomPlayers.length === 1) {
-					loserEl.innerText = `${bottomPlayers[0].nickname} (${minWins}승)`;
+			if (isLoserMode) {
+				const losers = playersList.filter(p => p.is_loser);
+				if (losers.length > 0) {
+					loserEl.innerText = `${losers[0].nickname} (벌칙 당첨!)`;
 				} else {
-					loserEl.innerText = `${bottomPlayers[0].nickname} 외 ${bottomPlayers.length - 1}명 (${minWins}승)`;
+					loserEl.innerText = '진행 중...';
 				}
-			} else {
-				loserEl.innerText = '집계 중...';
 			}
 		}
 	}
@@ -927,18 +922,7 @@
         const myNick = getMyNickname();
         if (window.GameFX && window.GameFX.renderChatStream) {
             window.GameFX.renderChatStream(chatMessagesBox, roomState.chat_logs, myNick);
-            return;
         }
-        chatMessagesBox.innerHTML = '';
-        if (!roomState.chat_logs) return;
-        roomState.chat_logs.forEach(chat => {
-            if (chat.system) return;
-            const msgEl = document.createElement('div');
-            msgEl.className = 'chat-msg';
-            msgEl.innerHTML = `<span class="sender" style="color:${chat.color}">${escapeHtml(chat.nickname)}:</span> <span>${escapeHtml(chat.text)}</span>`;
-            chatMessagesBox.appendChild(msgEl);
-        });
-        chatMessagesBox.scrollTop = chatMessagesBox.scrollHeight;
     }
 
     function escapeHtml(str) { return String(str || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m])); }
