@@ -6,15 +6,20 @@
     <title>Office Live Games Hub (v3 Arcade Pro Edition)</title>
     <link rel="stylesheet" href="common.css?v=20260918_v3">
     <style>
-        body { 
+        html, body { 
             margin: 0; 
             padding: 0; 
+            height: 100%;
+            height: 100dvh;
             overflow: hidden; 
             background-color: var(--bg-primary); 
+            display: flex;
+            flex-direction: column;
         }
 
         /* 슬라이딩 상단 메뉴 영역 (네비게이션 + 게임 선택 탭 통합) */
         .collapsible-top-menu {
+            flex-shrink: 0;
             transition: max-height 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease, transform 0.35s ease;
             max-height: 140px;
             opacity: 1;
@@ -170,17 +175,20 @@
             display: inline-flex !important;
         }
 
-        /* iFrame 뷰포트 */
+        /* iFrame 뷰포트 (Flex 1로 남은 높이를 정확히 차지하여 1픽셀도 잘리지 않음) */
         .iframe-wrapper { 
             position: relative; 
             width: 100%; 
-            height: calc(100vh - 86px); 
+            flex: 1 1 0 !important; 
+            height: auto !important; 
+            min-height: 0 !important;
             background-color: var(--bg-primary); 
-            transition: height 0.35s cubic-bezier(0.16, 1, 0.3, 1); 
+            overflow: hidden;
         }
 
         body.top-menu-collapsed .iframe-wrapper {
-            height: 100vh !important;
+            flex: 1 1 0 !important;
+            height: 100% !important;
         }
 
         .game-iframe { 

@@ -184,7 +184,57 @@
                             </div>
                         </div>
                     </div>
+                </div>
 
+                <!-- 우측 320px: 일체형 아케이드 콘솔 (Integrated Arcade Console) -->
+                <div class="arcade-console sidebar-panel" id="sidebar-panel">
+                    <div class="console-header-bar">
+                        <div class="console-title-zone">
+                            <span>🎮 매치</span>
+                            <span class="console-room-code-badge" id="room-code-display" title="방 코드 복사" onclick="copyRoomLink()">------</span>
+                        </div>
+                        <div class="console-actions-zone">
+                            <button class="console-action-pill" id="btn-copy-link" onclick="copyRoomLink()" title="방 초대 링크 복사">초대 복사</button>
+                            <button class="console-action-pill" id="btn-show-qr" onclick="openQRModal()" title="QR 코드 보기">QR</button>
+                            <button type="button" class="console-collapse-btn" onclick="GameFX.toggleConsole()" title="콘솔 접기/펼치기">✕</button>
+                        </div>
+                    </div>
+                    
+                    <!-- 참가자 목록 상자 (상단 배치: 방 현황 즉시 확인) -->
+                    <div class="console-players-deck">
+                        <div class="today-king-banner" id="today-king-banner">
+                            <span class="king-title">👑 오늘의 고스톱왕</span>
+                            <span class="king-name" id="today-king-name-text">왕좌 비어있음</span>
+                        </div>
+                        <div class="console-section-label">
+                            <span>👥 참가자 (<span id="player-count">0</span>명)</span>
+                        </div>
+                        <div id="player-list" class="player-list-scroll"></div>
+                    </div>
+
+                    <!-- 실시간 대화 피드 (참가자 목록과 입력창 사이를 시원하게 채우며 위->아래 스택) -->
+                    <div class="console-chat-zone">
+                        <div id="chat-messages" class="console-chat-stream"></div>
+                    </div>
+
+                    <!-- 퀵 리액션 & 대화 입력창 (손패 바로 윗선에 안착) -->
+                    <div class="console-bottom-dock">
+                        <div class="quick-reactions-bar">
+                            <button type="button" class="reaction-pill" onclick="GameFX.quickReaction('👏 굿!')">👏 굿!</button>
+                            <button type="button" class="reaction-pill" onclick="GameFX.quickReaction('🔥 나이스')">🔥 나이스</button>
+                            <button type="button" class="reaction-pill" onclick="GameFX.quickReaction('😱 헉')">😱 헉</button>
+                            <button type="button" class="reaction-pill" onclick="GameFX.quickReaction('🤔 고민중')">🤔 고민중</button>
+                            <button type="button" class="reaction-pill" onclick="GameFX.quickReaction('GG!')">GG</button>
+                        </div>
+                        <form id="chat-form" class="console-input-bar" onsubmit="event.preventDefault(); sendChat();">
+                            <input type="text" id="chat-input" class="console-text-input" placeholder="대화 입력 (Enter)..." autocomplete="off" maxlength="100">
+                            <button type="submit" class="console-send-btn">전송</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 🎴 플레이어 개인 손패 및 컨트롤 구역 (하단 전폭) -->
+                <div class="player-rack-zone" id="player-rack-zone">
                     <div class="hand-tray-container" style="margin-bottom: 4px;">
                         <div class="hand-tray-header">
                             <span class="hand-tray-title">🎴 내 손패 (Hand)</span>
@@ -204,50 +254,6 @@
                     </div>
                 </div>
             </div>
-
-            <!-- 우측 320px: 일체형 아케이드 콘솔 (Integrated Arcade Console) -->
-            <div class="arcade-console sidebar-panel" id="sidebar-panel">
-                <div class="console-header-bar">
-                    <div class="console-title-zone">
-                        <span>🎮 매치</span>
-                        <span class="console-room-code-badge" id="room-code-display" title="방 코드 복사" onclick="copyRoomLink()">------</span>
-                    </div>
-                    <div class="console-actions-zone">
-                        <button class="console-action-pill" id="btn-copy-link" onclick="copyRoomLink()" title="방 초대 링크 복사">초대 복사</button>
-                        <button class="console-action-pill" id="btn-show-qr" onclick="openQRModal()" title="QR 코드 보기">QR</button>
-                        <button type="button" class="console-collapse-btn" onclick="GameFX.toggleConsole()" title="콘솔 접기/펼치기">✕</button>
-                    </div>
-                </div>
-                
-                <!-- 참가자 목록 상자 (상단 배치: 방 현황 즉시 확인) -->
-                <div class="console-players-deck">
-                    <div class="console-section-label">
-                        <span>👥 참가자 (<span id="player-count">0</span>명)</span>
-                    </div>
-                    <div id="player-list" class="player-list-scroll"></div>
-                </div>
-
-                <!-- 퀵 리액션 & 대화 입력창 (참가자 바로 아래, 손패/조작선 높이에 배치) -->
-                <div class="console-bottom-dock">
-                    <div class="quick-reactions-bar">
-                        <button type="button" class="reaction-pill" onclick="GameFX.quickReaction('👏 굿!')">👏 굿!</button>
-                        <button type="button" class="reaction-pill" onclick="GameFX.quickReaction('🔥 나이스')">🔥 나이스</button>
-                        <button type="button" class="reaction-pill" onclick="GameFX.quickReaction('😱 헉')">😱 헉</button>
-                        <button type="button" class="reaction-pill" onclick="GameFX.quickReaction('🤔 고민중')">🤔 고민중</button>
-                        <button type="button" class="reaction-pill" onclick="GameFX.quickReaction('GG!')">GG</button>
-                    </div>
-                    <form id="chat-form" class="console-input-bar" onsubmit="event.preventDefault(); sendChat();">
-                        <input type="text" id="chat-input" class="console-text-input" placeholder="대화 입력 (Enter)..." autocomplete="off" maxlength="100">
-                        <button type="submit" class="console-send-btn">전송</button>
-                    </form>
-                </div>
-
-                <!-- 실시간 대화 피드 (입력창 아래에서 시원하게 펼쳐지며 스크롤) -->
-                <div class="console-chat-zone">
-                    <div id="chat-messages" class="console-chat-stream"></div>
-                </div>
-            </div>
-        </div>
     </main>
 
     <div id="gostop-decision-modal" class="gostop-modal-overlay" style="display:none;">

@@ -200,44 +200,6 @@
 
                     <div class="board-container">
                         <div class="board-grid" id="bingo-board-grid" data-size="5"></div>
-
-                        <div class="board-footer" id="board-footer">
-                            <div id="footer-waiting-controls">
-                                
-                                <!-- 1. 좌측: 준비 완료 및 빈칸 -->
-                                <div style="display: flex; align-items: center; gap: 6px; white-space: nowrap;">
-                                    <button class="primary-btn" id="btn-toggle-ready" style="width: auto; padding: 6px 12px; margin: 0; font-size:0.8rem;">준비 완료</button>
-                                    <span id="empty-cell-count" class="empty-cell-counter" style="font-size:0.78rem; color:var(--text-secondary);">빈 칸: 0개</span>
-                                </div>
-
-                                <!-- 2. 중앙: 방장 전용 버튼 (한 줄 인라인) -->
-                                <div id="host-controls" style="display: none;">
-                                    <button class="start-game-btn" id="btn-host-start">게임 시작하기!</button>
-                                    <button class="secondary-btn" id="btn-host-reset">리셋</button>
-                                    <button class="secondary-btn" id="btn-host-config">설정</button>
-                                </div>
-
-                                <!-- 3. 우측: 무작위 채우기/비우기 -->
-                                <div style="display: flex; gap: 4px; white-space: nowrap;">
-                                    <button class="secondary-btn" id="btn-auto-fill" style="padding: 6px 10px; font-size:0.8rem;">무작위 채우기</button>
-                                    <button class="secondary-btn" id="btn-clear-board" style="padding: 6px 10px; font-size:0.8rem;">비우기</button>
-                                </div>
-
-                            </div>
-
-                            <div id="footer-playing-controls" style="display: none; width: 100%; justify-content: space-between; align-items: center;">
-                                <div class="bingo-counter">
-                                    <span>내 완성 줄 수:</span>
-                                    <span class="bingo-badge" id="my-line-count">0 줄</span>
-                                </div>
-                                <span style="font-size: 0.8rem; color: var(--text-secondary);" id="turn-guide-text">내 턴에 단어를 클릭하면 모두의 보드에서 지워집니다.</span>
-                            </div>
-                        </div>
-
-                        <div class="topic-words-panel" id="topic-words-panel">
-                            <h4 style="font-size:0.82rem; margin-bottom:6px; color:var(--text-secondary);">주제 참고 단어 목록 (클릭 시 빈 칸 자동 채우기)</h4>
-                            <div class="topic-words-chips" id="topic-words-chips"></div>
-                        </div>
                     </div>
                 </div>
 
@@ -257,14 +219,22 @@
 
                     <!-- 1구역: 참가자 및 오늘의 빙고왕 현황 (상단 배치: 방 현황 즉시 확인) -->
                     <div class="console-players-deck">
+                        <div class="today-king-banner" id="today-king-banner">
+                            <span class="king-title">👑 오늘의 빙고왕</span>
+                            <span class="king-name" id="today-king-name-text">왕좌 비어있음</span>
+                        </div>
                         <div class="console-section-label">
-                            <span>👥 참가자 (<span id="player-count">1</span>명)</span>
-                            <span id="today-king-name-text" style="font-size: 0.72rem; color: #f59e0b; font-weight: bold;"></span>
+                            <span>👥 참가자 (<span id="player-count">0</span>명)</span>
                         </div>
                         <div id="panel-players" class="player-list-scroll"></div>
                     </div>
 
-                    <!-- 2구역: 퀵 리액션 알약 & 대화 입력창 (참가자 바로 아래, 손패/조작선 높이에 배치) -->
+                    <!-- 2구역: 실시간 대화 피드 (참가자 목록과 입력창 사이를 시원하게 채우며 위->아래 스택) -->
+                    <div class="console-chat-zone">
+                        <div class="console-chat-stream" id="chat-messages"></div>
+                    </div>
+
+                    <!-- 3구역: 퀵 리액션 알약 & 대화 입력창 (보드 조작선 바로 윗선에 안착) -->
                     <div class="console-bottom-dock">
                         <div class="quick-reactions-bar">
                             <button type="button" class="reaction-pill" onclick="GameFX.quickReaction('👏 굿!')">👏 굿!</button>
@@ -278,10 +248,44 @@
                             <button type="submit" class="console-send-btn">전송</button>
                         </form>
                     </div>
+                </div>
 
-                    <!-- 3구역: 실시간 대화 피드 (입력창 아래에서 시원하게 펼쳐지며 스크롤) -->
-                    <div class="console-chat-zone">
-                        <div class="console-chat-stream" id="chat-messages"></div>
+                <!-- 🎯 플레이어 보드 조작 및 참고 단어 구역 (하단 전폭) -->
+                <div class="board-footer-zone player-rack-zone" id="board-footer-zone">
+                    <div class="board-footer" id="board-footer">
+                        <div id="footer-waiting-controls">
+                            <!-- 1. 좌측: 준비 완료 및 빈칸 -->
+                            <div style="display: flex; align-items: center; gap: 6px; white-space: nowrap;">
+                                <button class="primary-btn" id="btn-toggle-ready" style="width: auto; padding: 6px 12px; margin: 0; font-size:0.8rem;">준비 완료</button>
+                                <span id="empty-cell-count" class="empty-cell-counter" style="font-size:0.78rem; color:var(--text-secondary);">빈 칸: 0개</span>
+                            </div>
+
+                            <!-- 2. 중앙: 방장 전용 버튼 (한 줄 인라인) -->
+                            <div id="host-controls" style="display: none;">
+                                <button class="start-game-btn" id="btn-host-start">게임 시작하기!</button>
+                                <button class="secondary-btn" id="btn-host-reset">리셋</button>
+                                <button class="secondary-btn" id="btn-host-config">설정</button>
+                            </div>
+
+                            <!-- 3. 우측: 무작위 채우기/비우기 -->
+                            <div style="display: flex; gap: 4px; white-space: nowrap;">
+                                <button class="secondary-btn" id="btn-auto-fill" style="padding: 6px 10px; font-size:0.8rem;">무작위 채우기</button>
+                                <button class="secondary-btn" id="btn-clear-board" style="padding: 6px 10px; font-size:0.8rem;">비우기</button>
+                            </div>
+                        </div>
+
+                        <div id="footer-playing-controls" style="display: none; width: 100%; justify-content: space-between; align-items: center;">
+                            <div class="bingo-counter">
+                                <span>내 완성 줄 수:</span>
+                                <span class="bingo-badge" id="my-line-count">0 줄</span>
+                            </div>
+                            <span style="font-size: 0.8rem; color: var(--text-secondary);" id="turn-guide-text">내 턴에 단어를 클릭하면 모두의 보드에서 지워집니다.</span>
+                        </div>
+                    </div>
+
+                    <div class="topic-words-panel" id="topic-words-panel">
+                        <h4 style="font-size:0.82rem; margin-bottom:6px; color:var(--text-secondary);">주제 참고 단어 목록 (클릭 시 빈 칸 자동 채우기)</h4>
+                        <div class="topic-words-chips" id="topic-words-chips"></div>
                     </div>
                 </div>
             </div>

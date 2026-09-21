@@ -838,21 +838,44 @@ function updateUI(state) {
     if (fixedPlayerCount && state.players) {
         fixedPlayerCount.innerText = state.players.length;
     }
-	const playerListEl = document.getElementById('player-list');
-    if (playerListEl) {
+
+    // 오늘의 고스톱왕 전광판 렌더링
+    const todayKingEl = document.getElementById('today-king-name-text');
+    if (todayKingEl) {
+        const todayKing = state.today_king;
+        if (todayKing && todayKing.wins > 0) {
+            todayKingEl.innerText = `${todayKing.nickname} (🏆 ${todayKing.wins}승)`;
+        } else {
+            todayKingEl.innerText = "왕좌 비어있음";
+        }
+    }
+
+	const playerListEl = document.getElementById('player-list') || document.getElementById('panel-players');
+    if (playerListEl && state.players) {
         playerListEl.innerHTML = '';
         state.players.forEach(p => {
             const isTurnP = (state.current_turn_player_id === p.player_id && state.status === 'PLAYING');
             const item = document.createElement('div');
             item.className = 'console-player-item speech-bubble-anchor' + (isTurnP ? ' is-turn' : '');
             item.setAttribute('data-player-id', p.player_id);
+
+            const nickname = String(p.nickname || '?');
+            const firstLetter = nickname.charAt(0).toUpperCase();
+            const avatarColor = p.color || '#3b82f6';
+            const statusHtml = (state.status === 'WAITING' || !state.status)
+                ? (p.is_ready ? '<span class="status-pill ready">준비완료</span>' : '<span class="status-pill waiting">대기중</span>')
+                : `<span class="status-pill ${isTurnP ? 'turn' : 'ready'}">${isTurnP ? '턴 진행' : '대기'}</span>`;
+
             item.innerHTML = `
-                <div class="console-player-avatar ${isTurnP ? 'turn-pulse' : ''}" style="background-color:${p.color || '#3b82f6'};">${(p.nickname || '?')[0]}</div>
+                <div class="console-player-avatar ${isTurnP ? 'turn-pulse' : ''}" style="background-color:${avatarColor};">${firstLetter}</div>
                 <div class="console-player-info">
-                    <div class="console-player-nick">${p.nickname} ${p.is_host ? '<span style="font-size:0.62rem; color:var(--border-accent); border:1px solid; border-radius:3px; padding:0 2px;">방장</span>' : ''}</div>
-                    <div class="console-player-sub">
-                        <span style="color:#f59e0b; font-weight:bold;">${(p.chips || 0).toLocaleString()} 칩</span>
-                        <span style="margin-left:4px; color:${p.is_ready ? '#10b981' : '#94a3b8'}; font-weight:700;">${p.is_ready ? '준비완료' : '대기중'}</span>
+                    <div class="console-player-nick-row">
+                        <span class="console-player-nick">${escapeHtml(nickname)}</span>
+                        ${p.is_host ? '<span class="host-pill">방장</span>' : ''}
+                    </div>
+                    <div class="console-player-sub-row">
+                        ${statusHtml}
+                        <span class="player-sub-info" style="color:#f59e0b;">${(p.chips || 0).toLocaleString()} 칩</span>
                     </div>
                 </div>
             `;
@@ -984,14 +1007,9 @@ function appendChat(chat) {
         const mobileCountSpan = document.getElementById('mobile-player-count');
         if (mobileCountSpan) mobileCountSpan.innerText = gameState.players.length;
     }
-    const msgDiv = document.createElement('div');
-    msgDiv.style.marginBottom = '4px';
     
     if (chat.system) {
-        msgDiv.style.color = 'var(--text-muted)';
-        msgDiv.innerText = `[시스템] ${chat.text}`;
-
-        const txt = chat.text;
+        const txt = chat.text || '';
         if (txt.includes('폭탄')) triggerSpecialFX('💣 폭탄!', 'fx-badge-bomb');
         else if (txt.includes('따닥')) triggerSpecialFX('⚡ 따닥!', 'fx-badge-ttadak');
         else if (txt.includes('쪽')) triggerSpecialFX('✨ 쪽!', 'fx-badge-chok');
@@ -1001,11 +1019,13 @@ function appendChat(chat) {
             animatePiSteal();
             showToast('⚡ 상대 피 1장을 뺏어왔습니다!');
         }
-    } else {
-        msgDiv.innerText = `${chat.nickname}: ${chat.text}`;
     }
-    container.appendChild(msgDiv);
-    container.scrollTop = container.scrollHeight;
+
+    if (window.GameFX && window.GameFX.appendChatBubble) {
+        const myPlayer = (gameState && gameState.players && myPlayerId) ? gameState.players.find(p => p.player_id === myPlayerId) : null;
+        const myNick = myPlayer ? myPlayer.nickname : (localStorage.getItem('office_gostop_last_nickname') || '');
+        window.GameFX.appendChatBubble(container, chat, myNick);
+    }
 }
 
 // 흔들기 UI 렌더링

@@ -172,57 +172,6 @@
                         </div>
                         <div class="scratchpad-multi-slots-container" id="scratchpad-container"></div>
                     </div>
-
-                    <!-- 🎮 플레이어 개인 거치석 (중앙 정렬 밸런스 랙) -->
-                    <div class="player-rack-zone">
-                        <!-- 플레이어 통합 액션 브릿지 (Unified Action Bridge) -->
-                        <div class="rummi-action-bridge">
-                            <!-- 좌측: 정렬 도구 -->
-                            <div class="bridge-group">
-                                <button type="button" class="bridge-btn" id="btn-sort-color" title="색상별 오름차순 정렬">
-                                    <span>🎨 색상</span>
-                                </button>
-                                <button type="button" class="bridge-btn" id="btn-sort-number" title="숫자순 오름차순 정렬">
-                                    <span>🔢 숫자</span>
-                                </button>
-                            </div>
-
-                            <!-- 중앙: 보드 도구 (임시 작업대 + 배율 줌) -->
-                            <div class="bridge-group center">
-                                <button type="button" class="bridge-btn" id="btn-toggle-scratchpad">
-                                    <span>임시 작업대</span> <span id="scratchpad-badge" class="badge-count" style="display:none;">0</span>
-                                </button>
-                                <div class="table-zoom-widget">
-                                    <button type="button" class="zoom-btn" id="btn-zoom-out" title="축소">－</button>
-                                    <span class="zoom-level-text" id="zoom-level-text">100%</span>
-                                    <button type="button" class="zoom-btn" id="btn-zoom-in" title="확대">＋</button>
-                                    <button type="button" class="zoom-btn" id="btn-zoom-auto" title="자동 맞춤">AUTO</button>
-                                </div>
-                            </div>
-
-                            <!-- 우측: 턴 액션 (원래대로, 턴 마치기, 준비완료) -->
-                            <div class="bridge-group right">
-                                <div id="footer-waiting-controls" style="display:inline-flex;">
-                                    <button class="bridge-btn ready" id="btn-toggle-ready">준비 완료</button>
-                                </div>
-                                <button type="button" class="bridge-btn warning" id="btn-reset-turn" title="이번 턴에 놓은 타일을 원래대로 회수">
-                                    <span>↩ 되돌리기</span>
-                                </button>
-                                <button type="button" class="bridge-btn primary" id="btn-submit-turn" title="세트 제출 또는 타일 1장 드로우 후 턴 마치기">
-                                    <span>✓ 턴 마치기</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- 🪵 본인 원목 2단 랙 (자연스러운 규격 랙) -->
-                        <div class="rack-wood-panel">
-                            <div class="rack-wood-top-bar">
-                                <span>내 거치대 (Rack) - 타일을 선택하여 테이블로 내세요</span>
-                                <span class="wood-brand">Rummikub</span>
-                            </div>
-                            <div id="my-rack-container" class="my-rack-container"></div>
-                        </div>
-                    </div>
                 </div>
 
                 <!-- 우측 320px: 일체형 아케이드 콘솔 (Integrated Arcade Console) -->
@@ -251,7 +200,12 @@
                         <div id="panel-players" class="player-list-scroll"></div>
                     </div>
 
-                    <!-- 2구역: 퀵 리액션 알약 & 대화 입력창 (참가자 바로 아래, 손패/조작선 높이에 배치) -->
+                    <!-- 2구역: 실시간 대화 피드 (참가자 목록과 입력창 사이를 시원하게 채우며 위->아래 스택) -->
+                    <div class="console-chat-zone">
+                        <div class="console-chat-stream" id="chat-messages"></div>
+                    </div>
+
+                    <!-- 3구역: 퀵 리액션 알약 & 대화 입력창 (거치대 바로 윗선에 안착) -->
                     <div class="console-bottom-dock">
                         <div class="quick-reactions-bar">
                             <button type="button" class="reaction-pill" onclick="GameFX.quickReaction('👏 굿!')">👏 굿!</button>
@@ -265,10 +219,56 @@
                             <button type="submit" class="console-send-btn">전송</button>
                         </form>
                     </div>
+                </div>
 
-                    <!-- 3구역: 실시간 대화 피드 (입력창 아래에서 시원하게 펼쳐지며 스크롤) -->
-                    <div class="console-chat-zone">
-                        <div class="console-chat-stream" id="chat-messages"></div>
+                <!-- 🎮 플레이어 개인 거치석 (하단 전폭: 액션 브릿지 + 원목 거치대) -->
+                <div class="player-rack-zone" id="player-rack-zone">
+                    <!-- 플레이어 통합 액션 브릿지 (Unified Action Bridge) -->
+                    <div class="rummi-action-bridge">
+                        <!-- 좌측: 정렬 도구 -->
+                        <div class="bridge-group">
+                            <button type="button" class="bridge-btn" id="btn-sort-color" title="색상별 오름차순 정렬">
+                                <span>🎨 색상</span>
+                            </button>
+                            <button type="button" class="bridge-btn" id="btn-sort-number" title="숫자순 오름차순 정렬">
+                                <span>🔢 숫자</span>
+                            </button>
+                        </div>
+
+                        <!-- 중앙: 보드 도구 (임시 작업대 + 배율 줌) -->
+                        <div class="bridge-group center">
+                            <button type="button" class="bridge-btn" id="btn-toggle-scratchpad">
+                                <span>임시 작업대</span> <span id="scratchpad-badge" class="badge-count" style="display:none;">0</span>
+                            </button>
+                            <div class="table-zoom-widget">
+                                <button type="button" class="zoom-btn" id="btn-zoom-out" title="축소">－</button>
+                                <span class="zoom-level-text" id="zoom-level-text">100%</span>
+                                <button type="button" class="zoom-btn" id="btn-zoom-in" title="확대">＋</button>
+                                <button type="button" class="zoom-btn" id="btn-zoom-auto" title="자동 맞춤">AUTO</button>
+                            </div>
+                        </div>
+
+                        <!-- 우측: 턴 액션 (원래대로, 턴 마치기, 준비완료) -->
+                        <div class="bridge-group right">
+                            <div id="footer-waiting-controls" style="display:inline-flex;">
+                                <button class="bridge-btn ready" id="btn-toggle-ready">준비 완료</button>
+                            </div>
+                            <button type="button" class="bridge-btn warning" id="btn-reset-turn" title="이번 턴에 놓은 타일을 원래대로 회수">
+                                <span>↩ 되돌리기</span>
+                            </button>
+                            <button type="button" class="bridge-btn primary" id="btn-submit-turn" title="세트 제출 또는 타일 1장 드로우 후 턴 마치기">
+                                <span>✓ 턴 마치기</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 🪵 본인 원목 2단 랙 (자연스러운 규격 랙) -->
+                    <div class="rack-wood-panel">
+                        <div class="rack-wood-top-bar">
+                            <span>내 거치대 (Rack) - 타일을 선택하여 테이블로 내세요</span>
+                            <span class="wood-brand">Rummikub</span>
+                        </div>
+                        <div id="my-rack-container" class="my-rack-container"></div>
                     </div>
                 </div>
             </div>

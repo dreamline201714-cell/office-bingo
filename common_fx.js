@@ -484,6 +484,63 @@
         });
     }
 
+    // -------------------------------------------------------------
+    // 9. Unified Chat Stream Engine (4대 게임 공통 대화 렌더러)
+    // -------------------------------------------------------------
+    function fxEscapeHtml(str) {
+        return String(str || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
+    }
+
+    function appendChatBubble(container, chat, myNick, autoScroll = true) {
+        if (!container || !chat) return;
+        
+        const safeMyNick = (typeof myNick === 'string') ? myNick : '';
+        const isSystem = !!chat.system;
+        const isMine = !isSystem && !!safeMyNick && (chat.nickname === safeMyNick);
+        
+        const row = document.createElement('div');
+        row.className = `console-chat-row ${isSystem ? 'system' : (isMine ? 'mine' : 'other')}`;
+        
+        const chatTime = chat.timestamp ? new Date(chat.timestamp) : new Date();
+        const timeStr = chatTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        if (isSystem) {
+            row.innerHTML = `<div class="console-chat-system-msg">${fxEscapeHtml(chat.text)}</div>`;
+        } else if (isMine) {
+            row.innerHTML = `
+                <div class="console-chat-bubble mine">
+                    <span class="bubble-text">${fxEscapeHtml(chat.text)}</span>
+                </div>
+                <span class="console-chat-time">${timeStr}</span>
+            `;
+        } else {
+            const senderColor = chat.color || '#38bdf8';
+            row.innerHTML = `
+                <div class="console-chat-sender" style="color: ${senderColor};">${fxEscapeHtml(chat.nickname)}</div>
+                <div class="console-chat-bubble other">
+                    <span class="bubble-text">${fxEscapeHtml(chat.text)}</span>
+                </div>
+                <span class="console-chat-time">${timeStr}</span>
+            `;
+        }
+        
+        container.appendChild(row);
+        if (autoScroll) {
+            container.scrollTop = container.scrollHeight;
+        }
+    }
+
+    function renderChatStream(container, logs, myNick) {
+        if (!container) return;
+        container.innerHTML = '';
+        const list = Array.isArray(logs) ? logs : [];
+        const safeMyNick = (typeof myNick === 'string') ? myNick : '';
+        list.forEach(chat => {
+            appendChatBubble(container, chat, safeMyNick, false);
+        });
+        container.scrollTop = container.scrollHeight;
+    }
+
     window.GameFX = {
         audio: audioInstance,
         reactions: reactionInstance,
@@ -495,7 +552,9 @@
         incrementUnread: incrementUnread,
         quickReaction: sendQuickReaction,
         cutIn: triggerCutInBanner,
-        mountDock: mountSocialDock
+        mountDock: mountSocialDock,
+        renderChatStream: renderChatStream,
+        appendChatBubble: appendChatBubble
     };
 })();
 

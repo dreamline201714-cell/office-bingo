@@ -722,46 +722,73 @@
         if (countSpan) countSpan.innerText = roomState.players.length;
         if (mobilePlayerCount) mobilePlayerCount.innerText = roomState.players.length;
 
+        // 오늘의 섯다왕 전광판 렌더링
+        const todayKingEl = document.getElementById('today-king-name-text');
+        if (todayKingEl) {
+            const todayKing = roomState.today_king;
+            if (todayKing && todayKing.wins > 0) {
+                todayKingEl.innerText = `${todayKing.nickname} (🏆 ${todayKing.wins}승)`;
+            } else {
+                todayKingEl.innerText = "왕좌 비어있음";
+            }
+        }
+
         roomState.players.forEach(p => {
+            const isTurnP = (roomState.status === 'PLAYING' && String(p.player_id) === String(roomState.current_turn_player_id));
             const card = document.createElement('div');
-            card.className = 'player-card speech-bubble-anchor';
+            card.className = 'console-player-item speech-bubble-anchor' + (isTurnP ? ' is-turn' : '');
             card.setAttribute('data-player-id', p.player_id);
             
             let statusHtml = '';
             if (roomState.status === 'WAITING') {
-                statusHtml = p.is_ready ? '<span class="ready-tag ready">준비 완료</span>' : '<span class="ready-tag waiting">작성 중...</span>';
+                statusHtml = p.is_ready ? '<span class="status-pill ready">준비 완료</span>' : '<span class="status-pill waiting">대기 중</span>';
             } else if (roomState.status === 'SHOWDOWN') {
-                statusHtml = String(p.player_id) === String(roomState.dealer_player_id) ? '<span style="font-size:0.75rem; font-weight:bold; color:var(--border-accent);">👑 승자(선)</span>' : '<span style="font-size:0.75rem; color:var(--text-secondary);">대기 중</span>';
+                statusHtml = String(p.player_id) === String(roomState.dealer_player_id) ? '<span class="status-pill turn">👑 승자</span>' : '<span class="status-pill waiting">종료</span>';
             } else {
-                statusHtml = p.is_folded ? '<span style="font-size:0.7rem; color:var(--text-muted);">다이</span>' : '<span style="font-size:0.7rem; font-weight:bold; color:var(--border-accent);">생존</span>';
+                statusHtml = p.is_folded ? '<span class="status-pill" style="background:rgba(255,255,255,0.06); color:#94a3b8;">다이</span>' : '<span class="status-pill ready">생존</span>';
+            }
+
+            const winCount = p.wins || 0;
+            let winBadgeHtml = '';
+            if (winCount >= 3) {
+                winBadgeHtml = `<span class="win-pill">👑 ${winCount}승</span>`;
+            } else if (winCount > 0) {
+                winBadgeHtml = `<span class="win-pill">${winCount}승</span>`;
             }
 
             card.innerHTML = `
-                <div class="player-info">
-                    <div class="player-avatar" style="background-color: ${p.color};">${p.nickname.charAt(0)}</div>
-                    <div class="player-name">${escapeHtml(p.nickname)} ${p.is_host ? '<span class="host-tag">방장</span>' : ''}</div>
-                </div>
-                <div style="display:flex; align-items:center; gap:6px;">
-                    ${statusHtml}
-                    <span style="font-size:0.75rem; color:var(--text-primary); font-weight:bold;">${(p.chips || 0).toLocaleString()} 칩</span>
+                <div class="console-player-avatar ${isTurnP ? 'turn-pulse' : ''}" style="background-color: ${p.color || '#3b82f6'};">${p.nickname.charAt(0).toUpperCase()}</div>
+                <div class="console-player-info">
+                    <div class="console-player-nick-row">
+                        <span class="console-player-nick">${escapeHtml(p.nickname)}</span>
+                        ${p.is_host ? '<span class="host-pill">방장</span>' : ''}
+                        ${winBadgeHtml}
+                    </div>
+                    <div class="console-player-sub-row">
+                        ${statusHtml}
+                        <span class="player-sub-info" style="color:#f59e0b;">${(p.chips || 0).toLocaleString()} 칩</span>
+                    </div>
                 </div>
             `;
             panel.appendChild(card);
         });
     }
 
+    function getMyNickname() {
+        if (roomState && roomState.players && myPlayerId) {
+            const me = roomState.players.find(p => String(p.player_id) === String(myPlayerId));
+            if (me && me.nickname) return me.nickname;
+        }
+        return localStorage.getItem('office_seotda_last_nickname') || '';
+    }
+
     function renderChatLogs() {
         const chatBox = document.getElementById('chat-messages');
         if (!chatBox || !roomState) return;
-        chatBox.innerHTML = '';
-        (roomState.chat_logs || []).forEach(chat => {
-            if (chat.system) return;
-            const msgEl = document.createElement('div');
-            msgEl.className = 'chat-msg';
-            msgEl.innerHTML = `<span class="sender" style="color:${chat.color}">${escapeHtml(chat.nickname)}:</span> <span>${escapeHtml(chat.text)}</span>`;
-            chatBox.appendChild(msgEl);
-        });
-        chatBox.scrollTop = chatBox.scrollHeight;
+        const myNick = getMyNickname();
+        if (window.GameFX && window.GameFX.renderChatStream) {
+            window.GameFX.renderChatStream(chatBox, roomState.chat_logs, myNick);
+        }
     }
 
     function escapeHtml(str) { return String(str || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m])); }

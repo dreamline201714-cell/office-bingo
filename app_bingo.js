@@ -823,45 +823,50 @@
 			let statusHtml = '';
 
 			if (status === 'WAITING') {
-				// 💡 [핵심 변경]: 대기실 상태에서 다시 '준비 완료'를 눌렀거나 방장이 리셋하여 준비 해제된 경우
+				// 💡 대기실 상태
 				if (p.is_ready) {
-					statusHtml = '<span class="ready-tag ready">준비 완료</span>';
+					statusHtml = '<span class="status-pill ready">준비 완료</span>';
 				} else if (p.is_escaped) {
-					// 아직 준비완료/리셋을 안 누른 이전 판 탈출자 상태 유지
-					statusHtml = `<span class="escape-rank-badge escaped">${p.escape_rank || 1}등 탈출 🏃‍♂️</span>`;
+					statusHtml = `<span class="status-pill escaped">${p.escape_rank || 1}등 탈출 🏃‍♂️</span>`;
 				} else {
-					statusHtml = '<span class="ready-tag waiting">작성 중...</span>';
+					statusHtml = '<span class="status-pill waiting">작성 중...</span>';
 				}
 			} else {
 				// 게임 진행 중 (PLAYING)
 				if (isLoserMode && p.is_escaped) {
-					statusHtml = `<span class="escape-rank-badge escaped">${p.escape_rank || 1}등 탈출 🏃‍♂️</span>`;
+					statusHtml = `<span class="status-pill escaped">${p.escape_rank || 1}등 탈출 🏃‍♂️</span>`;
 				} else if (isLoserMode) {
-					statusHtml = `<span class="escape-rank-badge playing">${p.score || 0}줄 달성 중</span>`;
+					statusHtml = `<span class="player-sub-info">${p.score || 0}줄 달성 중</span>`;
 				} else {
-					statusHtml = `<span style="font-size:0.75rem; font-weight:bold; color:var(--accent);">${p.score || 0}줄 완성</span>`;
+					const isTurnP = (roomState.current_turn_player_id === p.player_id);
+					statusHtml = `<span class="player-sub-info">${p.score || 0}줄 완성 ${isTurnP ? '⏳' : ''}</span>`;
 				}
 			}
 
 			const winCount = p.wins || 0;
 			let winBadgeHtml = '';
 			if (winCount >= 3) {
-				winBadgeHtml = `<span class="win-count-badge king">👑 ${winCount}승 (빙고왕)</span>`;
+				winBadgeHtml = `<span class="win-pill">👑 ${winCount}승</span>`;
 			} else if (winCount > 0) {
-				winBadgeHtml = `<span class="win-count-badge">${winCount}승</span>`;
+				winBadgeHtml = `<span class="win-pill">${winCount}승</span>`;
 			}
 
 			const card = document.createElement('div');
-			card.className = 'player-card speech-bubble-anchor' + (p.is_escaped && status !== 'WAITING' ? ' player-escaped' : '');
+			const isTurnPlayer = (roomState.status === 'PLAYING' && String(p.player_id) === String(roomState.current_turn_player_id));
+			card.className = 'console-player-item speech-bubble-anchor' + (isTurnPlayer ? ' is-turn' : '') + (p.is_escaped && status !== 'WAITING' ? ' player-escaped' : '');
 			card.setAttribute('data-player-id', p.player_id);
 			card.innerHTML = `
-				<div class="player-info">
-					<div class="player-avatar" style="background-color: ${p.color};">${p.nickname.charAt(0)}</div>
-					<div class="player-name">${escapeHtml(p.nickname)} ${p.is_host ? '<span class="host-tag">방장</span>' : ''} ${winBadgeHtml}</div>
-				</div>
-				<div style="display:flex; align-items:center; gap:4px;">
-					${statusHtml}
-					<button class="spectate-btn" data-pid="${p.player_id}">관전</button>
+				<div class="console-player-avatar ${isTurnPlayer ? 'turn-pulse' : ''}" style="background-color: ${p.color || '#3b82f6'};">${p.nickname.charAt(0).toUpperCase()}</div>
+				<div class="console-player-info">
+					<div class="console-player-nick-row">
+						<span class="console-player-nick">${escapeHtml(p.nickname)}</span>
+						${p.is_host ? '<span class="host-pill">방장</span>' : ''}
+						${winBadgeHtml}
+					</div>
+					<div class="console-player-sub-row">
+						${statusHtml}
+						<button class="console-action-pill spectate-btn" data-pid="${p.player_id}" style="padding: 1px 5px; font-size: 0.65rem;">관전</button>
+					</div>
 				</div>
 			`;
 
@@ -885,11 +890,9 @@
 
 			if (maxWins > 0) {
 				const topWinners = sortedByWins.filter(p => (p.wins || 0) === maxWins);
-				if (topWinners.length === 1) {
-					mvpEl.innerText = `${topWinners[0].nickname} (${maxWins}승)`;
-				} else {
-					mvpEl.innerText = `${topWinners[0].nickname} 외 ${topWinners.length - 1}명 (${maxWins}승)`;
-				}
+				mvpEl.innerText = topWinners.length === 1 
+					? `${topWinners[0].nickname} (${maxWins}승)` 
+					: `${topWinners[0].nickname} 외 ${topWinners.length - 1}명 (${maxWins}승)`;
 			} else {
 				mvpEl.innerText = '집계 중...';
 			}
@@ -910,11 +913,24 @@
 		}
 	}
 
+    function getMyNickname() {
+        if (roomState && roomState.players && myPlayerId) {
+            const me = roomState.players.find(p => String(p.player_id) === String(myPlayerId));
+            if (me && me.nickname) return me.nickname;
+        }
+        return localStorage.getItem('office_bingo_last_nickname') || '';
+    }
+
     function renderChatLogs() {
         const chatMessagesBox = document.getElementById('chat-messages');
-        if (!chatMessagesBox) return;
+        if (!chatMessagesBox || !roomState) return;
+        const myNick = getMyNickname();
+        if (window.GameFX && window.GameFX.renderChatStream) {
+            window.GameFX.renderChatStream(chatMessagesBox, roomState.chat_logs, myNick);
+            return;
+        }
         chatMessagesBox.innerHTML = '';
-        if (!roomState || !roomState.chat_logs) return;
+        if (!roomState.chat_logs) return;
         roomState.chat_logs.forEach(chat => {
             if (chat.system) return;
             const msgEl = document.createElement('div');

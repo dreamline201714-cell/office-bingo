@@ -173,30 +173,6 @@
                             <button class="quick-btn" data-msg="죽어도 고! 올인 간다! 🎲">🎲 올인 간다</button>
                             <button class="quick-btn" data-msg="아... 끗인데 잘못 왔네 😭">😭 끗이네</button>
                         </div>
-
-                        <div class="my-seotda-hand-panel">
-                            <div class="my-hand-header">
-                                <div style="display:flex; align-items:center; gap:8px;">
-                                    <span>내 화투패</span>
-                                    <button class="theme-select-btn" onclick="setCardTheme('notion')">🎨 노션</button>
-                                    <button class="theme-select-btn" onclick="setCardTheme('classic')">🎴 레트로</button>
-                                </div>
-                                <span class="my-jokbo-badge" id="my-jokbo-badge">패 대기 중...</span>
-                            </div>
-                            
-                            <div class="my-cards-container" id="my-cards-container">
-                                <div class="hwatu-card card-back"></div>
-                                <div class="hwatu-card card-back"></div>
-                            </div>
-
-                            <div class="betting-action-group" id="betting-action-group">
-                                <button class="bet-btn bet-bing" data-action="BING">삥 (기본)</button>
-                                <button class="bet-btn bet-tadang" data-action="TADANG">따당 (2배)</button>
-                                <button class="bet-btn bet-half" data-action="HALF">하프 (50%)</button>
-                                <button class="bet-btn bet-call" data-action="CALL">콜 (CALL)</button>
-                                <button class="bet-btn bet-die" data-action="DIE">다이 (기권)</button>
-                            </div>
-                        </div>
                     </div>
                 </div>
 
@@ -214,15 +190,24 @@
                         </div>
                     </div>
 
-                    <!-- 1구역: 참가자 현황 (상단 배치: 방 현황 즉시 확인) -->
+                    <!-- 1구역: 참가자 및 오늘의 섯다왕 현황 (상단 배치: 방 현황 즉시 확인) -->
                     <div class="console-players-deck">
+                        <div class="today-king-banner" id="today-king-banner">
+                            <span class="king-title">👑 오늘의 섯다왕</span>
+                            <span class="king-name" id="today-king-name-text">왕좌 비어있음</span>
+                        </div>
                         <div class="console-section-label">
                             <span>👥 참가자 (<span id="player-count">0</span>명)</span>
                         </div>
                         <div id="panel-players" class="player-list-scroll"></div>
                     </div>
 
-                    <!-- 2구역: 퀵 리액션 알약 & 대화 입력창 (참가자 바로 아래, 손패/조작선 높이에 배치) -->
+                    <!-- 2구역: 실시간 대화 피드 (참가자 목록과 입력창 사이를 시원하게 채우며 위->아래 스택) -->
+                    <div class="console-chat-zone">
+                        <div class="console-chat-stream" id="chat-messages"></div>
+                    </div>
+
+                    <!-- 3구역: 퀵 리액션 알약 & 대화 입력창 (손패/배팅선 바로 윗선에 안착) -->
                     <div class="console-bottom-dock">
                         <div class="quick-reactions-bar">
                             <button type="button" class="reaction-pill" onclick="GameFX.quickReaction('👏 굿!')">👏 굿!</button>
@@ -236,10 +221,30 @@
                             <button type="submit" class="console-send-btn">전송</button>
                         </form>
                     </div>
+                </div>
 
-                    <!-- 3구역: 실시간 대화 피드 (입력창 아래에서 시원하게 펼쳐지며 스크롤) -->
-                    <div class="console-chat-zone">
-                        <div class="console-chat-stream" id="chat-messages"></div>
+                <!-- 🎴 플레이어 개인 손패 및 배팅 컨트롤 구역 (하단 전폭) -->
+                <div class="my-seotda-hand-panel player-rack-zone" id="my-seotda-hand-panel">
+                    <div class="my-hand-header">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span>내 화투패</span>
+                            <button class="theme-select-btn" onclick="setCardTheme('notion')">🎨 노션</button>
+                            <button class="theme-select-btn" onclick="setCardTheme('classic')">🎴 레트로</button>
+                        </div>
+                        <span class="my-jokbo-badge" id="my-jokbo-badge">패 대기 중...</span>
+                    </div>
+                    
+                    <div class="my-cards-container" id="my-cards-container">
+                        <div class="hwatu-card card-back"></div>
+                        <div class="hwatu-card card-back"></div>
+                    </div>
+
+                    <div class="betting-action-group" id="betting-action-group">
+                        <button class="bet-btn bet-bing" data-action="BING">삥 (기본)</button>
+                        <button class="bet-btn bet-tadang" data-action="TADANG">따당 (2배)</button>
+                        <button class="bet-btn bet-half" data-action="HALF">하프 (50%)</button>
+                        <button class="bet-btn bet-call" data-action="CALL">콜 (CALL)</button>
+                        <button class="bet-btn bet-die" data-action="DIE">다이 (기권)</button>
                     </div>
                 </div>
             </div>

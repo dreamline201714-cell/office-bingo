@@ -1249,17 +1249,20 @@
             const tileCount = p.tile_count || 0;
 
             const isDanger = (roomState.status === 'PLAYING' && tileCount > 0 && tileCount <= 3);
-            const dangerBadge = isDanger ? `<span style="color:#ef4444; font-weight:800; font-size:0.7rem;">⚠️${tileCount}장!</span>` : '';
+            const dangerBadge = isDanger ? `<span style="color:#ef4444; font-weight:800; font-size:0.68rem;">⚠️${tileCount}장!</span>` : '';
 
             let statusHtml = (roomState.status === 'WAITING' || !roomState.status)
-                ? (p.is_ready ? '<span style="color:#16a34a; font-weight:bold; font-size:0.75rem;">준비 완료</span>' : '<span style="color:#94a3b8; font-size:0.75rem;">대기 중</span>')
-                : `<span style="font-size:0.75rem; font-weight:bold; color:var(--brand-blue);">${tileCount}장 ${isTurnPlayer ? '⏳' : ''}</span> ${dangerBadge}`;
+                ? (p.is_ready ? '<span class="status-pill ready">준비 완료</span>' : '<span class="status-pill waiting">대기 중</span>')
+                : `<span class="player-sub-info">${tileCount}장 ${isTurnPlayer ? '⏳' : ''}</span> ${dangerBadge}`;
 
             card.innerHTML = `
                 <div class="console-player-avatar ${isTurnPlayer ? 'turn-pulse' : ''}" style="background-color: ${avatarColor};">${firstLetter}</div>
                 <div class="console-player-info">
-                    <div class="console-player-nick">${escapeHtml(nickname)} ${p.is_host ? '<span style="font-size:0.65rem; color:var(--border-accent); border:1px solid; border-radius:3px; padding:0 2px;">방장</span>' : ''}</div>
-                    <div class="console-player-sub">${statusHtml}</div>
+                    <div class="console-player-nick-row">
+                        <span class="console-player-nick">${escapeHtml(nickname)}</span>
+                        ${p.is_host ? '<span class="host-pill">방장</span>' : ''}
+                    </div>
+                    <div class="console-player-sub-row">${statusHtml}</div>
                 </div>
             `;
             panel.appendChild(card);
@@ -1326,41 +1329,10 @@
     function renderChatLogs() {
         const chatBox = document.getElementById('chat-messages');
         if (!chatBox || !roomState) return;
-        chatBox.innerHTML = '';
-
         const myNick = localStorage.getItem('office_rummikub_last_nickname');
-        const logs = (roomState.chat_logs || []).filter(c => !c.system);
-
-        logs.forEach((chat, idx) => {
-            const isMine = (chat.nickname === myNick);
-            const row = document.createElement('div');
-            row.className = `chat-bubble-row ${isMine ? 'mine' : 'other'}`;
-
-            const chatTime = chat.timestamp ? new Date(chat.timestamp) : new Date();
-            const timeStr = chatTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-            const nextChat = logs[idx + 1];
-            let showTime = true;
-            if (nextChat && nextChat.nickname === chat.nickname) {
-                const nextTime = nextChat.timestamp ? new Date(nextChat.timestamp) : new Date();
-                const nextTimeStr = nextTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                if (nextTimeStr === timeStr) {
-                    showTime = false;
-                }
-            }
-
-            const prevChat = logs[idx - 1];
-            const isFirstFromSender = !prevChat || prevChat.nickname !== chat.nickname;
-
-            row.innerHTML = `
-                ${(!isMine && isFirstFromSender) ? `<span class="chat-sender-name" style="color:${chat.color || '#64748b'}">${escapeHtml(chat.nickname)}</span>` : ''}
-                <div class="bubble">${escapeHtml(chat.text)}</div>
-                ${showTime ? `<span class="chat-time">${timeStr}</span>` : ''}
-            `;
-            chatBox.appendChild(row);
-        });
-
-        chatBox.scrollTop = chatBox.scrollHeight;
+        if (window.GameFX && window.GameFX.renderChatStream) {
+            window.GameFX.renderChatStream(chatBox, roomState.chat_logs, myNick);
+        }
     }
 
     function escapeHtml(str) { 
