@@ -579,14 +579,15 @@
         timerSecondsLeft = secondsLeft;
         updateTimerBar(totalLimit);
 
+        let overdueTicks = 0;
         timerInterval = setInterval(() => {
             timerSecondsLeft--;
             if (timerSecondsLeft <= 0) {
                 timerSecondsLeft = 0;
-                clearInterval(timerInterval);
+                overdueTicks++;
 
                 const isMyTurn = (String(myPlayerId) === String(roomState?.current_turn_player_id));
-                if (isMyTurn) {
+                if (isMyTurn && overdueTicks === 1) {
                     const originalTableCount = (initialTurnTableSets || []).flat().length;
                     const currentTableCount = localTableSets.flat().length;
                     const isTilePlaced = currentTableCount > originalTableCount;
@@ -631,6 +632,13 @@
                         localTableSets = JSON.parse(JSON.stringify(initialTurnTableSets || []));
                         sendMessage({ type: 'TIMEOUT_PASS', room_id: currentRoomId });
                     }
+                } else if (overdueTicks >= 2 && overdueTicks % 2 === 0) {
+                    // 0초에 머물러 있을 경우 서버에 타임아웃 체크 요청 (안전망)
+                    sendMessage({ type: 'CHECK_TIMEOUT', room_id: currentRoomId });
+                }
+
+                if (overdueTicks >= 10) {
+                    clearInterval(timerInterval);
                 }
             }
             updateTimerBar(totalLimit);

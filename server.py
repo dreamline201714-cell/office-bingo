@@ -123,17 +123,30 @@ async def cleanup_zombie_rooms_loop():
             now = time.time()
             dead_rooms = []
             for room_id, room in list(ROOMS.items()):
+                # 게임 진행 중 끊긴 지 180초(3분) 이상 지난 미접속 플레이어 퇴장 처리
+                if room.get('status') == 'PLAYING':
+                    for p_ws, p in list(room.get('players', {}).items()):
+                        if not p.get('is_connected', True):
+                            disc_at = p.get('disconnected_at', 0)
+                            if disc_at and (now - disc_at > 180):
+                                room['players'].pop(p_ws, None)
+                                if p_ws in room.get('turn_order', []):
+                                    room['turn_order'].remove(p_ws)
+                                room['chat_logs'].append({'system': True, 'text': f"🚪 [{p.get('nickname')}]님이 재연결 시간 초과(3분)로 퇴장 처리되었습니다."})
+
                 last_activity = room.get('last_activity_time', room.get('turn_start_time', now))
                 elapsed = now - last_activity
-                # 플레이어가 없거나 30분 이상 비활성인 방 제거
-                if not room.get('players') or elapsed > 1800:
+                # 연결된 플레이어가 없거나 30분 이상 비활성인 방 제거
+                connected_count = sum(1 for p in room.get('players', {}).values() if p.get('is_connected', True))
+                if (not room.get('players')) or (connected_count == 0 and elapsed > 180) or (elapsed > 1800):
                     dead_rooms.append(room_id)
+
             for room_id in dead_rooms:
                 print(f"[CLEANUP] Removing zombie room: {room_id}")
                 del ROOMS[room_id]
         except Exception as e:
             print(f"[CLEANUP ERROR] {e}")
-        await asyncio.sleep(60)  # 1분마다 체크
+        await asyncio.sleep(30)
 
 AVATAR_COLORS = ["#E53935", "#1E88E5", "#43A047", "#FB8C00", "#8E44AD", "#00ACC1", "#D81B60", "#6D4C41"]
 TILE_COLORS = ["red", "blue", "black", "orange"]
@@ -490,102 +503,128 @@ async def broadcast_to_room(room_id, message_dict):
             else: await ws.send(json.dumps(personalized_msg, ensure_ascii=False))
         except Exception: pass
 
+async def execute_turn_timeout(room, room_id):
+    if not room.get('turn_order'):
+        return
+
+    # 유효한 소켓만 turn_order에 유지 (소켓 단절 시 자동 정리)
+    valid_order = [w for w in room['turn_order'] if w in room['players']]
+    if valid_order:
+        room['turn_order'] = valid_order
+    else:
+        return
+
+    room['current_turn_index'] = room['current_turn_index'] % len(room['turn_order'])
+    current_ws = room['turn_order'][room['current_turn_index']]
+    player = room['players'].get(current_ws)
+
+    if not player:
+        # 플레이어가 유실된 경우 다음 순서로 강제 전환
+        room['current_turn_index'] = (room['current_turn_index'] + 1) % len(room['turn_order'])
+        room['turn_start_time'] = time.time()
+        await broadcast_to_room(room_id, {'type': 'ROOM_UPDATED', 'state': None})
+        return
+
+    if room['game_type'] == 'RUMMIKUB':
+        # 타임아웃 발생 시 첫 등록 미달된 바닥 타일이 있다면 무효화 후 드로우 처리
+        if 'initial_turn_table_sets' in room:
+            room['table_sets'] = copy.deepcopy(room['initial_turn_table_sets'])
+        if room.get('deck'):
+            drawn_tile = room['deck'].pop()
+            player.setdefault('rack', []).append(drawn_tile)
+            room['chat_logs'].append({'system': True, 'text': f"⏱️ [{player['nickname']}]님의 시간이 초과되어 타일 1장을 가져오고 턴이 넘어가셨습니다."})
+        else:
+            room['chat_logs'].append({'system': True, 'text': f"⏱️ [{player['nickname']}]님의 시간이 초과되어 턴이 넘어가셨습니다."})
+        
+        # 턴 강제 전환 및 다음 사람을 위한 스냅샷 동기화
+        room['current_turn_index'] = (room['current_turn_index'] + 1) % len(room['turn_order'])
+        room['turn_start_time'] = time.time()
+        room['initial_turn_table_sets'] = copy.deepcopy(room.get('table_sets', []))
+
+    elif room['game_type'] == 'BINGO':
+        room['chat_logs'].append({'system': True, 'text': f"⏱️ [{player['nickname']}]님의 제한 시간이 초과되어 턴이 넘어가셨습니다."})
+        room['current_turn_index'] = (room['current_turn_index'] + 1) % len(room['turn_order'])
+        room['turn_start_time'] = time.time()
+
+    elif room['game_type'] == 'SEOTDA':
+        player['is_folded'] = True
+        room['chat_logs'].append({'system': True, 'text': f"⏱️ [{player['nickname']}]님이 배팅 제한시간 초과로 자동 기권(다이)되었습니다."})
+        active_ws = [p_ws for p_ws, p in room['players'].items() if not p.get('is_folded')]
+        if len(active_ws) <= 1:
+            if len(active_ws) == 1:
+                winner_ws = active_ws[0]
+                winner = room['players'][winner_ws]
+                winner['chips'] += room['pot']
+                room['dealer_ws'] = winner_ws
+                room['chat_logs'].append({'system': True, 'text': f"🎉 모두 기권하여 [{winner['nickname']}]님이 {room['pot']} 칩을 획득했습니다!"})
+            room['status'] = 'SHOWDOWN'
+        else:
+            next_idx = (room['current_turn_index'] + 1) % len(room['turn_order'])
+            for _ in range(len(room['turn_order'])):
+                candidate_ws = room['turn_order'][next_idx]
+                candidate_p = room['players'].get(candidate_ws)
+                if candidate_p and not candidate_p.get('is_folded') and candidate_p.get('chips', 0) > 0:
+                    break
+                next_idx = (next_idx + 1) % len(room['turn_order'])
+            room['current_turn_index'] = next_idx
+        room['turn_start_time'] = time.time()
+
+    elif room['game_type'] == 'GOSTOP':
+        opps = [p for w, p in room['players'].items() if w != current_ws and not p.get('is_spectator')]
+        is_two = (len(opps) == 1)
+
+        if room.get('turn_phase') == 'DECIDE_GO_STOP':
+            await finalize_gostop_game(room, current_ws)
+        elif room.get('turn_phase') == 'PLAY_HAND' and player.get('hand'):
+            auto_card = player['hand'][0]
+            player['hand'].remove(auto_card)
+            matched = [c for c in room.get('table_cards', []) if c['month'] == auto_card['month']]
+            if matched:
+                target = matched[0]
+                room['table_cards'].remove(target)
+                player.setdefault('captured', []).extend([auto_card, target])
+                calc = calculate_gostop_score(player, opps, is_two)
+                player['score'] = calc['final_score']
+            else:
+                room.setdefault('table_cards', []).append(auto_card)
+            room['turn_phase'] = 'DRAW_DECK'
+            room['turn_start_time'] = time.time()
+
+        elif room.get('turn_phase') in ['DRAW_DECK', 'DRAW_DECK_CHOICE', 'DRAW_DECK_NO_MATCH']:
+            if room.get('deck'):
+                deck_card = room['deck'].pop()
+                deck_matched = [c for c in room.get('table_cards', []) if c['month'] == deck_card['month']]
+                if deck_matched:
+                    d_target = deck_matched[0]
+                    room['table_cards'].remove(d_target)
+                    player.setdefault('captured', []).extend([deck_card, d_target])
+                    calc = calculate_gostop_score(player, opps, is_two)
+                    player['score'] = calc['final_score']
+                else:
+                    room.setdefault('table_cards', []).append(deck_card)
+            
+            await finish_gostop_turn(room, room_id)
+
+        room['turn_start_time'] = time.time()
+
+    await broadcast_to_room(room_id, {'type': 'ROOM_UPDATED', 'state': None})
+
 async def check_turn_timeouts():
     while True:
-        await asyncio.sleep(1)
-        now = time.time()
-        for room_id, room in list(ROOMS.items()):
-            if room.get('status') == 'PLAYING' and room.get('turn_start_time') and room.get('turn_order'):
-                limit = room.get('turn_time_limit', TURN_DURATION_SECONDS)
-                elapsed = int(now - room['turn_start_time'])
-                
-                if elapsed >= limit:
-                    if room['current_turn_index'] >= len(room['turn_order']):
-                        room['current_turn_index'] = 0
-                        
-                    current_ws = room['turn_order'][room['current_turn_index']]
-                    player = room['players'].get(current_ws)
-                    
-                    if player:
-                        if room['game_type'] == 'RUMMIKUB':
-                            # 타임아웃 발생 시 첫 등록 미달된 바닥 타일이 있다면 무효화 후 드로우 처리
-                            if 'initial_turn_table_sets' in room:
-                                room['table_sets'] = copy.deepcopy(room['initial_turn_table_sets'])
-                            if room.get('deck'):
-                                drawn_tile = room['deck'].pop()
-                                player['rack'].append(drawn_tile)
-                                room['chat_logs'].append({'system': True, 'text': f"⏱️ [{player['nickname']}]님의 시간이 초과되어 타일 1장을 가져오고 턴이 넘어가셨습니다."})
-                            else:
-                                room['chat_logs'].append({'system': True, 'text': f"⏱️ [{player['nickname']}]님의 시간이 초과되어 턴이 넘어가셨습니다."})
-                            
-                            # 턴 강제 전환
-                            room['current_turn_index'] = (room['current_turn_index'] + 1) % len(room['turn_order'])
-                            room['turn_start_time'] = time.time()
-
-                        elif room['game_type'] == 'BINGO':
-                            room['chat_logs'].append({'system': True, 'text': f"⏱️ [{player['nickname']}]님의 제한 시간이 초과되어 턴이 넘어가셨습니다."})
-                            room['current_turn_index'] = (room['current_turn_index'] + 1) % len(room['turn_order'])
-
-                        elif room['game_type'] == 'SEOTDA':
-                            player['is_folded'] = True
-                            room['chat_logs'].append({'system': True, 'text': f"⏱️ [{player['nickname']}]님이 배팅 제한시간 초과로 자동 기권(다이)되었습니다."})
-                            active_ws = [p_ws for p_ws, p in room['players'].items() if not p['is_folded']]
-                            if len(active_ws) <= 1:
-                                if len(active_ws) == 1:
-                                    winner_ws = active_ws[0]
-                                    winner = room['players'][winner_ws]
-                                    winner['chips'] += room['pot']
-                                    room['dealer_ws'] = winner_ws
-                                    room['chat_logs'].append({'system': True, 'text': f"🎉 모두 기권하여 [{winner['nickname']}]님이 {room['pot']} 칩을 획득했습니다!"})
-                                room['status'] = 'SHOWDOWN'
-                            else:
-                                next_idx = (room['current_turn_index'] + 1) % len(room['turn_order'])
-                                for _ in range(len(room['turn_order'])):
-                                    candidate_ws = room['turn_order'][next_idx]
-                                    candidate_p = room['players'][candidate_ws]
-                                    if not candidate_p['is_folded'] and candidate_p['chips'] > 0:
-                                        break
-                                    next_idx = (next_idx + 1) % len(room['turn_order'])
-                                room['current_turn_index'] = next_idx
-
-                        elif room['game_type'] == 'GOSTOP':
-                            opps = [p for w, p in room['players'].items() if w != current_ws and not p.get('is_spectator')]
-                            is_two = (len(opps) == 1)
-
-                            if room.get('turn_phase') == 'DECIDE_GO_STOP':
-                                await finalize_gostop_game(room, current_ws)
-                            elif room.get('turn_phase') == 'PLAY_HAND' and player['hand']:
-                                auto_card = player['hand'][0]
-                                player['hand'].remove(auto_card)
-                                matched = [c for c in room['table_cards'] if c['month'] == auto_card['month']]
-                                if matched:
-                                    target = matched[0]
-                                    room['table_cards'].remove(target)
-                                    player['captured'].extend([auto_card, target])
-                                    calc = calculate_gostop_score(player, opps, is_two)
-                                    player['score'] = calc['final_score']
-                                else:
-                                    room['table_cards'].append(auto_card)
-                                room['turn_phase'] = 'DRAW_DECK'
-                                room['turn_start_time'] = time.time()
-
-                            elif room.get('turn_phase') in ['DRAW_DECK', 'DRAW_DECK_CHOICE', 'DRAW_DECK_NO_MATCH']:
-                                if room['deck']:
-                                    deck_card = room['deck'].pop()
-                                    deck_matched = [c for c in room['table_cards'] if c['month'] == deck_card['month']]
-                                    if deck_matched:
-                                        d_target = deck_matched[0]
-                                        room['table_cards'].remove(d_target)
-                                        player['captured'].extend([deck_card, d_target])
-                                        calc = calculate_gostop_score(player, opps, is_two)
-                                        player['score'] = calc['final_score']
-                                    else:
-                                        room['table_cards'].append(deck_card)
-                                
-                                await finish_gostop_turn(room, room_id)
-
-                        room['turn_start_time'] = time.time()
-                        await broadcast_to_room(room_id, {'type': 'ROOM_UPDATED', 'state': None})
+        try:
+            await asyncio.sleep(1)
+            now = time.time()
+            for room_id, room in list(ROOMS.items()):
+                try:
+                    if room.get('status') == 'PLAYING' and room.get('turn_start_time') and room.get('turn_order'):
+                        limit = room.get('turn_time_limit', TURN_DURATION_SECONDS)
+                        elapsed = int(now - room['turn_start_time'])
+                        if elapsed >= limit:
+                            await execute_turn_timeout(room, room_id)
+                except Exception as room_err:
+                    print(f"[TIMEOUT ERROR room={room_id}] {room_err}")
+        except Exception as global_err:
+            print(f"[TIMEOUT GLOBAL ERROR] {global_err}")
 
 async def start_background_tasks(app):
     app['timeout_checker'] = asyncio.create_task(check_turn_timeouts())
@@ -677,6 +716,43 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
 
         room = ROOMS[room_id]
         game_type = room['game_type']
+
+        # 기존 플레이어 재연결 확인 (닉네임 일치)
+        existing_ws = None
+        for old_ws, p in room['players'].items():
+            if p.get('nickname') == nickname:
+                existing_ws = old_ws
+                break
+
+        if existing_ws is not None:
+            if existing_ws != ws:
+                player = room['players'].pop(existing_ws)
+                player['id'] = current_player_id
+                player['is_connected'] = True
+                player.pop('disconnected_at', None)
+                room['players'][ws] = player
+                room['turn_order'] = [ws if w == existing_ws else w for w in room['turn_order']]
+                if room.get('dealer_ws') == existing_ws:
+                    room['dealer_ws'] = ws
+            else:
+                player = room['players'][ws]
+                player['is_connected'] = True
+                player.pop('disconnected_at', None)
+
+            room['chat_logs'].append({'system': True, 'text': f"🔄 [{nickname}]님이 재연결되었습니다."})
+            res = {
+                'type': 'ROOM_JOINED',
+                'room_id': room_id,
+                'game_type': room['game_type'],
+                'player_id': current_player_id,
+                'is_host': player.get('is_host', False),
+                'state': serialize_room_state(room_id, requester_ws=ws)
+            }
+            if hasattr(ws, 'send_json'): await ws.send_json(res)
+            else: await ws.send(json.dumps(res, ensure_ascii=False))
+            await broadcast_to_room(room_id, {'type': 'ROOM_UPDATED', 'state': None})
+            return room_id
+
         assigned_color = get_unique_color([p['color'] for p in room['players'].values()])
 
         if game_type == 'BINGO':
@@ -1341,28 +1417,23 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
     elif msg_type == 'TIMEOUT_PASS':
         room = ROOMS.get(current_room_id)
         if room and room['game_type'] == 'RUMMIKUB' and room['status'] == 'PLAYING':
+            if not room.get('turn_order'): return
+            room['current_turn_index'] = room['current_turn_index'] % len(room['turn_order'])
             current_ws = room['turn_order'][room['current_turn_index']]
-            if ws == current_ws:
-                player = room['players'][ws]
-                
-                # 테이블 세트 롤백 (조작 중이던 테이블 타일 원복)
-                if 'initial_turn_table_sets' in room:
-                    room['table_sets'] = copy.deepcopy(room['initial_turn_table_sets'])
+            current_player = room['players'].get(current_ws)
+            this_player = room['players'].get(ws)
 
-                # 타일 더미에서 벌칙 타일 1장 드로우
-                if room.get('deck'):
-                    drawn_tile = room['deck'].pop()
-                    player['rack'].append(drawn_tile)
-                    room['chat_logs'].append({'system': True, 'text': f"⏱️ [{player['nickname']}]님이 시간 초과로 타일 1장을 가져왔습니다."})
-                else:
-                    room['chat_logs'].append({'system': True, 'text': f"⏱️ [{player['nickname']}]님의 시간이 초과되었습니다."})
+            # 현재 턴 플레이어이거나 (소켓 일치 또는 닉네임 일치) 방장 요청인 경우 허용
+            is_turn_player = (ws == current_ws) or (current_player and this_player and current_player.get('nickname') == this_player.get('nickname'))
+            if is_turn_player or (this_player and this_player.get('is_host')):
+                await execute_turn_timeout(room, current_room_id)
 
-                # 턴을 다음 사람으로 변경하고 턴 시작 시간 갱신
-                room['current_turn_index'] = (room['current_turn_index'] + 1) % len(room['turn_order'])
-                room['turn_start_time'] = time.time()
-                
-                # 전체 방에 최신 상태 브로드캐스트
-                await broadcast_to_room(current_room_id, {'type': 'ROOM_UPDATED', 'state': None})
+    elif msg_type == 'CHECK_TIMEOUT':
+        room = ROOMS.get(current_room_id)
+        if room and room.get('status') == 'PLAYING' and room.get('turn_start_time') and room.get('turn_order'):
+            limit = room.get('turn_time_limit', TURN_DURATION_SECONDS)
+            if time.time() - room['turn_start_time'] >= limit:
+                await execute_turn_timeout(room, current_room_id)
                 
     elif msg_type == 'START_ROUND':
         room = ROOMS.get(current_room_id)
@@ -1614,22 +1685,31 @@ try:
                     leaving_player = room['players'][ws]
                     leaving_nickname = leaving_player.get('nickname', '알 수 없음')
                     was_host = leaving_player.get('is_host', False)
-                    room['players'].pop(ws)
-                    if ws in room['turn_order']: room['turn_order'].remove(ws)
-                    if not room['players']:
-                        del ROOMS[current_room_id]
-                    else:
-                        # v4: 호스트 퇴장 시 다음 플레이어에게 자동 위임
-                        if was_host:
-                            next_host_ws = next(iter(room['players']))
-                            room['players'][next_host_ws]['is_host'] = True
-                            new_host_name = room['players'][next_host_ws].get('nickname', '???')
-                            room['chat_logs'].append({'system': True, 'text': f"👑 방장 [{leaving_nickname}]님이 퇴장하여 [{new_host_name}]님이 새 방장으로 지정되었습니다."})
-                        else:
-                            room['chat_logs'].append({'system': True, 'text': f"🚪 [{leaving_nickname}]님이 퇴장하셨습니다."})
-                        if room['turn_order']:
-                            room['current_turn_index'] = room['current_turn_index'] % len(room['turn_order'])
+
+                    if room.get('status') == 'PLAYING':
+                        # 게임 진행 중에는 즉시 삭제하지 않고 재연결 유예(Grace period) 상태로 유지
+                        leaving_player['is_connected'] = False
+                        leaving_player['disconnected_at'] = time.time()
+                        room['chat_logs'].append({'system': True, 'text': f"⚠️ [{leaving_nickname}]님의 연결이 일시적으로 끊겼습니다. (재연결 대기 중)"})
                         await broadcast_to_room(current_room_id, {'type': 'ROOM_UPDATED', 'state': None})
+                    else:
+                        # 대기실(WAITING) 상태에서는 즉시 퇴장 처리
+                        room['players'].pop(ws, None)
+                        if ws in room['turn_order']: room['turn_order'].remove(ws)
+                        if not room['players']:
+                            del ROOMS[current_room_id]
+                        else:
+                            # v4: 호스트 퇴장 시 다음 플레이어에게 자동 위임
+                            if was_host:
+                                next_host_ws = next(iter(room['players']))
+                                room['players'][next_host_ws]['is_host'] = True
+                                new_host_name = room['players'][next_host_ws].get('nickname', '???')
+                                room['chat_logs'].append({'system': True, 'text': f"👑 방장 [{leaving_nickname}]님이 퇴장하여 [{new_host_name}]님이 새 방장으로 지정되었습니다."})
+                            else:
+                                room['chat_logs'].append({'system': True, 'text': f"🚪 [{leaving_nickname}]님이 퇴장하셨습니다."})
+                            if room['turn_order']:
+                                room['current_turn_index'] = room['current_turn_index'] % len(room['turn_order'])
+                            await broadcast_to_room(current_room_id, {'type': 'ROOM_UPDATED', 'state': None})
         return ws
 
     async def handle_static_files(request):
