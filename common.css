@@ -1473,7 +1473,8 @@ body.shake-active {
 /* ★ 모바일 전용 100% 풀스크린 + 슬라이드인 오프캔버스 드로어 레이아웃 ★ */
 @media screen and (max-width: 768px) {
     .arena-main {
-        display: block !important;
+        display: flex !important;
+        flex-direction: column !important;
         position: relative !important;
         width: 100% !important;
         height: 100% !important;
@@ -1485,9 +1486,13 @@ body.shake-active {
         grid-template-columns: none !important;
     }
     .stadium-arena {
+        flex: 1 1 0 !important;
+        min-height: 0 !important;
+        height: auto !important;
         width: 100% !important;
         max-width: 100% !important;
-        height: 100% !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
         padding: 4px 6px 8px 6px !important;
         box-sizing: border-box !important;
     }
@@ -1627,10 +1632,24 @@ body.shake-active {
         z-index: 9990 !important;
     }
     .arena-main {
+        display: flex !important;
+        flex-direction: column !important;
         position: relative !important;
         overflow: hidden !important;
         width: 100% !important;
         height: 100% !important;
+    }
+    .stadium-arena {
+        flex: 1 1 0 !important;
+        min-height: 0 !important;
+        height: auto !important;
+        overflow-y: auto !important;
+    }
+    .player-rack-zone {
+        flex-shrink: 0 !important;
+        margin-top: auto !important;
+        width: 100% !important;
+        z-index: 40 !important;
     }
     .arena-main.console-open {
         z-index: 9995 !important;
