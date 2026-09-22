@@ -43,7 +43,7 @@
             } else if (type === 'turn') {
                 window.GameFX.audio.playTick();
             } else if (type === 'win') {
-                window.GameFX.audio.playWinFanfare();
+                window.GameFX.audio.playWin();
             }
             return;
         }
@@ -110,14 +110,15 @@
         }
     });
 
+    let reconnector = null;
+
     function connectNetwork() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        socket = new WebSocket(`${protocol}//${window.location.host}/ws`);
+        const wsUrl = `${protocol}//${window.location.host}/ws`;
 
-        socket.onopen = () => { 
+        const onOpen = (sock) => {
             const statusEl = document.getElementById('status-text');
-            if (statusEl) statusEl.innerText = '연결됨'; 
-            
+            if (statusEl) statusEl.innerText = '연결됨';
             const savedNick = localStorage.getItem('office_rummikub_last_nickname');
             if (currentRoomId && savedNick) {
                 sendMessage({
@@ -130,19 +131,33 @@
             }
         };
 
-        socket.onmessage = (e) => {
+        const onMsg = (e) => {
             try { handleServerMessage(JSON.parse(e.data)); } catch (err) { console.error(err); }
         };
 
-        socket.onclose = () => {
+        const onClose = () => {
             const statusEl = document.getElementById('status-text');
-            if (statusEl) statusEl.innerText = '연결 끊김';
-            setTimeout(connectNetwork, 2000);
+            if (statusEl) statusEl.innerText = '연결 복구 중...';
         };
+
+        if (window.GameFX && window.GameFX.WebSocketReconnector) {
+            reconnector = new window.GameFX.WebSocketReconnector();
+            socket = reconnector.connect(wsUrl, { onOpen, onMessage: onMsg, onClose });
+        } else {
+            socket = new WebSocket(wsUrl);
+            socket.onopen = () => onOpen(socket);
+            socket.onmessage = onMsg;
+            socket.onclose = () => {
+                onClose();
+                setTimeout(connectNetwork, 2000);
+            };
+        }
     }
 
     function sendMessage(msgDict) {
-        if (socket && socket.readyState === WebSocket.OPEN) {
+        if (reconnector && reconnector.readyState === WebSocket.OPEN) {
+            reconnector.send(msgDict);
+        } else if (socket && socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify(msgDict));
         } else {
             showToast("서버와 연결 중입니다. 잠시 후 다시 시도해주세요.");
@@ -514,7 +529,11 @@
                               (isMyTurn && lastTurnNumber !== -1 && turnNumber !== lastTurnNumber);
 
             if (isNewTurn || (isMyTurn && (!initialTurnTableSets || initialTurnTableSets.length === 0))) {
-                playSoundEffect('turn');
+                if (window.GameFX && window.GameFX.notifyMyTurn) {
+                    window.GameFX.notifyMyTurn('루미큐브');
+                } else {
+                    playSoundEffect('turn');
+                }
                 showToast("🧩 당신의 턴입니다! 배치를 시작하세요.");
                 selectedTiles = [];
 
@@ -1387,7 +1406,9 @@
                 }
             });
         }
-        if (window.GameFX && window.GameFX.renderChatStream) {
+        if (window.GameFX && window.GameFX.renderChatStreamIncremental) {
+            window.GameFX.renderChatStreamIncremental(chatBox, roomState.chat_logs, myNick);
+        } else if (window.GameFX && window.GameFX.renderChatStream) {
             window.GameFX.renderChatStream(chatBox, roomState.chat_logs, myNick);
         }
     }

@@ -14,6 +14,7 @@ let currentSortMode = 'month';
 
 let pendingPlayedCardId = null;
 let currentCardTheme = localStorage.getItem('hwatu_card_theme') || 'notion';
+let previousTurnPlayerId = null;
 
 function setCardTheme(themeName) {
     currentCardTheme = themeName;
@@ -89,50 +90,62 @@ function getClassicHwatuImgPath(card) {
 }
 
 const wsUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
+let reconnector = null;
 
 function sendMsg(payload) {
-    if (ws && ws.readyState === WebSocket.OPEN) {
+    if (reconnector && reconnector.readyState === WebSocket.OPEN) {
+        reconnector.send(payload);
+    } else if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify(payload));
     }
 }
 
 function connectWS(callback) {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        if (callback) callback();
-        return;
-    }
-    if (ws && ws.readyState === WebSocket.CONNECTING) {
-        if (callback) {
-            ws.addEventListener('open', () => callback(), { once: true });
-        }
-        return;
-    }
-
-    ws = new WebSocket(wsUrl);
-    ws.onopen = () => { 
+    const onOpen = (sock) => {
+        ws = sock;
         const statusDot = document.getElementById('status-dot');
         const statusText = document.getElementById('status-text');
         if (statusDot) statusDot.className = 'status-dot connected';
         if (statusText) statusText.innerText = '연결됨';
-        if (callback) callback(); 
+        const savedNick = localStorage.getItem('office_gostop_last_nickname');
+        if (currentRoomId && savedNick) {
+            sendMsg({
+                type: 'JOIN_ROOM',
+                nickname: savedNick,
+                room_id: currentRoomId
+            });
+        }
+        if (callback) callback();
     };
-    ws.onmessage = (e) => {
+
+    const onMsg = (e) => {
         try {
             handleMessage(JSON.parse(e.data));
         } catch (err) {
             console.error('[GoStop] Message error:', err);
         }
     };
-    ws.onerror = (err) => {
-        console.warn('[GoStop] WebSocket error:', err);
-    };
-    ws.onclose = () => {
+
+    const onClose = () => {
         const statusDot = document.getElementById('status-dot');
         const statusText = document.getElementById('status-text');
         if (statusDot) statusDot.className = 'status-dot';
         if (statusText) statusText.innerText = '재연결 중...';
-        setTimeout(() => connectWS(), 2000);
     };
+
+    if (window.GameFX && window.GameFX.WebSocketReconnector) {
+        reconnector = new window.GameFX.WebSocketReconnector();
+        ws = reconnector.connect(wsUrl, { onOpen, onMessage: onMsg, onClose });
+    } else {
+        ws = new WebSocket(wsUrl);
+        ws.onopen = () => onOpen(ws);
+        ws.onmessage = onMsg;
+        ws.onerror = (err) => console.warn('[GoStop] WebSocket error:', err);
+        ws.onclose = () => {
+            onClose();
+            setTimeout(() => connectWS(), 2000);
+        };
+    }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -297,9 +310,10 @@ function animatePiSteal(victimPlayerId) {
 function createRoom() {
     const nickInput = document.getElementById('nickname-input');
     const nickname = nickInput ? (nickInput.value.trim() || '타짜') : '타짜';
+    localStorage.setItem('office_gostop_last_nickname', nickname);
     
     connectWS(() => {
-        ws.send(JSON.stringify({ 
+        sendMsg({ 
             type: 'CREATE_ROOM', 
             game_type: 'GOSTOP', 
             nickname: nickname, 
@@ -307,7 +321,7 @@ function createRoom() {
             point_chip: selectedPointChip,
             turn_time_limit: selectedTurnTime,
             title: '실시간 고스톱 대국' 
-        }));
+        });
     });
 }
 
@@ -318,8 +332,9 @@ function joinRoom() {
     const code = codeInput ? codeInput.value.trim().toUpperCase() : '';
     
     if (!code) return showToast('방 코드를 입력해주세요.');
+    localStorage.setItem('office_gostop_last_nickname', nickname);
     connectWS(() => {
-        ws.send(JSON.stringify({ type: 'JOIN_ROOM', room_id: code, nickname: nickname }));
+        sendMsg({ type: 'JOIN_ROOM', room_id: code, nickname: nickname });
     });
 }
 
@@ -560,7 +575,7 @@ function handleMessage(msg) {
         window.myPlayerId = myPlayerId;
         isHost = msg.is_host;
         document.getElementById('lobby-card').style.display = 'none';
-        document.getElementById('arena').style.display = 'flex';
+        document.getElementById('arena').style.display = (window.innerWidth <= 768) ? 'block' : 'grid';
         document.getElementById('room-code-display').innerText = currentRoomId;
 
         if (window.GameFX) {
@@ -668,6 +683,12 @@ function updateUI(state) {
 
     if (state.status === 'PLAYING') {
         startTimer(state.turn_time_remaining || 15);
+        if (isMyTurn && String(previousTurnPlayerId) !== String(myPlayerId)) {
+            if (window.GameFX && window.GameFX.notifyMyTurn) {
+                window.GameFX.notifyMyTurn('맞고');
+            }
+        }
+        previousTurnPlayerId = state.current_turn_player_id;
         if (isMyTurn && hintEl) {
             if (state.turn_phase === 'DECIDE_GO_STOP') {
                 hintEl.innerText = '🎴 GO를 하시겠습니까, STOP을 하시겠습니까?';

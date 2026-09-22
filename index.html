@@ -237,6 +237,175 @@
             .game-tab-btn { padding: 3px 8px !important; font-size: 0.76rem !important; gap: 3px !important; height: 26px !important; }
             .collapsible-top-menu { max-height: 72px !important; }
             .iframe-wrapper { height: calc(100vh - 72px) !important; }
+        /* v4: 실시간 통계 모달 스타일 */
+        .stats-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            z-index: 99999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .stats-modal-overlay.active {
+            display: flex;
+        }
+
+        .stats-modal-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-block);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 580px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            animation: modalFadeIn 0.25s ease-out forwards;
+        }
+
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .stats-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 20px;
+            background: rgba(255, 255, 255, 0.03);
+            border-bottom: 1px solid var(--border-block);
+        }
+
+        .stats-modal-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.05rem;
+            font-weight: 800;
+            color: var(--text-primary);
+        }
+
+        .stats-modal-close {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            line-height: 1;
+            padding: 0 4px;
+        }
+
+        .stats-modal-close:hover {
+            color: var(--text-primary);
+        }
+
+        .stats-modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            max-height: 80vh;
+        }
+
+        .stats-section-label {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .stats-kings-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .king-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-block);
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            transition: transform 0.15s ease;
+        }
+
+        .king-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--border-accent);
+        }
+
+        .king-game-badge {
+            font-size: 0.72rem;
+            font-weight: 800;
+            color: var(--text-secondary);
+        }
+
+        .king-nick {
+            font-size: 1rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .king-wins {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #f59e0b;
+        }
+
+        .stats-server-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .server-stat-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border-block);
+            border-radius: 10px;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .server-stat-item .stat-value {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: var(--text-primary);
+        }
+
+        .server-stat-item .stat-label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        .stats-feature-list {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+        }
+
+        .feature-badge {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            color: #34d399;
+            font-size: 0.72rem;
+            font-weight: 600;
+            padding: 5px 8px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
         }
     </style>
 </head>
@@ -252,12 +421,13 @@
                 <div class="brand-icon">
                     <svg viewBox="0 0 24 24"><path d="M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-10 7H8v3H6v-3H3v-2h3V8h2v3h3v2zm4.5 2c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm4-3c-.83 0-1.5-.67-1.5-1.5S18.67 9 19.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
                 </div>
-                <span>Office Live Games <small class="v3-badge" style="font-size:0.68rem; background: linear-gradient(135deg, #ec4899, #8b5cf6); color: #fff; padding: 2px 7px; border-radius: 6px; vertical-align:middle; font-weight:800; letter-spacing:0.8px; margin-left:6px; box-shadow: 0 0 10px rgba(236,72,153,0.4);">V3 PRO</small></span>
+                <span>Office Live Games <small class="v3-badge" style="font-size:0.68rem; background: linear-gradient(135deg, #06b6d4, #3b82f6); color: #fff; padding: 2px 7px; border-radius: 6px; vertical-align:middle; font-weight:800; letter-spacing:0.8px; margin-left:6px; box-shadow: 0 0 10px rgba(6,182,212,0.4);">V4 ULTIMATE</small></span>
             </a>
             <div class="nav-controls">
                 <button class="top-menu-toggle-btn" id="btn-toggle-top-menu" onclick="toggleTopMenu()" title="상단 메뉴 접기">
                     <span>▲ 접기</span>
                 </button>
+                <button class="icon-btn" id="btn-global-stats" title="실시간 통계 및 랭킹" onclick="openStatsModal()">📊</button>
                 <button class="icon-btn" id="btn-global-sound" title="사운드 설정" onclick="toggleGlobalSound()">🔊</button>
                 <button class="icon-btn" id="btn-global-theme" title="테마 변경 (다크/라이트)" onclick="toggleGlobalTheme()">🌙</button>
             </div>
@@ -282,13 +452,80 @@
     </div>
 
     <div class="iframe-wrapper">
-        <iframe id="iframe-bingo" class="game-iframe active" src="bingo.html?v=20260918_v3" data-src="bingo.html?v=20260918_v3"></iframe>
-        <iframe id="iframe-rummikub" class="game-iframe" data-src="rummikub.html?v=20260918_v3"></iframe>
-        <iframe id="iframe-seotda" class="game-iframe" data-src="seotda.html?v=20260918_v3"></iframe>
-        <iframe id="iframe-gostop" class="game-iframe" data-src="gostop.html?v=20260918_v3"></iframe>
+        <iframe id="iframe-bingo" class="game-iframe active" src="bingo.html?v=20260922_v4" data-src="bingo.html?v=20260922_v4"></iframe>
+        <iframe id="iframe-rummikub" class="game-iframe" data-src="rummikub.html?v=20260922_v4"></iframe>
+        <iframe id="iframe-seotda" class="game-iframe" data-src="seotda.html?v=20260922_v4"></iframe>
+        <iframe id="iframe-gostop" class="game-iframe" data-src="gostop.html?v=20260922_v4"></iframe>
     </div>
 
-    <script src="common_fx.js?v=20260917_v2"></script>
+    <!-- v4: 게임 통계 및 실시간 랭킹 대시보드 모달 -->
+    <div class="stats-modal-overlay" id="stats-modal-overlay" onclick="closeStatsModal(event)">
+        <div class="stats-modal-card" onclick="event.stopPropagation()">
+            <div class="stats-modal-header">
+                <div class="stats-modal-title">
+                    <span style="font-size:1.3rem;">📊</span>
+                    <span>실시간 대시보드 & 오늘의 승왕</span>
+                </div>
+                <button class="stats-modal-close" onclick="closeStatsModal()">&times;</button>
+            </div>
+            <div class="stats-modal-body">
+                <!-- 오늘의 명예의 전당 -->
+                <div class="stats-section-label">👑 오늘의 명예의 전당 (최다 우승)</div>
+                <div class="stats-kings-grid" id="stats-kings-grid">
+                    <div class="king-card" data-game="BINGO">
+                        <div class="king-game-badge">🎯 빙고</div>
+                        <div class="king-nick" id="king-BINGO-nick">-</div>
+                        <div class="king-wins" id="king-BINGO-wins">0승</div>
+                    </div>
+                    <div class="king-card" data-game="RUMMIKUB">
+                        <div class="king-game-badge">🧩 루미큐브</div>
+                        <div class="king-nick" id="king-RUMMIKUB-nick">-</div>
+                        <div class="king-wins" id="king-RUMMIKUB-wins">0승</div>
+                    </div>
+                    <div class="king-card" data-game="SEOTDA">
+                        <div class="king-game-badge">🃏 섯다</div>
+                        <div class="king-nick" id="king-SEOTDA-nick">-</div>
+                        <div class="king-wins" id="king-SEOTDA-wins">0승</div>
+                    </div>
+                    <div class="king-card" data-game="GOSTOP">
+                        <div class="king-game-badge">🎴 맞고</div>
+                        <div class="king-nick" id="king-GOSTOP-nick">-</div>
+                        <div class="king-wins" id="king-GOSTOP-wins">0승</div>
+                    </div>
+                </div>
+
+                <!-- 실시간 서버 현황 -->
+                <div class="stats-section-label" style="margin-top:16px;">⚡ 실시간 서버 및 게임 가동 현황</div>
+                <div class="stats-server-grid">
+                    <div class="server-stat-item">
+                        <div class="stat-value" id="stat-active-rooms">0</div>
+                        <div class="stat-label">활성 방 수</div>
+                    </div>
+                    <div class="server-stat-item">
+                        <div class="stat-value" id="stat-total-players">0</div>
+                        <div class="stat-label">현재 참여자</div>
+                    </div>
+                    <div class="server-stat-item">
+                        <div class="stat-value" style="color:#10b981;">정상</div>
+                        <div class="stat-label">서버 엔진 (v4)</div>
+                    </div>
+                </div>
+
+                <!-- v4 고도화 기능 상태 -->
+                <div class="stats-section-label" style="margin-top:16px;">🛡️ v4 고도화 보호 시스템</div>
+                <div class="stats-feature-list">
+                    <div class="feature-badge">🔄 지수 백오프 자동 재연결</div>
+                    <div class="feature-badge">🔔 턴 시작 브라우저 알림 & 차임벨</div>
+                    <div class="feature-badge">🧩 루미큐브 타임아웃 자동 롤백</div>
+                    <div class="feature-badge">👑 방장 퇴장 시 자동 호스트 위임</div>
+                    <div class="feature-badge">🧹 30분 비활성 좀비방 자동 청소</div>
+                    <div class="feature-badge">⚡ 증분 채팅 렌더링 & FIFO 200</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="common_fx.js?v=20260922_v4"></script>
     <script>
         // iFrame에서 게임 진행 상태(status) 수신하여 자동 메뉴 접기
         window.addEventListener('message', (event) => {
@@ -314,6 +551,39 @@
             }
         }
 
+        // v4 통계 모달 열기/닫기 및 데이터 가져오기
+        async function openStatsModal() {
+            const modal = document.getElementById('stats-modal-overlay');
+            if (!modal) return;
+            modal.classList.add('active');
+            try {
+                const res = await fetch('/api/stats');
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.today_kings) {
+                        for (const [gType, king] of Object.entries(data.today_kings)) {
+                            const nickEl = document.getElementById(`king-${gType}-nick`);
+                            const winsEl = document.getElementById(`king-${gType}-wins`);
+                            if (nickEl && king) nickEl.textContent = king.nickname || '-';
+                            if (winsEl && king) winsEl.textContent = `${king.wins || 0}승`;
+                        }
+                    }
+                    const roomsEl = document.getElementById('stat-active-rooms');
+                    const playersEl = document.getElementById('stat-total-players');
+                    if (roomsEl) roomsEl.textContent = data.active_rooms || 0;
+                    if (playersEl) playersEl.textContent = data.total_players || 0;
+                }
+            } catch (e) {
+                console.warn('Stats fetch error:', e);
+            }
+        }
+
+        function closeStatsModal(event) {
+            if (event && event.target && event.target.id !== 'stats-modal-overlay') return;
+            const modal = document.getElementById('stats-modal-overlay');
+            if (modal) modal.classList.remove('active');
+        }
+
         window.addEventListener('DOMContentLoaded', () => {
             const iframes = document.querySelectorAll('.game-iframe');
             iframes.forEach(iframe => {
@@ -334,7 +604,7 @@
 
                 if (targetIframe && targetTab) {
                     if (roomParam) {
-                        targetIframe.src = `${targetGame}.html?room=${encodeURIComponent(roomParam)}&v=20260918_v3`;
+                        targetIframe.src = `${targetGame}.html?room=${encodeURIComponent(roomParam)}&v=20260922_v4`;
                         targetIframe.setAttribute('data-loaded', 'true');
                     } else if (!targetIframe.src && targetIframe.getAttribute('data-src')) {
                         targetIframe.src = targetIframe.getAttribute('data-src');

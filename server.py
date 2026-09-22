@@ -4,6 +4,7 @@ Office Games Live Unified Server (Bingo + Rummikub + Seotda + GoStop Fully Integ
 """
 
 import asyncio
+import copy
 import http
 import json
 import mimetypes
@@ -103,6 +104,7 @@ def get_today_top_winner(game_type: str):
 
 ROOMS = {}
 TODAY_KING_CACHE = {}
+MAX_CHAT_LOGS = 200  # v4: 채팅 로그 FIFO 최대 개수
 
 async def update_today_king_loop():
     global TODAY_KING_CACHE
@@ -113,6 +115,25 @@ async def update_today_king_loop():
                 if king_data: TODAY_KING_CACHE[g_type] = king_data
         except Exception: pass
         await asyncio.sleep(10)
+
+# v4: 좀비 방 자동 정리 (30분 비활성 방 제거)
+async def cleanup_zombie_rooms_loop():
+    while True:
+        try:
+            now = time.time()
+            dead_rooms = []
+            for room_id, room in list(ROOMS.items()):
+                last_activity = room.get('last_activity_time', room.get('turn_start_time', now))
+                elapsed = now - last_activity
+                # 플레이어가 없거나 30분 이상 비활성인 방 제거
+                if not room.get('players') or elapsed > 1800:
+                    dead_rooms.append(room_id)
+            for room_id in dead_rooms:
+                print(f"[CLEANUP] Removing zombie room: {room_id}")
+                del ROOMS[room_id]
+        except Exception as e:
+            print(f"[CLEANUP ERROR] {e}")
+        await asyncio.sleep(60)  # 1분마다 체크
 
 AVATAR_COLORS = ["#E53935", "#1E88E5", "#43A047", "#FB8C00", "#8E44AD", "#00ACC1", "#D81B60", "#6D4C41"]
 TILE_COLORS = ["red", "blue", "black", "orange"]
@@ -458,7 +479,9 @@ def serialize_room_state(room_id, requester_ws=None):
 
 async def broadcast_to_room(room_id, message_dict):
     if room_id not in ROOMS: return
-    for ws in list(ROOMS[room_id]['players'].keys()):
+    room = ROOMS[room_id]
+    trim_chat_logs(room)
+    for ws in list(room['players'].keys()):
         try:
             personalized_msg = dict(message_dict)
             if 'state' in personalized_msg:
@@ -486,6 +509,8 @@ async def check_turn_timeouts():
                     if player:
                         if room['game_type'] == 'RUMMIKUB':
                             # 타임아웃 발생 시 첫 등록 미달된 바닥 타일이 있다면 무효화 후 드로우 처리
+                            if 'initial_turn_table_sets' in room:
+                                room['table_sets'] = copy.deepcopy(room['initial_turn_table_sets'])
                             if room.get('deck'):
                                 drawn_tile = room['deck'].pop()
                                 player['rack'].append(drawn_tile)
@@ -565,14 +590,27 @@ async def check_turn_timeouts():
 async def start_background_tasks(app):
     app['timeout_checker'] = asyncio.create_task(check_turn_timeouts())
     app['king_updater'] = asyncio.create_task(update_today_king_loop())
+    app['room_cleaner'] = asyncio.create_task(cleanup_zombie_rooms_loop())
 
 async def cleanup_background_tasks(app):
-    app['timeout_checker'].cancel()
-    if 'king_updater' in app: app['king_updater'].cancel()
-    await app['timeout_checker']
+    for key in ['timeout_checker', 'king_updater', 'room_cleaner']:
+        if key in app:
+            app[key].cancel()
+            try: await app[key]
+            except asyncio.CancelledError: pass
+
+def trim_chat_logs(room):
+    """v4: 채팅 로그가 MAX_CHAT_LOGS를 초과하면 오래된 것부터 제거"""
+    if len(room.get('chat_logs', [])) > MAX_CHAT_LOGS:
+        room['chat_logs'] = room['chat_logs'][-MAX_CHAT_LOGS:]
 
 async def process_client_msg(ws, current_player_id, data, current_room_id):
     msg_type = data.get('type')
+
+    # v4: 모든 메시지 수신 시 방 활동 시간 갱신 (좀비 방 감지용)
+    if current_room_id and current_room_id in ROOMS:
+        ROOMS[current_room_id]['last_activity_time'] = time.time()
+        trim_chat_logs(ROOMS[current_room_id])
 
     if msg_type == 'CREATE_ROOM':
         game_type = data.get('game_type', 'BINGO')
@@ -587,16 +625,16 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
                 'room_id': room_id, 'game_type': 'BINGO', 'status': 'WAITING', 'turn_time_limit': TURN_DURATION_SECONDS, 'title': title,
                 'config': {'size': size, 'target_lines': int(data.get('target_lines', size)), 'topic': data.get('topic', '자유 주제').strip() or '자유 주제', 'game_mode': data.get('game_mode', 'LOSER'), 'word_pool': data.get('word_pool', [])},
                 'players': {ws: {'id': current_player_id, 'nickname': nickname, 'is_host': True, 'is_ready': False, 'color': assigned_color, 'board': generate_player_board(data.get('word_pool', []), size), 'marked': set(), 'score': 0, 'wins': 0}},
-                'turn_order': [], 'current_turn_index': 0, 'chat_logs': []
+                'turn_order': [], 'current_turn_index': 0, 'chat_logs': [], 'last_activity_time': time.time()
             }
         elif game_type == 'RUMMIKUB':
             rule_type = data.get('rule_type', 'official')
             ROOMS[room_id] = {
                 'room_id': room_id, 'game_type': 'RUMMIKUB', 'status': 'WAITING', 'turn_time_limit': int(data.get('turn_time_limit', 60)), 'title': title,
                 'rule_type': rule_type,
-                'deck': [], 'table_sets': [],
+                'deck': [], 'table_sets': [], 'initial_turn_table_sets': [],
                 'players': {ws: {'id': current_player_id, 'nickname': nickname, 'is_host': True, 'is_ready': False, 'rack': [], 'color': assigned_color, 'wins': 0}},
-                'turn_order': [], 'current_turn_index': 0, 'chat_logs': []
+                'turn_order': [], 'current_turn_index': 0, 'chat_logs': [], 'last_activity_time': time.time()
             }
         elif game_type == 'SEOTDA':
             start_chips = int(data.get('start_chips', 10000))
@@ -607,7 +645,7 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
                 'start_chips': start_chips, 'base_ante': base_ante,
                 'pot': 0, 'last_raise_amount': base_ante, 'deck': [],
                 'players': {ws: {'id': current_player_id, 'nickname': nickname, 'is_host': True, 'is_ready': False, 'color': assigned_color, 'chips': saved_chips, 'current_bet': 0, 'is_folded': False, 'hand': []}},
-                'turn_order': [], 'current_turn_index': 0, 'chat_logs': []
+                'turn_order': [], 'current_turn_index': 0, 'chat_logs': [], 'last_activity_time': time.time()
             }
         elif game_type == 'GOSTOP':
             start_chips = int(data.get('start_chips', 10000))
@@ -619,7 +657,7 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
                 'start_chips': start_chips, 'point_chip': point_chip,
                 'deck': [], 'table_cards': [], 'turn_phase': 'PLAY_HAND', 'drawn_card': None,
                 'players': {ws: {'id': current_player_id, 'nickname': nickname, 'is_host': True, 'is_ready': False, 'color': assigned_color, 'chips': saved_chips, 'hand': [], 'captured': [], 'score': 0, 'go_count': 0, 'last_go_score': 0, 'shook_count': 0, 'is_spectator': False}},
-                'turn_order': [], 'current_turn_index': 0, 'chat_logs': []
+                'turn_order': [], 'current_turn_index': 0, 'chat_logs': [], 'last_activity_time': time.time()
             }
 
         res = {'type': 'ROOM_JOINED', 'room_id': room_id, 'game_type': game_type, 'player_id': current_player_id, 'is_host': True, 'state': serialize_room_state(room_id, requester_ws=ws)}
@@ -1093,6 +1131,7 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
         if room['game_type'] == 'RUMMIKUB':
             deck = generate_rummikub_deck()
             room['table_sets'] = []
+            room['initial_turn_table_sets'] = []
             for p_ws in player_sockets:
                 room['players'][p_ws]['rack'] = [deck.pop() for _ in range(14)] if len(deck) >= 14 else []
             room['deck'] = deck
@@ -1257,6 +1296,7 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
 
                 player['rack'] = new_rack
                 room['table_sets'] = new_table
+                room['initial_turn_table_sets'] = copy.deepcopy(new_table)
 
                 # 게임 승리 판정 및 다음 턴 진행 로직
                 if len(new_rack) == 0:
@@ -1284,6 +1324,7 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
                         await asyncio.sleep(4)
                         room['status'] = 'WAITING'
                         room['table_sets'] = []
+                        room['initial_turn_table_sets'] = []
                         for p in room['players'].values():
                             p['rack'] = []
                             p['is_ready'] = False
@@ -1304,6 +1345,10 @@ async def process_client_msg(ws, current_player_id, data, current_room_id):
             if ws == current_ws:
                 player = room['players'][ws]
                 
+                # 테이블 세트 롤백 (조작 중이던 테이블 타일 원복)
+                if 'initial_turn_table_sets' in room:
+                    room['table_sets'] = copy.deepcopy(room['initial_turn_table_sets'])
+
                 # 타일 더미에서 벌칙 타일 1장 드로우
                 if room.get('deck'):
                     drawn_tile = room['deck'].pop()
@@ -1566,31 +1611,55 @@ try:
             if current_room_id and current_room_id in ROOMS:
                 room = ROOMS[current_room_id]
                 if ws in room['players']:
+                    leaving_player = room['players'][ws]
+                    leaving_nickname = leaving_player.get('nickname', '알 수 없음')
+                    was_host = leaving_player.get('is_host', False)
                     room['players'].pop(ws)
                     if ws in room['turn_order']: room['turn_order'].remove(ws)
-                    if not room['players']: del ROOMS[current_room_id]
+                    if not room['players']:
+                        del ROOMS[current_room_id]
                     else:
-                        if room['turn_order']: room['current_turn_index'] = room['current_turn_index'] % len(room['turn_order'])
+                        # v4: 호스트 퇴장 시 다음 플레이어에게 자동 위임
+                        if was_host:
+                            next_host_ws = next(iter(room['players']))
+                            room['players'][next_host_ws]['is_host'] = True
+                            new_host_name = room['players'][next_host_ws].get('nickname', '???')
+                            room['chat_logs'].append({'system': True, 'text': f"👑 방장 [{leaving_nickname}]님이 퇴장하여 [{new_host_name}]님이 새 방장으로 지정되었습니다."})
+                        else:
+                            room['chat_logs'].append({'system': True, 'text': f"🚪 [{leaving_nickname}]님이 퇴장하셨습니다."})
+                        if room['turn_order']:
+                            room['current_turn_index'] = room['current_turn_index'] % len(room['turn_order'])
                         await broadcast_to_room(current_room_id, {'type': 'ROOM_UPDATED', 'state': None})
         return ws
 
     async def handle_static_files(request):
         path = request.path
         if path in ('/', '/index.html'):
-            if os.path.exists(os.path.join(PUBLIC_DIR, 'v3', 'index.html')):
-                raise web.HTTPFound('/v3/index.html')
             return web.FileResponse(os.path.join(PUBLIC_DIR, 'index.html'))
         file_path = os.path.join(PUBLIC_DIR, path.lstrip('/'))
         if os.path.exists(file_path) and os.path.isfile(file_path): return web.FileResponse(file_path)
-        if os.path.exists(os.path.join(PUBLIC_DIR, 'v3', 'index.html')):
-            return web.FileResponse(os.path.join(PUBLIC_DIR, 'v3', 'index.html'))
         return web.FileResponse(os.path.join(PUBLIC_DIR, 'index.html'))
+
+    async def handle_api_stats(request):
+        stats = {
+            'today_kings': TODAY_KING_CACHE,
+            'active_rooms': len(ROOMS),
+            'total_players': sum(len(r.get('players', {})) for r in ROOMS.values()),
+            'games': {
+                'BINGO': sum(1 for r in ROOMS.values() if r.get('game_type') == 'BINGO'),
+                'RUMMIKUB': sum(1 for r in ROOMS.values() if r.get('game_type') == 'RUMMIKUB'),
+                'SEOTDA': sum(1 for r in ROOMS.values() if r.get('game_type') == 'SEOTDA'),
+                'GOSTOP': sum(1 for r in ROOMS.values() if r.get('game_type') == 'GOSTOP'),
+            }
+        }
+        return web.json_response(stats)
 
     def run_aiohttp_server():
         print(f" [INFO] Office Games Live Server running on port {PORT}")
         app = web.Application()
         app.on_startup.append(start_background_tasks)
         app.on_cleanup.append(cleanup_background_tasks)
+        app.router.add_get('/api/stats', handle_api_stats)
         app.router.add_get('/ws', aiohttp_ws_handler)
         app.router.add_get('/{tail:.*}', handle_static_files)
         web.run_app(app, host='0.0.0.0', port=PORT)

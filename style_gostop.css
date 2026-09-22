@@ -294,6 +294,26 @@
     box-sizing: border-box !important;
 }
 
+/* 플레이어 개인 손패 및 컨트롤 거치대 (중앙 정렬 밸런스 덱 - 타 게임과 통일 규격) */
+.player-rack-zone {
+    width: 100% !important;
+    max-width: 760px !important;
+    margin: 4px auto 6px auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+    box-sizing: border-box !important;
+    flex-shrink: 0 !important;
+    padding: 0 12px !important;
+}
+
+.player-rack-zone .host-controls-box {
+    margin-bottom: 0 !important;
+    padding: 6px 12px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
 .hand-tray-container {
     background: var(--bg-surface, #f9f9f8);
     border: 2px solid var(--border-accent, #2eaadc);
@@ -712,6 +732,12 @@
     }
 
     /* 4. 내 손패 거치대 간소화 및 세로 스크롤 방지 */
+    .player-rack-zone {
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 4px !important;
+    }
+
     .hand-tray-container {
         padding: 6px 8px !important;
         margin-top: 6px !important;

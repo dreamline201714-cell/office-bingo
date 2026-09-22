@@ -234,33 +234,58 @@
         }
     });
 
+    let reconnector = null;
+
     function connectNetwork() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        socket = new WebSocket(`${protocol}//${window.location.host}/ws`);
+        const wsUrl = `${protocol}//${window.location.host}/ws`;
 
-        socket.onopen = () => {
+        const onOpen = (sock) => {
             const statusText = document.getElementById('status-text');
             const statusDot = document.getElementById('status-dot');
             if (statusText) statusText.innerText = '서버 연결됨';
             if (statusDot) statusDot.className = 'status-dot connected';
-            checkUrlQueryParams();
+            const savedNick = localStorage.getItem('office_bingo_last_nickname');
+            if (currentRoomId && savedNick) {
+                sendMessage({
+                    type: 'JOIN_ROOM',
+                    nickname: savedNick,
+                    room_id: currentRoomId
+                });
+            } else {
+                checkUrlQueryParams();
+            }
         };
 
-        socket.onmessage = (event) => {
+        const onMsg = (event) => {
             try { handleServerMessage(JSON.parse(event.data)); } catch (e) { console.error(e); }
         };
 
-        socket.onclose = () => {
+        const onClose = () => {
             const statusText = document.getElementById('status-text');
             const statusDot = document.getElementById('status-dot');
-            if (statusText) statusText.innerText = '서버 연결 끊김';
+            if (statusText) statusText.innerText = '서버 연결 복구 중...';
             if (statusDot) statusDot.className = 'status-dot';
-            setTimeout(connectNetwork, 2000);
         };
+
+        if (window.GameFX && window.GameFX.WebSocketReconnector) {
+            reconnector = new window.GameFX.WebSocketReconnector();
+            socket = reconnector.connect(wsUrl, { onOpen, onMessage: onMsg, onClose });
+        } else {
+            socket = new WebSocket(wsUrl);
+            socket.onopen = () => onOpen(socket);
+            socket.onmessage = onMsg;
+            socket.onclose = () => {
+                onClose();
+                setTimeout(connectNetwork, 2000);
+            };
+        }
     }
 
     function sendMessage(msgDict) {
-        if (socket && socket.readyState === WebSocket.OPEN) {
+        if (reconnector && reconnector.readyState === WebSocket.OPEN) {
+            reconnector.send(msgDict);
+        } else if (socket && socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify(msgDict));
         } else {
             showToast('서버 연결 중입니다.');
@@ -548,6 +573,11 @@
             startTurnTimer(roomState.turn_time_remaining || roomState.turn_time_limit || 15, roomState.turn_time_limit || 15);
 
             if (isMyTurn && previousTurnPlayerId !== myPlayerId) {
+                if (window.GameFX && window.GameFX.notifyMyTurn) {
+                    window.GameFX.notifyMyTurn('오피스 빙고');
+                } else if (soundEnabled && window.GameFX && window.GameFX.audio) {
+                    window.GameFX.audio.playPop(800, 0.1);
+                }
                 showToast("🎯 당신의 턴입니다! 빙고 단어를 선택하세요!");
             }
             previousTurnPlayerId = roomState.current_turn_player_id;
@@ -931,7 +961,9 @@
                 }
             });
         }
-        if (window.GameFX && window.GameFX.renderChatStream) {
+        if (window.GameFX && window.GameFX.renderChatStreamIncremental) {
+            window.GameFX.renderChatStreamIncremental(chatMessagesBox, roomState.chat_logs, myNick);
+        } else if (window.GameFX && window.GameFX.renderChatStream) {
             window.GameFX.renderChatStream(chatMessagesBox, roomState.chat_logs, myNick);
         }
     }

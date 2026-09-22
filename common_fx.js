@@ -634,6 +634,236 @@
         applySystemMessagesState();
     }
 
+    // -------------------------------------------------------------
+    // 11. WebSocket 자동 재연결 엔진 (Exponential Backoff)
+    // -------------------------------------------------------------
+    class WebSocketReconnector {
+        constructor() {
+            this.socket = null;
+            this.url = '';
+            this.onMessageCallback = null;
+            this.onOpenCallback = null;
+            this.onCloseCallback = null;
+            this.retryCount = 0;
+            this.maxRetries = 20;
+            this.baseDelay = 1000;
+            this.maxDelay = 30000;
+            this.reconnectTimer = null;
+            this.isManualClose = false;
+            this.overlayEl = null;
+        }
+
+        connect(url, { onMessage, onOpen, onClose } = {}) {
+            this.url = url;
+            this.onMessageCallback = onMessage || null;
+            this.onOpenCallback = onOpen || null;
+            this.onCloseCallback = onClose || null;
+            this.isManualClose = false;
+            this._doConnect();
+            return this;
+        }
+
+        _doConnect() {
+            try {
+                this.socket = new WebSocket(this.url);
+            } catch (e) {
+                this._scheduleReconnect();
+                return;
+            }
+
+            this.socket.onopen = () => {
+                this.retryCount = 0;
+                this._hideReconnectOverlay();
+                if (this.onOpenCallback) this.onOpenCallback(this.socket);
+            };
+
+            this.socket.onmessage = (event) => {
+                if (this.onMessageCallback) this.onMessageCallback(event, this.socket);
+            };
+
+            this.socket.onclose = (event) => {
+                if (this.onCloseCallback) this.onCloseCallback(event);
+                if (!this.isManualClose) {
+                    this._showReconnectOverlay();
+                    this._scheduleReconnect();
+                }
+            };
+
+            this.socket.onerror = () => {
+                // onclose will be triggered after onerror
+            };
+        }
+
+        _scheduleReconnect() {
+            if (this.retryCount >= this.maxRetries) {
+                this._updateOverlayText('서버 연결 실패. 페이지를 새로고침 해주세요.');
+                return;
+            }
+            const delay = Math.min(this.baseDelay * Math.pow(1.5, this.retryCount), this.maxDelay);
+            const jitter = delay * (0.5 + Math.random() * 0.5);
+            this.retryCount++;
+            this._updateOverlayText(`연결 복구 중... (${this.retryCount}/${this.maxRetries})`);
+            this.reconnectTimer = setTimeout(() => this._doConnect(), jitter);
+        }
+
+        send(data) {
+            if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+                this.socket.send(typeof data === 'string' ? data : JSON.stringify(data));
+                return true;
+            }
+            return false;
+        }
+
+        sendJson(data) {
+            return this.send(JSON.stringify(data));
+        }
+
+        close() {
+            this.isManualClose = true;
+            if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+            if (this.socket) this.socket.close();
+            this._hideReconnectOverlay();
+        }
+
+        get readyState() {
+            return this.socket ? this.socket.readyState : WebSocket.CLOSED;
+        }
+
+        _showReconnectOverlay() {
+            if (this.overlayEl) return;
+            this.overlayEl = document.createElement('div');
+            this.overlayEl.className = 'ws-reconnect-overlay';
+            this.overlayEl.innerHTML = `
+                <div class="ws-reconnect-card">
+                    <div class="ws-reconnect-spinner"></div>
+                    <div class="ws-reconnect-text">서버와 재연결 중...</div>
+                </div>
+            `;
+            document.body.appendChild(this.overlayEl);
+            requestAnimationFrame(() => this.overlayEl.classList.add('visible'));
+        }
+
+        _hideReconnectOverlay() {
+            if (!this.overlayEl) return;
+            this.overlayEl.classList.remove('visible');
+            setTimeout(() => {
+                if (this.overlayEl && this.overlayEl.parentNode) {
+                    this.overlayEl.parentNode.removeChild(this.overlayEl);
+                }
+                this.overlayEl = null;
+            }, 300);
+        }
+
+        _updateOverlayText(text) {
+            if (!this.overlayEl) this._showReconnectOverlay();
+            const textEl = this.overlayEl?.querySelector('.ws-reconnect-text');
+            if (textEl) textEl.textContent = text;
+        }
+    }
+
+    // -------------------------------------------------------------
+    // 12. 턴 알림음 (Turn Alert Sound)
+    // -------------------------------------------------------------
+    function playTurnAlert() {
+        if (!audioInstance || audioInstance.isMuted || !audioInstance.ctx) return;
+        try {
+            const ctx = audioInstance.ctx;
+            const now = ctx.currentTime;
+            // 밝고 깨끗한 2음 차임 (도-미)
+            const notes = [
+                { freq: 659.25, start: 0, dur: 0.12 },    // E5
+                { freq: 880.00, start: 0.12, dur: 0.18 }  // A5
+            ];
+            notes.forEach(n => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(n.freq, now + n.start);
+                gain.gain.setValueAtTime(0.2, now + n.start);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + n.start + n.dur);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(now + n.start);
+                osc.stop(now + n.start + n.dur);
+            });
+        } catch (e) { }
+    }
+
+    // -------------------------------------------------------------
+    // 13. 브라우저 알림 (Browser Notification API)
+    // -------------------------------------------------------------
+    let notificationPermission = (typeof Notification !== 'undefined') ? Notification.permission : 'denied';
+
+    function requestNotificationPermission() {
+        if (typeof Notification === 'undefined') return;
+        if (Notification.permission === 'default') {
+            Notification.requestPermission().then(perm => {
+                notificationPermission = perm;
+            });
+        }
+    }
+
+    function sendBrowserNotification(title, body, icon = '🎮') {
+        if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+        // 탭이 포커스 상태면 브라우저 알림 불필요
+        if (document.hasFocus()) return;
+        try {
+            const n = new Notification(title, { body, icon, tag: 'game-turn', renotify: true });
+            n.onclick = () => {
+                window.focus();
+                n.close();
+            };
+            setTimeout(() => n.close(), 5000);
+        } catch (e) { }
+    }
+
+    function notifyMyTurn(gameName = '게임') {
+        playTurnAlert();
+        sendBrowserNotification(`🔥 ${gameName} - 내 차례!`, '당신의 차례가 시작되었습니다. 클릭하여 돌아가세요!');
+    }
+
+    // 페이지 로드 시 알림 권한 요청 (사용자 인터랙션 후)
+    if (typeof window !== 'undefined') {
+        const reqPerm = () => {
+            requestNotificationPermission();
+            window.removeEventListener('click', reqPerm);
+        };
+        window.addEventListener('click', reqPerm, { once: true });
+    }
+
+    // -------------------------------------------------------------
+    // 14. 증분 채팅 렌더링 (Incremental Chat Rendering)
+    // -------------------------------------------------------------
+    let lastRenderedChatCount = 0;
+
+    function renderChatStreamIncremental(container, logs, myNick) {
+        if (!container) return;
+        const list = Array.isArray(logs) ? logs : [];
+        const safeMyNick = (typeof myNick === 'string') ? myNick : '';
+        
+        // 이미 렌더링된 수보다 새 로그가 적으면 (방 재접속 등) 전체 리셋
+        if (list.length < lastRenderedChatCount) {
+            container.innerHTML = '';
+            lastRenderedChatCount = 0;
+        }
+        
+        // 신규 메시지만 추가
+        const newMessages = list.slice(lastRenderedChatCount);
+        newMessages.forEach(chat => {
+            appendChatBubble(container, chat, safeMyNick, false);
+        });
+        
+        lastRenderedChatCount = list.length;
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function resetChatRenderCount() {
+        lastRenderedChatCount = 0;
+    }
+
+    // -------------------------------------------------------------
+    // Global GameFX Namespace Export (v4 확장)
+    // -------------------------------------------------------------
     window.GameFX = {
         audio: audioInstance,
         reactions: reactionInstance,
@@ -647,11 +877,19 @@
         cutIn: triggerCutInBanner,
         mountDock: mountSocialDock,
         renderChatStream: renderChatStream,
+        renderChatStreamIncremental: renderChatStreamIncremental,
+        resetChatRenderCount: resetChatRenderCount,
         appendChatBubble: appendChatBubble,
         getPlayerColor: getPlayerColor,
         toggleSystemMessages: toggleSystemMessages,
         applySystemMessagesState: applySystemMessagesState,
-        isSystemMessagesVisible: isSystemMessagesVisible
+        isSystemMessagesVisible: isSystemMessagesVisible,
+        // v4 신규
+        WebSocketReconnector: WebSocketReconnector,
+        playTurnAlert: playTurnAlert,
+        notifyMyTurn: notifyMyTurn,
+        requestNotificationPermission: requestNotificationPermission,
+        sendBrowserNotification: sendBrowserNotification
     };
 })();
 

@@ -296,23 +296,58 @@
         }
     });
 
+    let reconnector = null;
+
+    function sendMessage(msgDict) {
+        if (reconnector && reconnector.readyState === WebSocket.OPEN) {
+            reconnector.send(msgDict);
+        } else if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify(msgDict));
+        } else {
+            showToast("서버와 연결 중입니다. 잠시 후 다시 시도해주세요.");
+        }
+    }
+
     function connectNetwork() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        socket = new WebSocket(`${protocol}//${window.location.host}/ws`);
+        const wsUrl = `${protocol}//${window.location.host}/ws`;
 
-        socket.onopen = () => { 
+        const onOpen = (sock) => {
             const statusEl = document.getElementById('status-text');
-            if(statusEl) statusEl.innerText = '연결됨'; 
-            checkUrlQueryParams();
+            if (statusEl) statusEl.innerText = '연결됨';
+            const savedNick = localStorage.getItem('office_seotda_last_nickname');
+            if (currentRoomId && savedNick) {
+                sendMessage({
+                    type: 'JOIN_ROOM',
+                    nickname: savedNick,
+                    room_id: currentRoomId
+                });
+            } else {
+                checkUrlQueryParams();
+            }
         };
-        socket.onmessage = (e) => {
+
+        const onMsg = (e) => {
             try { handleServerMessage(JSON.parse(e.data)); } catch (err) { console.error(err); }
         };
-        socket.onclose = () => {
+
+        const onClose = () => {
             const statusEl = document.getElementById('status-text');
-            if(statusEl) statusEl.innerText = '연결 끊김';
-            setTimeout(connectNetwork, 2000);
+            if (statusEl) statusEl.innerText = '연결 복구 중...';
         };
+
+        if (window.GameFX && window.GameFX.WebSocketReconnector) {
+            reconnector = new window.GameFX.WebSocketReconnector();
+            socket = reconnector.connect(wsUrl, { onOpen, onMessage: onMsg, onClose });
+        } else {
+            socket = new WebSocket(wsUrl);
+            socket.onopen = () => onOpen(socket);
+            socket.onmessage = onMsg;
+            socket.onclose = () => {
+                onClose();
+                setTimeout(connectNetwork, 2000);
+            };
+        }
     }
 
     function handleServerMessage(msg) {
@@ -475,6 +510,11 @@
             }
 
             if (String(roomState.current_turn_player_id) === String(myPlayerId) && String(previousTurnPlayerId) !== String(myPlayerId)) {
+                if (window.GameFX && window.GameFX.notifyMyTurn) {
+                    window.GameFX.notifyMyTurn('섯다');
+                } else if (soundEnabled && window.GameFX && window.GameFX.audio) {
+                    window.GameFX.audio.playPop(800, 0.1);
+                }
                 showToast("🃏 당신의 배팅 턴입니다! 배팅을 선택하세요!");
             }
             previousTurnPlayerId = roomState.current_turn_player_id;
@@ -797,7 +837,9 @@
                 }
             });
         }
-        if (window.GameFX && window.GameFX.renderChatStream) {
+        if (window.GameFX && window.GameFX.renderChatStreamIncremental) {
+            window.GameFX.renderChatStreamIncremental(chatBox, roomState.chat_logs, myNick);
+        } else if (window.GameFX && window.GameFX.renderChatStream) {
             window.GameFX.renderChatStream(chatBox, roomState.chat_logs, myNick);
         }
     }
@@ -808,9 +850,7 @@
         const btnToggleReady = document.getElementById('btn-toggle-ready');
         if (btnToggleReady) {
             btnToggleReady.onclick = () => {
-                if (socket && socket.readyState === WebSocket.OPEN) {
-                    socket.send(JSON.stringify({ type: 'TOGGLE_READY', room_id: currentRoomId }));
-                }
+                sendMessage({ type: 'TOGGLE_READY', room_id: currentRoomId });
             };
         }
 
@@ -818,14 +858,14 @@
             btn.addEventListener('click', (e) => {
                 const action = e.target.getAttribute('data-action');
                 if (action !== 'DIE') animateChipToss(e.target);
-                if (socket) socket.send(JSON.stringify({ type: 'SEOTDA_BET', room_id: currentRoomId, action: action }));
+                sendMessage({ type: 'SEOTDA_BET', room_id: currentRoomId, action: action });
             });
         });
 
         document.querySelectorAll('.quick-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const msg = e.target.getAttribute('data-msg');
-                if (msg && socket) socket.send(JSON.stringify({ type: 'CHAT_MESSAGE', room_id: currentRoomId, message: msg, quick_voice: true }));
+                if (msg) sendMessage({ type: 'CHAT_MESSAGE', room_id: currentRoomId, message: msg, quick_voice: true });
             });
         });
 
@@ -850,18 +890,14 @@
         const hostStartBtn = document.getElementById('btn-host-start');
         if (hostStartBtn) {
             hostStartBtn.onclick = () => {
-                if (socket && socket.readyState === WebSocket.OPEN) {
-                    socket.send(JSON.stringify({ type: 'START_GAME', room_id: currentRoomId }));
-                }
+                sendMessage({ type: 'START_GAME', room_id: currentRoomId });
             };
         }
 
         const dealerStartBtn = document.getElementById('btn-dealer-start');
         if (dealerStartBtn) {
             dealerStartBtn.onclick = () => {
-                if (socket && socket.readyState === WebSocket.OPEN) {
-                    socket.send(JSON.stringify({ type: 'START_ROUND', room_id: currentRoomId }));
-                }
+                sendMessage({ type: 'START_ROUND', room_id: currentRoomId });
             };
         }
 
@@ -870,29 +906,33 @@
             const customTitle = document.getElementById('create-title').value.trim() || '사내 실시간 섯다';
             const startChips = parseInt(document.getElementById('create-start-chips').value) || 10000;
             const baseAnte = parseInt(document.getElementById('create-base-ante').value) || 100;
+            const nick = document.getElementById('create-nickname').value;
+            localStorage.setItem('office_seotda_last_nickname', nick);
             
-            socket.send(JSON.stringify({
+            sendMessage({
                 type: 'CREATE_ROOM', game_type: 'SEOTDA',
                 title: customTitle,
-                nickname: document.getElementById('create-nickname').value,
+                nickname: nick,
                 start_chips: startChips,
                 base_ante: baseAnte
-            }));
+            });
         });
 
         document.getElementById('join-room-form')?.addEventListener('submit', (e) => {
             e.preventDefault();
-            socket.send(JSON.stringify({
-                type: 'JOIN_ROOM', nickname: document.getElementById('join-nickname').value,
+            const nick = document.getElementById('join-nickname').value;
+            localStorage.setItem('office_seotda_last_nickname', nick);
+            sendMessage({
+                type: 'JOIN_ROOM', nickname: nick,
                 room_id: document.getElementById('join-room-code').value
-            }));
+            });
         });
 
         document.getElementById('chat-form')?.addEventListener('submit', (e) => {
             e.preventDefault();
             const input = document.getElementById('chat-input');
-            if (input.value.trim() && socket) {
-                socket.send(JSON.stringify({ type: 'CHAT_MESSAGE', room_id: currentRoomId, message: input.value.trim() }));
+            if (input && input.value.trim()) {
+                sendMessage({ type: 'CHAT_MESSAGE', room_id: currentRoomId, message: input.value.trim() });
                 input.value = '';
             }
         });

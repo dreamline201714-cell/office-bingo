@@ -2946,3 +2946,84 @@ body.shake-active {
         min-height: 30px !important;
     }
 }
+
+/* ==========================================================================
+   v4: WebSocket 재연결 오버레이
+   ========================================================================== */
+.ws-reconnect-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.ws-reconnect-overlay.visible {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.ws-reconnect-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 32px 48px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: 16px;
+    box-shadow: var(--shadow-block);
+}
+
+.ws-reconnect-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border-block);
+    border-top-color: var(--border-accent);
+    border-radius: 50%;
+    animation: wsSpinnerSpin 0.8s linear infinite;
+}
+
+@keyframes wsSpinnerSpin {
+    to { transform: rotate(360deg); }
+}
+
+.ws-reconnect-text {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-align: center;
+}
+
+/* ==========================================================================
+   v4: 테마 토글 버튼
+   ========================================================================== */
+.theme-toggle-btn {
+    background: var(--bg-card);
+    border: 1px solid var(--border-block);
+    border-radius: 8px;
+    padding: 4px 10px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s ease;
+}
+
+.theme-toggle-btn:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--border-hover);
+    color: var(--text-primary);
+}
+
+.theme-toggle-btn .theme-icon {
+    font-size: 1rem;
+}
