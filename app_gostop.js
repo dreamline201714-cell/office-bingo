@@ -867,7 +867,7 @@ function updateUI(state) {
                 : `<span class="status-pill ${isTurnP ? 'turn' : 'ready'}">${isTurnP ? '턴 진행' : '대기'}</span>`;
 
             item.innerHTML = `
-                <div class="console-player-avatar ${isTurnP ? 'turn-pulse' : ''}" style="background-color:${avatarColor};">${firstLetter}</div>
+                <div class="console-player-avatar ${isTurnP ? 'turn-pulse' : ''}" style="background: ${avatarColor} !important;">${firstLetter}</div>
                 <div class="console-player-info">
                     <div class="console-player-nick-row">
                         <span class="console-player-nick">${escapeHtml(nickname)}</span>

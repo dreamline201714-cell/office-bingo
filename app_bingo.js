@@ -857,7 +857,7 @@
 			card.setAttribute('data-player-id', p.player_id);
 			const avatarColor = (window.GameFX && window.GameFX.getPlayerColor) ? window.GameFX.getPlayerColor(p, pIdx) : (p.color || '#3b82f6');
 			card.innerHTML = `
-				<div class="console-player-avatar ${isTurnPlayer ? 'turn-pulse' : ''}" style="background-color: ${avatarColor};">${p.nickname.charAt(0).toUpperCase()}</div>
+				<div class="console-player-avatar ${isTurnPlayer ? 'turn-pulse' : ''}" style="background: ${avatarColor} !important;">${p.nickname.charAt(0).toUpperCase()}</div>
 				<div class="console-player-info">
 					<div class="console-player-nick-row">
 						<span class="console-player-nick">${escapeHtml(p.nickname)}</span>

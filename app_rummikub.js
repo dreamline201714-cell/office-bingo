@@ -1299,7 +1299,7 @@
                 : `<span class="player-sub-info">${tileCount}장 ${isTurnPlayer ? '⏳' : ''}</span> ${dangerBadge}`;
 
             card.innerHTML = `
-                <div class="console-player-avatar ${isTurnPlayer ? 'turn-pulse' : ''}" style="background-color: ${avatarColor};">${firstLetter}</div>
+                <div class="console-player-avatar ${isTurnPlayer ? 'turn-pulse' : ''}" style="background: ${avatarColor} !important;">${firstLetter}</div>
                 <div class="console-player-info">
                     <div class="console-player-nick-row">
                         <span class="console-player-nick">${escapeHtml(nickname)}</span>
@@ -1347,7 +1347,7 @@
 
                 pod.innerHTML = `
                     <div class="pod-avatar-wrapper">
-                        <div class="pod-avatar-circle" style="background-color: ${avatarColor};">${firstLetter}</div>
+                        <div class="pod-avatar-circle" style="background: ${avatarColor} !important;">${firstLetter}</div>
                         <div class="pod-glow-ring"></div>
                         ${turnBadge}
                     </div>

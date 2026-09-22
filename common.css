@@ -2099,12 +2099,12 @@ body.shake-active {
     box-shadow: 0 0 10px rgba(245, 158, 11, 0.25) !important;
 }
 
-/* 통일된 28px 원형 아바타 */
+/* 통일된 28px 원형 아바타 (개별 플레이어 고유 색상 지원) */
 .console-player-avatar {
     width: 28px !important;
     height: 28px !important;
     border-radius: 50% !important;
-    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    background-color: #3b82f6;
     color: #ffffff !important;
     font-weight: 800 !important;
     font-size: 0.75rem !important;
@@ -2610,7 +2610,7 @@ body.shake-active {
     width: 44px;
     height: 44px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    background-color: #3b82f6;
     display: flex;
     align-items: center;
     justify-content: center;
