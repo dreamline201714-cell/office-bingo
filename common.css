@@ -1518,10 +1518,12 @@ body.shake-active {
     left: 0 !important;
     right: 0 !important;
     bottom: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
     background: rgba(0, 0, 0, 0.6) !important;
     backdrop-filter: blur(4px) !important;
     -webkit-backdrop-filter: blur(4px) !important;
-    z-index: 9998 !important;
+    z-index: 9990 !important;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.25s ease !important;
@@ -1596,6 +1598,15 @@ body.shake-active {
 
 /* ★ 모바일/좁은 창 전용 슬라이드인 오프캔버스 드로어 (기본 레이아웃보다 뒤에 선언하여 cascade 우선 적용) ★ */
 @media screen and (max-width: 768px) {
+    #arena-section {
+        z-index: 9990 !important;
+    }
+    .arena-main.console-open {
+        z-index: 9995 !important;
+    }
+    .console-backdrop {
+        z-index: 9990 !important;
+    }
     .arcade-console,
     .sidebar-panel {
         position: fixed !important;
@@ -1606,6 +1617,7 @@ body.shake-active {
         max-width: 380px !important;
         height: 100% !important;
         z-index: 10000 !important;
+        background: #0f172a !important;
         border-left: 1px solid rgba(255, 255, 255, 0.2) !important;
         box-shadow: -10px 0 36px rgba(0, 0, 0, 0.75) !important;
         transform: translateX(105%) !important;
@@ -1622,7 +1634,7 @@ body.shake-active {
 
 [data-theme="light"] .arcade-console,
 [data-theme="light"] .sidebar-panel {
-    background: rgba(248, 250, 252, 0.96) !important;
+    background: #f8fafc !important;
     border-left: 1px solid #e2e8f0 !important;
     box-shadow: -4px 0 20px rgba(0, 0, 0, 0.08) !important;
 }

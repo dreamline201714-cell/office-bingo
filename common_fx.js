@@ -327,13 +327,28 @@
 
     function ensureConsoleBackdrop() {
         let backdrop = document.getElementById('console-backdrop');
-        if (!backdrop && document.body) {
+        const arenaMain = document.getElementById('arena-main') || document.getElementById('arena') || document.querySelector('.arena-main');
+        const arcadeConsole = document.querySelector('.arcade-console') || document.getElementById('sidebar-panel');
+
+        if (!backdrop) {
             backdrop = document.createElement('div');
             backdrop.id = 'console-backdrop';
             backdrop.className = 'console-backdrop';
             backdrop.addEventListener('click', () => {
                 toggleConsole(false);
             });
+        }
+
+        // 모바일 스택 컨텍스트 격리 방지: backdrop을 arenaMain 내부에서 arcadeConsole 바로 앞에 위치시킴
+        if (arenaMain) {
+            if (arcadeConsole && arcadeConsole.parentElement === arenaMain) {
+                if (backdrop.nextElementSibling !== arcadeConsole) {
+                    arenaMain.insertBefore(backdrop, arcadeConsole);
+                }
+            } else if (backdrop.parentElement !== arenaMain) {
+                arenaMain.appendChild(backdrop);
+            }
+        } else if (document.body && backdrop.parentElement !== document.body) {
             document.body.appendChild(backdrop);
         }
         return backdrop;
@@ -369,6 +384,7 @@
         const shouldCollapse = (forceState !== null) ? !forceState : !isCollapsed;
         const reopenTab = ensureConsoleReopenTab();
         const backdrop = ensureConsoleBackdrop();
+        const arcadeConsole = document.querySelector('.arcade-console') || document.getElementById('sidebar-panel');
 
         if (shouldCollapse) {
             arenaMain.classList.add('console-collapsed');
@@ -380,6 +396,9 @@
             arenaMain.classList.add('console-open');
             if (reopenTab) reopenTab.classList.remove('visible');
             if (backdrop && window.innerWidth <= 768) {
+                if (arcadeConsole && arcadeConsole.parentElement === arenaMain && backdrop.nextElementSibling !== arcadeConsole) {
+                    arenaMain.insertBefore(backdrop, arcadeConsole);
+                }
                 backdrop.classList.add('active');
             }
             unreadCount = 0;
