@@ -1598,24 +1598,65 @@ body.shake-active {
 
 /* ★ 모바일/좁은 창 전용 슬라이드인 오프캔버스 드로어 (기본 레이아웃보다 뒤에 선언하여 cascade 우선 적용) ★ */
 @media screen and (max-width: 768px) {
+    html, body {
+        height: 100% !important;
+        height: 100dvh !important;
+        overflow: hidden !important;
+    }
+    .container {
+        padding: 0 !important;
+        margin: 0 !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        height: calc(100% - 38px) !important;
+        height: calc(100dvh - 38px) !important;
+        overflow: hidden !important;
+    }
     #arena-section {
+        position: fixed !important;
+        top: 38px !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        height: calc(100% - 38px) !important;
+        height: calc(100dvh - 38px) !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
         z-index: 9990 !important;
+    }
+    .arena-main {
+        position: relative !important;
+        overflow: hidden !important;
+        width: 100% !important;
+        height: 100% !important;
     }
     .arena-main.console-open {
         z-index: 9995 !important;
     }
     .console-backdrop {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
         z-index: 9990 !important;
     }
     .arcade-console,
     .sidebar-panel {
-        position: fixed !important;
+        position: absolute !important;
         top: 0 !important;
         right: 0 !important;
         bottom: 0 !important;
         width: 88vw !important;
         max-width: 380px !important;
         height: 100% !important;
+        max-height: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
         z-index: 10000 !important;
         background: #0f172a !important;
         border-left: 1px solid rgba(255, 255, 255, 0.2) !important;
@@ -1623,12 +1664,46 @@ body.shake-active {
         transform: translateX(105%) !important;
         transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
         border-radius: 16px 0 0 16px !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
     }
     .arena-main.console-open .arcade-console,
     .arena-main.console-open .sidebar-panel,
     .arena-main:not(.console-collapsed) .arcade-console,
     .arena-main:not(.console-collapsed) .sidebar-panel {
         transform: translateX(0) !important;
+    }
+    .console-header-bar {
+        flex-shrink: 0 !important;
+        min-height: 38px !important;
+        height: 38px !important;
+        padding: 3px 10px !important;
+        box-sizing: border-box !important;
+    }
+    .console-players-deck {
+        flex-shrink: 0 !important;
+        max-height: 120px !important;
+    }
+    .console-chat-zone {
+        flex: 1 1 0 !important;
+        min-height: 60px !important;
+        overflow: hidden !important;
+    }
+    .console-chat-stream {
+        flex: 1 1 0 !important;
+        overflow-y: auto !important;
+        min-height: 0 !important;
+    }
+    .console-bottom-dock {
+        flex-shrink: 0 !important;
+        margin-top: auto !important;
+        padding: 6px 10px calc(8px + env(safe-area-inset-bottom, 0px)) 10px !important;
+        box-sizing: border-box !important;
+        background: #0f172a !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.15) !important;
+    }
+    [data-theme="light"] .console-bottom-dock {
+        background: #f8fafc !important;
     }
 }
 
